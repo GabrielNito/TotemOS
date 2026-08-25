@@ -1,0 +1,41 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-test:
+    name: Backend Testes & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependências (Backend)
+        run: |
+          cd backend
+          bun install
+
+      - name: Gerar Prisma Client
+        run: |
+          cd backend
+          bunx prisma generate
+
+      - name: Executar Testes (bun test)
+        run: |
+          cd backend
+          bun test
+
+      - name: Validar Build (bun run build)
+        run: |
+          cd backend
+          bun run build

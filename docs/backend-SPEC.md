@@ -1,0 +1,307 @@
+# Backend — SPEC (NestJS + Bun + Prisma + PostgreSQL)
+
+Especificação técnica completa e modelo de dados do motor backend da plataforma TotemOS.
+
+---
+
+## 1. Stack e Tecnologias
+
+- **Runtime**: Bun
+- **Framework**: NestJS + adaptador Fastify (`@nestjs/platform-fastify`)
+- **ORM**: Prisma
+- **Banco de Dados**: PostgreSQL
+- **Validação & DTOs**: Zod + ValidationPipe NestJS
+- **Testes**: `bun:test`
+
+---
+
+## 2. Modelo de Dados Prisma (`schema.prisma`)
+
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  DONO
+  GERENTE
+}
+
+enum TipoDispositivo {
+  TOTEM
+  PAINEL
+}
+
+enum StatusPedido {
+  AGUARDANDO_PAGAMENTO
+  PENDENTE
+  EM_PREPARO
+  PRONTO
+  ENTREGUE
+  CANCELADO_AGUARDANDO_ESTORNO
+  CANCELADO
+}
+
+enum ModoIdentificacao {
+  NOME
+  CODIGO
+  OPCIONAL
+}
+
+enum StatusPagamento {
+  PENDENTE
+  APROVADO
+  RECUSADO
+  ESTORNADO
+}
+
+enum MeioPagamento {
+  CREDITO
+  DEBITO
+  PIX
+}
+
+model Negocio {
+  id           String          @id @default(uuid())
+  nome         String
+  slug         String          @unique
+  pinDonoHash  String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  usuarios     Usuario[]
+  dispositivos Dispositivo[]
+  config       NegocioConfig?
+  categorias   Categoria[]
+  produtos     Produto[]
+  combos       Combo[]
+  pedidos      Pedido[]
+}
+
+model NegocioConfig {
+  id                      String            @id @default(uuid())
+  negocioId               String            @unique
+  negocio                 Negocio           @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  modoIdentificacao       ModoIdentificacao @default(OPCIONAL)
+  tempoPadraoPreparo      Int               @default(15)
+  permitirPagamentoOffline Boolean         @default(true)
+  mensagemBoasVindas      String?
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  negocioId String
+  negocio   Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  email     String   @unique
+  senhaHash String
+  nome      String
+  role      Role     @default(DONO)
+  createdAt DateTime @default(now())
+}
+
+model Dispositivo {
+  id               String          @id @default(uuid())
+  negocioId        String
+  negocio          Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome             String
+  tipo             TipoDispositivo
+  token            String          @unique
+  codigoPareamento String?
+  pareadoEm        DateTime?
+  mpPointDeviceId  String?
+  ativo            Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+}
+
+model Categoria {
+  id        String    @id @default(uuid())
+  negocioId String
+  negocio   Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome      String
+  ordem     Int       @default(0)
+  ativo     Boolean   @default(true)
+  produtos  Produto[]
+}
+
+model Produto {
+  id                   String            @id @default(uuid())
+  negocioId            String
+  negocio              Negocio           @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  categoriaId          String
+  categoria            Categoria         @relation(fields: [categoriaId], references: [id])
+  nome                 String
+  descricao            String?
+  precoBase            Decimal           @db.Decimal(10, 2)
+  imagemUrl            String?
+  tempoEstimadoPreparo Int               @default(0)
+  esgotado             Boolean           @default(false)
+  ativo                Boolean           @default(true)
+  variacoes            ProdutoVariacao[]
+  adicionais           Adicional[]
+  itensDoPedido        PedidoItem[]
+}
+
+model ProdutoVariacao {
+  id        String   @id @default(uuid())
+  produtoId String
+  produto   Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  nome      String
+  preco     Decimal  @db.Decimal(10, 2)
+  esgotado  Boolean  @default(false)
+}
+
+model Adicional {
+  id        String                @id @default(uuid())
+  produtoId String
+  produto   Produto               @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  nome      String
+  preco     Decimal               @db.Decimal(10, 2)
+  maximo    Int                   @default(1)
+  esgotado  Boolean               @default(false)
+  itens     PedidoItemAdicional[]
+}
+
+model Combo {
+  id              String           @id @default(uuid())
+  negocioId       String
+  negocio         Negocio          @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome            String
+  descricao       String?
+  precoFixo       Decimal          @db.Decimal(10, 2)
+  imagemUrl       String?
+  ativo           Boolean          @default(true)
+  gruposDeEscolha GrupoDeEscolha[]
+}
+
+model GrupoDeEscolha {
+  id      String        @id @default(uuid())
+  comboId String
+  combo   Combo         @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  titulo  String
+  minimo  Int           @default(1)
+  maximo  Int           @default(1)
+  itens   ItemDoGrupo[]
+}
+
+model ItemDoGrupo {
+  id             String              @id @default(uuid())
+  grupoId        String
+  grupo          GrupoDeEscolha      @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  nome           String
+  deltaPreco     Decimal             @default(0.00) @db.Decimal(10, 2)
+  esgotado       Boolean             @default(false)
+  escolhasPedido PedidoItemEscolha[]
+}
+
+model Pedido {
+  id             String       @id @default(uuid())
+  negocioId      String
+  negocio        Negocio      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  dispositivoId  String?
+  idempotencyKey String?      @unique
+  senha          Int
+  dataSequencial String
+  status         StatusPedido @default(AGUARDANDO_PAGAMENTO)
+  nomeCliente    String?
+  codigoCliente  String?
+  valorTotal     Decimal      @db.Decimal(10, 2)
+  observacoes    String?
+  origemOffline  Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  itens      PedidoItem[]
+  pagamentos Pagamento[]
+
+  @@unique([negocioId, dataSequencial, senha])
+}
+
+model PedidoItem {
+  id             String                @id @default(uuid())
+  pedidoId       String
+  pedido         Pedido                @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId      String?
+  produto        Produto?              @relation(fields: [produtoId], references: [id])
+  nomeProduto    String
+  precoNoMomento Decimal               @db.Decimal(10, 2)
+  quantidade     Int                   @default(1)
+  observacao     String?
+  variacaoNome   String?
+  adicionais     PedidoItemAdicional[]
+  escolhas       PedidoItemEscolha[]
+}
+
+model PedidoItemAdicional {
+  id             String     @id @default(uuid())
+  pedidoItemId   String
+  pedidoItem     PedidoItem @relation(fields: [pedidoItemId], references: [id], onDelete: Cascade)
+  adicionalId    String?
+  adicional      Adicional? @relation(fields: [adicionalId], references: [id])
+  nomeAdicional  String
+  precoNoMomento Decimal    @db.Decimal(10, 2)
+  quantidade     Int        @default(1)
+}
+
+model PedidoItemEscolha {
+  id             String       @id @default(uuid())
+  pedidoItemId   String
+  pedidoItem     PedidoItem   @relation(fields: [pedidoItemId], references: [id], onDelete: Cascade)
+  itemDoGrupoId  String?
+  itemDoGrupo    ItemDoGrupo? @relation(fields: [itemDoGrupoId], references: [id])
+  nomeItem       String
+  deltaNoMomento Decimal      @db.Decimal(10, 2)
+}
+
+model Pagamento {
+  id          String          @id @default(uuid())
+  pedidoId    String
+  pedido      Pedido          @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  mpIntentId  String?         @unique
+  mpPaymentId String?
+  status      StatusPagamento @default(PENDENTE)
+  meio        MeioPagamento?
+  valor       Decimal         @db.Decimal(10, 2)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+```
+
+---
+
+## 3. Grupo de Endpoints da API HTTP
+
+### 3.1 Autenticação e Pareamento
+- `POST /auth/login`: Autenticação do dono da Dashboard (JWT).
+- `POST /auth/validar-pin`: Validação de PIN de segurança do dono.
+- `POST /dispositivos/codigo`: Gera código temporário de pareamento (6 dígitos).
+- `POST /dispositivos/parear`: Valida o código e retorna um `deviceToken` definitivo.
+- `POST /dispositivos/:id/maquininha-point`: Associa uma maquininha Mercado Pago Point ao Totem.
+
+### 3.2 Configurações & Negócio
+- `GET /negocios/:id/config`: Obtém parâmetros do negócio.
+- `PUT /negocios/:id/config`: Atualiza parâmetros (exige PIN do dono).
+
+### 3.3 Catálogo
+- `GET /catalogo/publico/:negocioId`: Retorna todo o catálogo otimizado para exibição no Totem.
+- `POST /catalogo/categorias`, `POST /catalogo/produtos`, `POST /catalogo/combos`: Manutenção de catálogo.
+- `PATCH /catalogo/produtos/:id/esgotado`: Toggle rápido de disponibilidade.
+
+### 3.4 Pedidos & Ciclo de Vida
+- `POST /pedidos`: Criação de pedido com snapshot completo.
+- `POST /pedidos/reconciliar`: Envio em lote de pedidos criados offline durante queda de internet.
+- `GET /pedidos/fila/:negocioId`: Fila de pedidos para o Painel (KDS).
+- `PATCH /pedidos/:id/status`: Transição de status.
+- `POST /pedidos/:id/cancelar`: Solicitação de cancelamento/estorno (exige PIN do dono).
+
+### 3.5 Pagamentos & Webhooks
+- `POST /pagamentos/intent`: Solicita cobrança na maquininha Point física vinculada ao Totem.
+- `POST /pagamentos/webhook/mercadopago`: Recebimento de atualizações assíncronas do Mercado Pago.
+
+### 3.6 Relatórios
+- `GET /relatorios/faturamento/:negocioId`: Faturamento por período, ticket médio e volume de vendas.
+- `GET /relatorios/mais-vendidos/:negocioId`: Ranking de produtos e adicionais mais vendidos.
