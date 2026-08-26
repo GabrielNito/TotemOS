@@ -51,7 +51,7 @@ async function bootstrap() {
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error(`Origem ${origin} não permitida por CORS`));
+        callback(new Error(`Origem ${origin} não permitida por CORS`), false);
       }
     },
     credentials: true,
