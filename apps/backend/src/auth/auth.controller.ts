@@ -163,8 +163,9 @@ export class AuthController {
     type: ErrorResponseDto,
     description: 'Token JWT ausente, inválido ou expirado.',
   })
-  me(@CurrentUser() user: UserPayload) {
-    return { user };
+  async me(@CurrentUser() user: UserPayload) {
+    const perfil = await this.authService.getPerfil(user.sub);
+    return { user: perfil };
   }
 
   @Get('admin-only')

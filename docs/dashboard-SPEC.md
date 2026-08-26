@@ -1,45 +1,59 @@
 # Dashboard — SPEC
 
-App web (Next.js, App Router) usado pelo dono do negócio: gestão de catálogo, relatórios, configuração, gestão de dispositivos pareados.
+Aplicação web (Next.js 16, App Router, Turbopack) utilizada pelo dono e gerentes do negócio para gestão de catálogo, relatórios operacionais e financeiros, configurações do estabelecimento e pareamento de totens de autoatendimento e painéis KDS.
 
-Detalhe completo de rotas e componentes: `docs/frontend-dashboard-nextjs.md`. Rotas de backend consumidas: `docs/backend-modelo-e-rotas.md`, seção 2.
+---
 
-## Stack
+## 1. Stack Tecnológica & Padrões
 
-- Next.js, App Router
-- Server Components para leitura, Server Actions para mutação (ver padrão de data fetching abaixo)
-- Autenticação: **em aberto** — Firebase Auth vs. JWT próprio via NestJS (`docs/stack-detalhada-v1.md`, seção 4.3). A estrutura de rotas funciona com qualquer uma das duas.
+- **Framework**: Next.js 16 (App Router com Turbopack)
+- **Design System**: Shadcn UI + Tailwind CSS v4 (Diretrizes completas em [`apps/dashboard/DESIGN.md`](file:///c:/Users/Nito/www/TotemOS/apps/dashboard/DESIGN.md))
+- **Layout Arquitetural**: Bento Grid modular fluido com cantos arredondados (`rounded-3xl`) e bordas sutis translúcidas (`border-border/40`)
+- **Autenticação**: **JWT próprio via NestJS** com validação de schemas Zod, cookies HTTP (`totemos_token`), interceptor `proxy.ts` (Next.js 16) e controle de permissões por perfil (`DONO` vs `GERENTE`).
+- **Validação de Ambiente**: Schema Zod em `lib/env.ts` com validação de `NEXT_PUBLIC_API_URL`.
 
-## Estrutura de rotas
+---
+
+## 2. Estrutura de Rotas
 
 ```
-(auth)/login
-(dashboard)/
-  page.tsx                 — visão geral
-  catalogo/{produtos,categorias,combos}
-  relatorios/
-  dispositivos/
-  configuracoes/
-middleware.ts               — protege o grupo (dashboard)
+app/
+├── (auth)/
+│   ├── layout.tsx             — layout centralizado com logo e switcher de tema
+│   └── login/page.tsx         — formulário de login (e-mail e senha)
+├── registrar/
+│   └── page.tsx               — onboarding multietapas (dados da loja, PIN, usuário dono)
+├── admin/
+│   ├── layout.tsx             — shell administrativo com Sidebar retrátil e Header
+│   ├── page.tsx               — visão geral em Bento Grid (faturamento, KDS e hardware)
+│   ├── catalogo/page.tsx      — gestão de produtos, categorias, combos e preparo zero
+│   ├── relatorios/page.tsx    — faturamento consolidado, ticket médio e produtos campeões
+│   ├── dispositivos/page.tsx  — emissão de código de pareamento e status de terminais
+│   └── configuracoes/page.tsx — modo de identificação, offline, equipe e PIN do dono
+└── proxy.ts                   — proteção e redirecionamento de rotas (Next.js 16)
 ```
 
-## Padrão de data fetching
+---
 
-- Leitura: Server Components, fetch direto pro backend a partir do servidor.
-- Mutação: Server Actions + `revalidatePath`.
-- Exceção: toggle de esgotado precisa de feedback otimista (`useOptimistic`) — é usado no meio de operação real, sem tempo pra round-trip completo.
-- Gráficos de relatório: Client Component, recebendo dado já buscado no server como prop.
+## 3. Padrão de Integração e Consumo de Dados
 
-## Componentes principais
+- **Camada de API (`lib/api.ts`)**: Funções tipadas com tratamento centralizado de erros (`ApiError`), envio automático de Bearer Token e suporte a `NEXT_PUBLIC_API_URL`.
+- **Modelos de Domínio (`lib/types/models.ts`)**: Tipos TypeScript sincronizados com o schema do Prisma (`Produto`, `Categoria`, `Dispositivo`, `Pedido`, `Usuario`, `DashboardMetrics`).
+- **Feedback Visual**: Estados vazios (*Empty States*) nativos em todas as páginas para recepção assíncrona dos dados do backend.
 
-`ProdutoForm`, `ProdutoTable` (com toggle otimista), `VariacaoEditor`, `AdicionalEditor`, `ComboForm`, `GrupoDeEscolhaEditor` (o mais complexo — grupos de escolha com delta de preço), `RelatorioFaturamentoChart`, `RelatorioMaisVendidosTable`, `DispositivoPareamentoModal`, `DispositivoTable`, `ConfiguracaoForm`.
+---
 
-## Regras que não podem ser esquecidas ao implementar
+## 4. Componentes Assinatura de UI
 
-- Modo de identificação (nome/código) e política de pagamento offline são configuração **por negócio**, editadas em `configuracoes/`.
-- Combo tem preço fixo definido pelo dono — o formulário não deve somar automaticamente os preços das partes.
-- Geração de código de pareamento (`dispositivos/`) é o único jeito de um totem/painel novo entrar no sistema — não existe tela de "criar dispositivo" direto no app mobile.
+- `ChartSplineMetric`: Gráfico spline interativo em SVG com curva Bézier, acompanhamento de cursor, linha vertical tracejada, pílula de data ativa no eixo X e card de meta.
+- `ChartPillBars`: Gráfico em cápsulas verticais exibindo a distribuição de pedidos por hora e destaque do horário de pico.
+- `InputOTP`: Campo de senha/PIN de 4 dígitos com máscara (`mask={true}`).
 
-## Fora de escopo (v1)
+---
 
-Planos, faixas de faturamento, cobrança do lojista, fiscal/NFC-e. Ver `docs/arquitetura-tecnica-v1.md`.
+## 5. Regras Invioláveis do Negócio
+
+- **Preço Snapshot**: Pedidos passados nunca recalculam valores a partir do catálogo atual (`precoNoMomento`).
+- **PIN do Dono**: Operações sensíveis (cancelamentos, estornos e alterações cadastrais) exigem validação prévia do PIN de 4 dígitos.
+- **Autoridade de Senha**: Senhas diárias sequenciais de pedidos pertencem ao Painel KDS.
+- **Isolamento de Tenant**: Nenhuma mutação ou consulta pode ocorrer sem filtrar pelo `negocioId` autenticado.

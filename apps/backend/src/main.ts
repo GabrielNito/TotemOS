@@ -21,9 +21,42 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ZodValidationPipe());
 
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+  const isProduction = process.env.NODE_ENV === 'production';
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Permite requisições sem header Origin (totens locais, KDS, mobile apps, Postman)
+      if (!origin) return callback(null, true);
+
+      // Em desenvolvimento, permite origens locais
+      if (!isProduction) return callback(null, true);
+
+      const allowedOrigins = allowedOriginsEnv
+        ? allowedOriginsEnv.split(',').map((o) => o.trim())
+        : [
+            'http://localhost:3000',
+            'http://localhost:3001',
+            'https://totem-os-dashboard.vercel.app',
+          ];
+
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed.includes('*')) {
+          const regex = new RegExp(`^${allowed.replace(/\*/g, '.*')}$`);
+          return regex.test(origin);
+        }
+        return allowed === origin;
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origem ${origin} não permitida por CORS`));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   const config = new DocumentBuilder()
@@ -61,7 +94,7 @@ async function bootstrap() {
     void reply.type('text/html').send(html);
   });
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`Backend TotemOS rodando na porta ${port}`);
   console.log(
