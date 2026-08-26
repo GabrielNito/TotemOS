@@ -23,7 +23,7 @@ Este arquivo estabelece os princípios invioláveis e as regras de arquitetura q
    - O backend cloud DEVE aceitar e persistir a senha atribuída pelo Painel durante sincronizações e reconciliações offline.
 
 5. **Segurança e PIN do Dono**:
-   - Operações sensíveis (alteração de configurações do negócio, cancelamentos e confirmação de estornos) exigem validação prévia do PIN do dono (verificado via hash bcrypt).
+   - Operações sensíveis (alteração de configurações do negócio, cancelamentos e confirmação de estornos) exigem validação prévia do PIN do dono (verificado via hash bcrypt e isolamento de tenant).
    - Dispositivos (Totem e Painel) utilizam `deviceToken` persistente e possuem escopo restrito a vendas e fila.
 
 6. **Produtos com Preparo Zero (`tempoEstimadoPreparo = 0`)**:
@@ -31,16 +31,16 @@ Este arquivo estabelece os princípios invioláveis e as regras de arquitetura q
 
 ---
 
-## 2. Metodologia de Desenvolvimento: TDD (Test-Driven Development)
+## 2. Metodologia de Desenvolvimento: TDD e Qualidade de Código
 
-Para a construção e modificação de código no TotemOS, os agentes e desenvolvedores devem utilizar obrigatoriamente a abordagem **TDD**:
+Para a construção e modificação de código no TotemOS, os agentes e desenvolvedores devem utilizar obrigatoriamente a abordagem **TDD** e validação de linter:
 
 1. **Escrever o Teste Primeiro (RED)**:
    - Crie os arquivos de teste (ex: `bun test` no backend) codificando as regras de negócio e cenários limite antes de escrever o código da funcionalidade.
 2. **Implementar a Solução Mínima (GREEN)**:
    - Escreva apenas o código estritamente necessário para fazer os testes passarem limpos.
-3. **Refatorar com Segurança (REFACTOR)**:
-   - Melhore a estrutura do código mantendo a suíte de testes verde.
+3. **Refatorar com Segurança e Linter (REFACTOR)**:
+   - Execute obrigatoriamente `bun run lint` garantindo 0 erros e 0 warnings no ESLint e formatação Prettier.
 
 ---
 
@@ -69,5 +69,6 @@ Para a construção e modificação de código no TotemOS, os agentes e desenvol
 ## 5. Estrutura da Documentação do Repositório
 
 - **Contratos e Especificações**: Consulte os arquivos em `docs/` (`backend-SPEC.md`, `totem-SPEC.md`, `painel-SPEC.md`, `dashboard-SPEC.md`).
+- **Regras do Backend**: Consulte [`.agents/rules/backend.md`](file:///c:/Users/Nito/www/TotemOS/.agents/rules/backend.md).
 - **Fluxo de Trabalho**: Consulte [`CONTRIBUTING.md`](file:///c:/Users/Nito/www/TotemOS/CONTRIBUTING.md).
 - **Skills Operacionais**: Consulte `.agents/skills/` para procedimentos de setup, migração e testes.

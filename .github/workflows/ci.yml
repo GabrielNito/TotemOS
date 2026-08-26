@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-test:
-    name: Backend Testes & Build
+    name: Backend Lint, Testes & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,11 @@ jobs:
         run: |
           cd apps/backend
           bunx prisma generate
+
+      - name: Validar Linter (bun run lint)
+        run: |
+          cd apps/backend
+          bun run lint
 
       - name: Executar Testes (bun test)
         run: |
