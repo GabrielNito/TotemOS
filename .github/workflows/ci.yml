@@ -22,20 +22,20 @@ jobs:
 
       - name: Instalar dependências (Backend)
         run: |
-          cd backend
+          cd apps/backend
           bun install
 
       - name: Gerar Prisma Client
         run: |
-          cd backend
+          cd apps/backend
           bunx prisma generate
 
       - name: Executar Testes (bun test)
         run: |
-          cd backend
+          cd apps/backend
           bun test
 
       - name: Validar Build (bun run build)
         run: |
-          cd backend
+          cd apps/backend
           bun run build

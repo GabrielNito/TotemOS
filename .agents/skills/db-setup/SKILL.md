@@ -12,13 +12,13 @@ Procedimento para inicializar e manter o banco de dados relacional da plataforma
 ## Passos de Execução
 
 1. **Configurar variáveis de ambiente**:
-   Garantir que a variável `DATABASE_URL` no arquivo `.env` da pasta `backend/` aponte para uma instância válida do PostgreSQL:
+   Garantir que a variável `DATABASE_URL` no arquivo `.env` da pasta `apps/backend/` aponte para uma instância válida do PostgreSQL:
    ```env
    DATABASE_URL="postgresql://usuario:senha@localhost:5432/totemos?schema=public"
    ```
 
 2. **Gerar o Prisma Client**:
-   Navegar até a pasta `backend/` e rodar a geração dos tipos:
+   Navegar até a pasta `apps/backend/` e rodar a geração dos tipos:
    ```bash
    bunx prisma generate
    ```
