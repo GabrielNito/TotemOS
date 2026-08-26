@@ -44,3 +44,36 @@ jobs:
         run: |
           cd apps/backend
           bun run build
+
+  dashboard-test:
+    name: Dashboard Lint, Typecheck & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependências (Dashboard)
+        run: |
+          cd apps/dashboard
+          bun install
+
+      - name: Validar Linter (bun run lint)
+        run: |
+          cd apps/dashboard
+          bun run lint
+
+      - name: Validar Tipagem (bun run typecheck)
+        run: |
+          cd apps/dashboard
+          bun run typecheck
+
+      - name: Validar Build (bun run build)
+        run: |
+          cd apps/dashboard
+          bun run build
