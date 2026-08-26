@@ -32,17 +32,20 @@ async function bootstrap() {
       // Em desenvolvimento, permite origens locais
       if (!isProduction) return callback(null, true);
 
+      const defaultOrigins = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://*.vercel.app',
+      ];
+
       const allowedOrigins = allowedOriginsEnv
-        ? allowedOriginsEnv.split(',').map((o) => o.trim())
-        : [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'https://totem-os-dashboard.vercel.app',
-          ];
+        ? [...defaultOrigins, ...allowedOriginsEnv.split(',').map((o) => o.trim())]
+        : defaultOrigins;
 
       const isAllowed = allowedOrigins.some((allowed) => {
         if (allowed.includes('*')) {
-          const regex = new RegExp(`^${allowed.replace(/\*/g, '.*')}$`);
+          const escaped = allowed.replace(/\./g, '\\.').replace(/\*/g, '.*');
+          const regex = new RegExp(`^${escaped}$`);
           return regex.test(origin);
         }
         return allowed === origin;
@@ -51,7 +54,7 @@ async function bootstrap() {
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error(`Origem ${origin} não permitida por CORS`), false);
+        callback(null, false);
       }
     },
     credentials: true,
