@@ -72,10 +72,12 @@ Todas as mensagens de commit devem estar em **português**, no modo **imperativo
 
 ---
 
-## 4. Checklist para Pull Requests (PRs)
+## 4. Checklist Obrigatório para Pull Requests (PRs)
 
+Antes de abrir o PR ou solicitar review:
 - [ ] A branch foi criada a partir de `develop`.
+- [ ] O linter está 100% limpo sem erros ou warnings (`bun run lint`).
 - [ ] Todos os testes unitários e de integração estão passando (`bun test`).
 - [ ] O build compila sem erros (`bun run build`).
-- [ ] As regras de negócio descritas no [`AGENTS.md`](file:///c:/Users/Nito/www/TotemOS/AGENTS.md) foram respeitadas.
+- [ ] As regras de negócio descritas no [`AGENTS.md`](file:///c:/Users/Nito/www/TotemOS/AGENTS.md) e regras do backend em `.agents/rules/backend.md` foram respeitadas.
 - [ ] Nenhum arquivo `.env` ou credencial privada foi commitado.

@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -183,6 +184,7 @@ model Pedido {
   negocioId      String
   negocio        Negocio      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
   dispositivoId  String?
+  idempotencyKey String?      @unique
   senha          Int
   dataSequencial String
   status         StatusPedido @default(AGUARDANDO_PAGAMENTO)
