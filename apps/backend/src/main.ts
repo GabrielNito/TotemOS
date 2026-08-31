@@ -39,7 +39,10 @@ async function bootstrap() {
       ];
 
       const allowedOrigins = allowedOriginsEnv
-        ? [...defaultOrigins, ...allowedOriginsEnv.split(',').map((o) => o.trim())]
+        ? [
+            ...defaultOrigins,
+            ...allowedOriginsEnv.split(',').map((o) => o.trim()),
+          ]
         : defaultOrigins;
 
       const isAllowed = allowedOrigins.some((allowed) => {
