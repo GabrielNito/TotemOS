@@ -60,22 +60,79 @@ export class ProdutosService {
       );
     }
 
-    return this.prisma.produto.update({
-      where: { id: produtoId },
-      data: {
-        ...(dto.nome !== undefined && { nome: dto.nome }),
-        ...(dto.descricao !== undefined && { descricao: dto.descricao }),
-        ...(dto.precoBase !== undefined && { precoBase: dto.precoBase }),
-        ...(dto.imagemUrl !== undefined && { imagemUrl: dto.imagemUrl }),
-        ...(dto.tempoEstimadoPreparo !== undefined && {
-          tempoEstimadoPreparo: dto.tempoEstimadoPreparo,
-        }),
-        ...(dto.categoriaId !== undefined && { categoriaId: dto.categoriaId }),
-      },
-      include: {
-        adicionais: true,
-        categoria: { select: { id: true, nome: true } },
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // Sincronização de adicionais se o array foi fornecido no payload
+      if (dto.adicionais !== undefined) {
+        const adicionaisExistentes = await tx.adicional.findMany({
+          where: { produtoId },
+        });
+        const idsExistentes = new Set(adicionaisExistentes.map((a) => a.id));
+        const idsEnviados = new Set<string>();
+
+        for (const item of dto.adicionais) {
+          if (item.id && idsExistentes.has(item.id)) {
+            // Atualiza adicional existente pertencente ao produto
+            idsEnviados.add(item.id);
+            await tx.adicional.update({
+              where: { id: item.id },
+              data: {
+                nome: item.nome,
+                preco: item.preco,
+                maximo: item.maximo ?? 1,
+                esgotado: item.esgotado ?? false,
+              },
+            });
+          } else {
+            // Cria novo adicional para o produto
+            const novo = await tx.adicional.create({
+              data: {
+                produtoId,
+                nome: item.nome,
+                preco: item.preco,
+                maximo: item.maximo ?? 1,
+                esgotado: item.esgotado ?? false,
+              },
+            });
+            idsEnviados.add(novo.id);
+          }
+        }
+
+        // Remove adicionais que não foram enviados no payload
+        const idsParaRemover = adicionaisExistentes
+          .filter((a) => !idsEnviados.has(a.id))
+          .map((a) => a.id);
+
+        if (idsParaRemover.length > 0) {
+          await tx.adicional.deleteMany({
+            where: {
+              id: { in: idsParaRemover },
+              produtoId,
+            },
+          });
+        }
+      }
+
+      return tx.produto.update({
+        where: { id: produtoId },
+        data: {
+          ...(dto.nome !== undefined && { nome: dto.nome }),
+          ...(dto.descricao !== undefined && { descricao: dto.descricao }),
+          ...(dto.precoBase !== undefined && { precoBase: dto.precoBase }),
+          ...(dto.imagemUrl !== undefined && { imagemUrl: dto.imagemUrl }),
+          ...(dto.tempoEstimadoPreparo !== undefined && {
+            tempoEstimadoPreparo: dto.tempoEstimadoPreparo,
+          }),
+          ...(dto.esgotado !== undefined && { esgotado: dto.esgotado }),
+          ...(dto.ativo !== undefined && { ativo: dto.ativo }),
+          ...(dto.categoriaId !== undefined && {
+            categoriaId: dto.categoriaId,
+          }),
+        },
+        include: {
+          adicionais: true,
+          categoria: { select: { id: true, nome: true } },
+        },
+      });
     });
   }
 
@@ -115,7 +172,8 @@ export class ProdutosService {
       },
     });
 
-    return categorias;
+    // Remove categorias sem nenhum produto disponível para exibição no Totem
+    return categorias.filter((c) => c.produtos.length > 0);
   }
 
   private async verificarPropriedadeProduto(

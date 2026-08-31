@@ -131,6 +131,7 @@ export class CatalogoController {
   }
 
   @Put('produtos/:id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
@@ -169,6 +170,7 @@ export class CatalogoController {
   }
 
   @Delete('produtos/:id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({

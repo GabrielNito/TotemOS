@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarCategoriaDto } from './dto/criar-categoria.dto';
 import { Categoria } from '@prisma/client';
@@ -39,12 +35,6 @@ export class CategoriasService {
     if (!categoria) {
       throw new NotFoundException(
         'Categoria não encontrada ou não pertence a este estabelecimento',
-      );
-    }
-
-    if (categoria.negocioId !== negocioId) {
-      throw new ForbiddenException(
-        'Acesso negado: Categoria não pertence a este estabelecimento',
       );
     }
 

@@ -187,6 +187,54 @@ describe('Catálogo — Validação de Schemas Zod (TDD)', () => {
       });
       expect(resultado.success).toBe(false);
     });
+
+    test('aceita atualização com novos adicionais e adicionais existentes', () => {
+      const adicionalExistenteId = 'b2c3d4e5-f6a7-8901-bcde-f12345678901';
+      const resultado = AtualizarProdutoSchema.safeParse({
+        nome: 'X-Burguer Duplo',
+        precoBase: 38.0,
+        adicionais: [
+          {
+            id: adicionalExistenteId,
+            nome: 'Bacon Duplo',
+            preco: 7.0,
+            maximo: 3,
+            esgotado: false,
+          },
+          {
+            nome: 'Molho Especial',
+            preco: 2.5,
+            maximo: 2,
+          },
+        ],
+      });
+      expect(resultado.success).toBe(true);
+    });
+
+    test('rejeita adicional com preco negativo na atualizacao', () => {
+      const resultado = AtualizarProdutoSchema.safeParse({
+        adicionais: [
+          {
+            nome: 'Adicional Inválido',
+            preco: -3.0,
+          },
+        ],
+      });
+      expect(resultado.success).toBe(false);
+    });
+
+    test('rejeita adicional com maximo menor que 1 na atualizacao', () => {
+      const resultado = AtualizarProdutoSchema.safeParse({
+        adicionais: [
+          {
+            nome: 'Adicional Inválido',
+            preco: 2.0,
+            maximo: 0,
+          },
+        ],
+      });
+      expect(resultado.success).toBe(false);
+    });
   });
 
   // ─── Regra de negócio: isolamento de tenant ───────────────────────────────
