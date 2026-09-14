@@ -1,4 +1,4 @@
-import { test, expect, describe } from 'bun:test';
+import { test, expect, describe, beforeEach } from 'bun:test';
 import {
   CriarPedidoSchema,
   PedidoItemInputSchema,
@@ -608,6 +608,79 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       const pedidos = await service.listar(mockNegocioId);
       expect(filtroCapturado.negocioId).toBe(mockNegocioId);
       expect(pedidos).toHaveLength(1);
+    });
+  });
+
+  describe('PedidosController — Rotas e Isolamento de Tenant (TDD)', () => {
+    let controller: any;
+    let mockService: any;
+    const userPayload: any = {
+      sub: 'usr-123',
+      email: 'dono@estabelecimento.com',
+      negocioId: 'negocio-uuid-teste',
+      role: 'DONO',
+    };
+
+    beforeEach(async () => {
+      const { PedidosController } = await import(
+        '../src/pedidos/pedidos.controller'
+      );
+
+      mockService = {
+        criar: async (negocioId: string, dto: any, options: any) => ({
+          id: 'pedido-criado',
+          negocioId,
+          ...dto,
+          ...options,
+        }),
+        listar: async (negocioId: string, filtro: any) => [
+          { id: 'p-1', negocioId, ...filtro },
+        ],
+        buscarPorId: async (negocioId: string, id: string) => ({
+          id,
+          negocioId,
+        }),
+      };
+
+      controller = new PedidosController(mockService);
+    });
+
+    test('POST /pedidos extrai negocioId do token e repassa opções de idempotência', async () => {
+      const dto = {
+        itens: [
+          {
+            produtoId: 'a1b2c3d4-e5f6-4890-abcd-ef1234567890',
+            quantidade: 1,
+          },
+        ],
+      };
+
+      const resultado = await controller.criar(
+        userPayload,
+        dto,
+        'idemp-header-99',
+      );
+      expect(resultado.negocioId).toBe('negocio-uuid-teste');
+      expect(resultado.idempotencyKey).toBe('idemp-header-99');
+    });
+
+    test('GET /pedidos extrai negocioId do token e repassa filtros', async () => {
+      const resultado = await controller.listar(
+        userPayload,
+        'PENDENTE' as any,
+        '2026-09-14',
+      );
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0].negocioId).toBe('negocio-uuid-teste');
+    });
+
+    test('GET /pedidos/:id busca o pedido filtrado pelo negocioId do token', async () => {
+      const resultado = await controller.buscarPorId(
+        userPayload,
+        'ped-uuid-123',
+      );
+      expect(resultado.id).toBe('ped-uuid-123');
+      expect(resultado.negocioId).toBe('negocio-uuid-teste');
     });
   });
 });

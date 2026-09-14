@@ -1,11 +1,13 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, TipoDispositivo } from '@prisma/client';
 
 export interface UserPayload {
   sub: string;
   email: string;
   negocioId: string;
   role: Role;
+  isDispositivo?: boolean;
+  tipoDispositivo?: TipoDispositivo;
 }
 
 interface RequestWithUser {

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
-import { StatusPedido } from '@prisma/client';
+import { StatusPedido, Prisma } from '@prisma/client';
 
 export interface CriarPedidoOptions {
   dispositivoId?: string;
@@ -115,7 +115,7 @@ export class PedidosService {
       let valorTotalPedido = 0;
       let todosComPreparoZero = true;
 
-      const itensParaCriar = [];
+      const itensParaCriar: Prisma.PedidoItemCreateWithoutPedidoInput[] = [];
 
       for (const item of dto.itens) {
         const produto = produtosMap.get(item.produtoId)!;
@@ -126,7 +126,8 @@ export class PedidosService {
 
         const precoProduto = Number(produto.precoBase);
         let subtotalAdicionais = 0;
-        const adicionaisParaCriar = [];
+        const adicionaisParaCriar: Prisma.PedidoItemAdicionalCreateWithoutPedidoItemInput[] =
+          [];
 
         if (item.adicionais && item.adicionais.length > 0) {
           for (const adic of item.adicionais) {
@@ -151,7 +152,7 @@ export class PedidosService {
             subtotalAdicionais += precoAdicional * adic.quantidade;
 
             adicionaisParaCriar.push({
-              adicionalId: adicionalDb.id,
+              adicional: { connect: { id: adicionalDb.id } },
               nomeAdicional: adicionalDb.nome,
               precoNoMomento: precoAdicional,
               quantidade: adic.quantidade,
@@ -160,7 +161,8 @@ export class PedidosService {
         }
 
         let subtotalEscolhas = 0;
-        const escolhasParaCriar = [];
+        const escolhasParaCriar: Prisma.PedidoItemEscolhaCreateWithoutPedidoItemInput[] =
+          [];
 
         if (item.escolhas && item.escolhas.length > 0) {
           for (const escolha of item.escolhas) {
@@ -175,7 +177,7 @@ export class PedidosService {
             subtotalEscolhas += deltaPreco;
 
             escolhasParaCriar.push({
-              itemDoGrupoId: escolhaDb.id,
+              itemDoGrupo: { connect: { id: escolhaDb.id } },
               nomeItem: escolhaDb.nome,
               deltaNoMomento: deltaPreco,
             });
@@ -188,7 +190,7 @@ export class PedidosService {
         valorTotalPedido += subtotalItem;
 
         itensParaCriar.push({
-          produtoId: produto.id,
+          produto: { connect: { id: produto.id } },
           nomeProduto: produto.nome,
           precoNoMomento: precoProduto,
           quantidade: item.quantidade,
