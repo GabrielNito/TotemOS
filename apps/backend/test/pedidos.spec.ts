@@ -1,9 +1,13 @@
-import { test, expect, describe, beforeEach } from 'bun:test';
+import { test, expect, describe } from 'bun:test';
 import {
   CriarPedidoSchema,
-  PedidoItemInputSchema,
-  ItemAdicionalInputSchema,
+  CriarPedidoDto,
 } from '../src/pedidos/dto/criar-pedido.dto';
+import { PedidosService } from '../src/pedidos/pedidos.service';
+import { PedidosController } from '../src/pedidos/pedidos.controller';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { StatusPedido, Role } from '@prisma/client';
+import { UserPayload } from '../src/auth/decorators/current-user.decorator';
 
 describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', () => {
   const produtoUuid1 = 'a1b2c3d4-e5f6-4890-abcd-ef1234567890';
@@ -198,73 +202,148 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
   });
 
   describe('PedidosService — Engine de Snapshot e Regras de Negócio (TDD)', () => {
-    let service: any;
-    let mockPrisma: any;
-
     const mockNegocioId = 'tenant-uuid-1111';
-    const prodUuid1 = 'a1b2c3d4-e5f6-4890-abcd-ef1234567890';
-    const prodUuid2 = 'b2c3d4e5-f6a7-4901-8cde-f12345678902';
-    const adicUuid1 = 'c3d4e5f6-a7b8-4012-9def-123456789012';
 
-    test('carrega PedidosService e executa testes unitários', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
-      expect(PedidosService).toBeDefined();
-    });
+    interface ProdutoMock {
+      id: string;
+      negocioId: string;
+      nome: string;
+      precoBase: number;
+      tempoEstimadoPreparo: number;
+      esgotado: boolean;
+      ativo: boolean;
+    }
 
-    test('cria pedido com cálculo de total seguro e gravação de snapshots imutáveis', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+    interface AdicionalMock {
+      id: string;
+      produtoId: string;
+      nome: string;
+      preco: number;
+      maximo: number;
+      esgotado: boolean;
+    }
 
-      let pedidoCriadoDados: any = null;
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
+    interface PedidoItemGravado {
+      produto: { connect: { id: string } };
+      nomeProduto: string;
+      precoNoMomento: number;
+      quantidade: number;
+      observacao?: string;
+      variacaoNome?: string;
+      adicionais?: {
+        create: Array<{
+          adicional: { connect: { id: string } };
+          nomeAdicional: string;
+          precoNoMomento: number;
+          quantidade: number;
+        }>;
+      };
+    }
+
+    interface PedidoGravado {
+      id?: string;
+      negocioId: string;
+      dispositivoId?: string;
+      idempotencyKey?: string;
+      senha: number;
+      dataSequencial: string;
+      status: StatusPedido;
+      nomeCliente?: string;
+      codigoCliente?: string;
+      valorTotal: number;
+      observacoes?: string;
+      origemOffline: boolean;
+      preparoZero: boolean;
+      itens: {
+        create: PedidoItemGravado[];
+      };
+    }
+
+    const criarMockPrisma = (config: {
+      produtos?: ProdutoMock[];
+      adicionais?: AdicionalMock[];
+      ultimoPedido?: { senha: number } | null;
+      pedidoExistente?: PedidoGravado | null;
+      onCriarPedido?: (dados: PedidoGravado) => void;
+    }) => {
+      const mock = {
+        $transaction: <T>(callback: (tx: PrismaService) => Promise<T>) =>
+          callback(mock as unknown as PrismaService),
         pedido: {
-          findFirst: async () => null,
-          findMany: async () => [],
-          create: async (args: any) => {
-            pedidoCriadoDados = args.data;
-            return { id: 'pedido-123', ...args.data };
+          findFirst: (args?: { where?: { idempotencyKey?: string } }) => {
+            if (args?.where?.idempotencyKey && config.pedidoExistente) {
+              return Promise.resolve(config.pedidoExistente);
+            }
+            if (config.ultimoPedido !== undefined) {
+              return Promise.resolve(config.ultimoPedido);
+            }
+            return Promise.resolve(null);
+          },
+          findMany: (args: { where: { negocioId: string } }) =>
+            Promise.resolve([
+              { id: 'pedido-1', negocioId: args.where.negocioId },
+            ]),
+          create: (args: { data: PedidoGravado }) => {
+            if (config.onCriarPedido) {
+              config.onCriarPedido(args.data);
+            }
+            return Promise.resolve({ id: 'ped-novo-1', ...args.data });
           },
         },
         produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'X-Burguer Artesanal',
-              precoBase: 25.0,
-              tempoEstimadoPreparo: 12,
-              esgotado: false,
-              ativo: true,
-            },
-          ],
+          findMany: () => Promise.resolve(config.produtos ?? []),
         },
         adicional: {
-          findMany: async () => [
-            {
-              id: adicUuid1,
-              produtoId: prodUuid1,
-              nome: 'Bacon Crocante',
-              preco: 4.0,
-              maximo: 2,
-              esgotado: false,
-            },
-          ],
+          findMany: () => Promise.resolve(config.adicionais ?? []),
         },
         itemDoGrupo: {
-          findMany: async () => [],
+          findMany: () => Promise.resolve([]),
         },
       };
 
-      service = new PedidosService(mockPrisma);
+      return mock as unknown as PrismaService;
+    };
 
-      const dto = {
+    test('cria pedido com cálculo de total seguro e gravação de snapshots imutáveis', async () => {
+      let pedidoCriadoDados: PedidoGravado | null = null;
+
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'X-Burguer Artesanal',
+            precoBase: 25.0,
+            tempoEstimadoPreparo: 12,
+            esgotado: false,
+            ativo: true,
+          },
+        ],
+        adicionais: [
+          {
+            id: adicionalUuid1,
+            produtoId: produtoUuid1,
+            nome: 'Bacon Crocante',
+            preco: 4.0,
+            maximo: 2,
+            esgotado: false,
+          },
+        ],
+        onCriarPedido: (dados) => {
+          pedidoCriadoDados = dados;
+        },
+      });
+
+      const service = new PedidosService(mockPrisma);
+
+      const dto: CriarPedidoDto = {
         itens: [
           {
-            produtoId: prodUuid1,
+            produtoId: produtoUuid1,
             quantidade: 1,
             adicionais: [
               {
-                adicionalId: adicUuid1,
+                adicionalId: adicionalUuid1,
                 quantidade: 2,
               },
             ],
@@ -274,218 +353,171 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
 
       const resultado = await service.criar(mockNegocioId, dto);
       expect(resultado).toBeDefined();
-      expect(Number(pedidoCriadoDados.valorTotal)).toBe(33.0); // 25 + (4 * 2) = 33
-      expect(pedidoCriadoDados.status).toBe('AGUARDANDO_PAGAMENTO');
-      expect(pedidoCriadoDados.preparoZero).toBe(false);
+      expect(pedidoCriadoDados).not.toBeNull();
+      if (pedidoCriadoDados) {
+        const dados = pedidoCriadoDados as PedidoGravado;
+        expect(dados.valorTotal).toBe(33.0);
+        expect(dados.status).toBe(StatusPedido.AGUARDANDO_PAGAMENTO);
+        expect(dados.preparoZero).toBe(false);
 
-      // Validação de snapshots imutáveis
-      const itemGravado = pedidoCriadoDados.itens.create[0];
-      expect(Number(itemGravado.precoNoMomento)).toBe(25.0);
-      expect(itemGravado.nomeProduto).toBe('X-Burguer Artesanal');
-      expect(Number(itemGravado.adicionais.create[0].precoNoMomento)).toBe(4.0);
-      expect(itemGravado.adicionais.create[0].nomeAdicional).toBe(
-        'Bacon Crocante',
-      );
+        const itemGravado = dados.itens.create[0];
+        expect(itemGravado.precoNoMomento).toBe(25.0);
+        expect(itemGravado.nomeProduto).toBe('X-Burguer Artesanal');
+        expect(itemGravado.adicionais?.create[0].precoNoMomento).toBe(4.0);
+        expect(itemGravado.adicionais?.create[0].nomeAdicional).toBe(
+          'Bacon Crocante',
+        );
+      }
     });
 
     test('marca preparoZero = true quando todos os produtos têm tempoEstimadoPreparo = 0', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+      let pedidoCriadoDados: PedidoGravado | null = null;
 
-      let pedidoCriado: any = null;
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: {
-          findFirst: async () => null,
-          findMany: async () => [],
-          create: async (args: any) => {
-            pedidoCriado = args.data;
-            return { id: 'ped-zero', ...args.data };
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Refrigerante Lata',
+            precoBase: 6.0,
+            tempoEstimadoPreparo: 0,
+            esgotado: false,
+            ativo: true,
           },
+        ],
+        onCriarPedido: (dados) => {
+          pedidoCriadoDados = dados;
         },
-        produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'Refrigerante Lata',
-              precoBase: 6.0,
-              tempoEstimadoPreparo: 0,
-              esgotado: false,
-              ativo: true,
-            },
-          ],
-        },
-        adicional: {
-          findMany: async () => [],
-        },
-        itemDoGrupo: {
-          findMany: async () => [],
-        },
-      };
+      });
 
-      service = new PedidosService(mockPrisma);
+      const service = new PedidosService(mockPrisma);
 
-      const dto = {
-        itens: [{ produtoId: prodUuid1, quantidade: 2 }],
+      const dto: CriarPedidoDto = {
+        itens: [{ produtoId: produtoUuid1, quantidade: 2 }],
       };
 
       await service.criar(mockNegocioId, dto);
-      expect(pedidoCriado.preparoZero).toBe(true);
-      expect(Number(pedidoCriado.valorTotal)).toBe(12.0);
+      expect(pedidoCriadoDados).not.toBeNull();
+      if (pedidoCriadoDados) {
+        const dados = pedidoCriadoDados as PedidoGravado;
+        expect(dados.preparoZero).toBe(true);
+        expect(dados.valorTotal).toBe(12.0);
+      }
     });
 
     test('marca preparoZero = false quando ao menos um item tem tempoEstimadoPreparo > 0', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+      let pedidoCriadoDados: PedidoGravado | null = null;
 
-      let pedidoCriado: any = null;
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: {
-          findFirst: async () => null,
-          findMany: async () => [],
-          create: async (args: any) => {
-            pedidoCriado = args.data;
-            return { id: 'ped-misto', ...args.data };
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Refrigerante Lata',
+            precoBase: 6.0,
+            tempoEstimadoPreparo: 0,
+            esgotado: false,
+            ativo: true,
           },
+          {
+            id: produtoUuid2,
+            negocioId: mockNegocioId,
+            nome: 'Batata Frita',
+            precoBase: 14.0,
+            tempoEstimadoPreparo: 8,
+            esgotado: false,
+            ativo: true,
+          },
+        ],
+        onCriarPedido: (dados) => {
+          pedidoCriadoDados = dados;
         },
-        produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'Refrigerante Lata',
-              precoBase: 6.0,
-              tempoEstimadoPreparo: 0,
-              esgotado: false,
-              ativo: true,
-            },
-            {
-              id: prodUuid2,
-              negocioId: mockNegocioId,
-              nome: 'Batata Frita',
-              precoBase: 14.0,
-              tempoEstimadoPreparo: 8,
-              esgotado: false,
-              ativo: true,
-            },
-          ],
-        },
-        adicional: {
-          findMany: async () => [],
-        },
-        itemDoGrupo: {
-          findMany: async () => [],
-        },
-      };
+      });
 
-      service = new PedidosService(mockPrisma);
+      const service = new PedidosService(mockPrisma);
 
-      const dto = {
+      const dto: CriarPedidoDto = {
         itens: [
-          { produtoId: prodUuid1, quantidade: 1 },
-          { produtoId: prodUuid2, quantidade: 1 },
+          { produtoId: produtoUuid1, quantidade: 1 },
+          { produtoId: produtoUuid2, quantidade: 1 },
         ],
       };
 
       await service.criar(mockNegocioId, dto);
-      expect(pedidoCriado.preparoZero).toBe(false);
-      expect(Number(pedidoCriado.valorTotal)).toBe(20.0);
+      expect(pedidoCriadoDados).not.toBeNull();
+      if (pedidoCriadoDados) {
+        const dados = pedidoCriadoDados as PedidoGravado;
+        expect(dados.preparoZero).toBe(false);
+        expect(dados.valorTotal).toBe(20.0);
+      }
     });
 
-    test('rejeita criação se produto for inexistente ou de outro estabelecimento', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+    test('rejeita criação se produto for inexistente ou de outro estabelecimento', () => {
+      const mockPrisma = criarMockPrisma({ produtos: [] });
+      const service = new PedidosService(mockPrisma);
 
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: { findFirst: async () => null },
-        produto: { findMany: async () => [] }, // Produto não encontrado para o tenant
-        adicional: { findMany: async () => [] },
-        itemDoGrupo: { findMany: async () => [] },
-      };
-
-      service = new PedidosService(mockPrisma);
-
-      const dto = {
-        itens: [{ produtoId: prodUuid1, quantidade: 1 }],
+      const dto: CriarPedidoDto = {
+        itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
       };
 
       expect(service.criar(mockNegocioId, dto)).rejects.toThrow();
     });
 
-    test('rejeita criação se produto estiver esgotado ou inativo', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+    test('rejeita criação se produto estiver esgotado ou inativo', () => {
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Produto Esgotado',
+            precoBase: 20.0,
+            tempoEstimadoPreparo: 5,
+            esgotado: true,
+            ativo: true,
+          },
+        ],
+      });
+      const service = new PedidosService(mockPrisma);
 
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: { findFirst: async () => null },
-        produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'Produto Esgotado',
-              precoBase: 20.0,
-              tempoEstimadoPreparo: 5,
-              esgotado: true,
-              ativo: true,
-            },
-          ],
-        },
-        adicional: { findMany: async () => [] },
-        itemDoGrupo: { findMany: async () => [] },
-      };
-
-      service = new PedidosService(mockPrisma);
-
-      const dto = {
-        itens: [{ produtoId: prodUuid1, quantidade: 1 }],
+      const dto: CriarPedidoDto = {
+        itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
       };
 
       expect(service.criar(mockNegocioId, dto)).rejects.toThrow();
     });
 
-    test('rejeita criação se adicional exceder o limite maximo configurado', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+    test('rejeita criação se adicional exceder o limite maximo configurado', () => {
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Lanche',
+            precoBase: 20.0,
+            tempoEstimadoPreparo: 5,
+            esgotado: false,
+            ativo: true,
+          },
+        ],
+        adicionais: [
+          {
+            id: adicionalUuid1,
+            produtoId: produtoUuid1,
+            nome: 'Queijo',
+            preco: 3.0,
+            maximo: 2,
+            esgotado: false,
+          },
+        ],
+      });
+      const service = new PedidosService(mockPrisma);
 
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: { findFirst: async () => null },
-        produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'Lanche',
-              precoBase: 20.0,
-              tempoEstimadoPreparo: 5,
-              esgotado: false,
-              ativo: true,
-            },
-          ],
-        },
-        adicional: {
-          findMany: async () => [
-            {
-              id: adicUuid1,
-              produtoId: prodUuid1,
-              nome: 'Queijo',
-              preco: 3.0,
-              maximo: 2, // Limite é 2
-              esgotado: false,
-            },
-          ],
-        },
-        itemDoGrupo: { findMany: async () => [] },
-      };
-
-      service = new PedidosService(mockPrisma);
-
-      const dto = {
+      const dto: CriarPedidoDto = {
         itens: [
           {
-            produtoId: prodUuid1,
+            produtoId: produtoUuid1,
             quantidade: 1,
-            adicionais: [{ adicionalId: adicUuid1, quantidade: 3 }], // Solicitou 3
+            adicionais: [{ adicionalId: adicionalUuid1, quantidade: 3 }],
           },
         ],
       };
@@ -494,35 +526,25 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
     });
 
     test('retorna pedido existente em caso de idempotencyKey duplicado', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
-
-      const pedidoExistente = {
+      const pedidoExistente: PedidoGravado = {
         id: 'pedido-existente-1',
-        idempotencyKey: 'chave-repetida-123',
-        valorTotal: 50.0,
         negocioId: mockNegocioId,
-      };
-
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: {
-          findFirst: async (args: any) => {
-            if (args?.where?.idempotencyKey === 'chave-repetida-123') {
-              return pedidoExistente;
-            }
-            return null;
-          },
-        },
-        produto: { findMany: async () => [] },
-        adicional: { findMany: async () => [] },
-        itemDoGrupo: { findMany: async () => [] },
-      };
-
-      service = new PedidosService(mockPrisma);
-
-      const dto = {
         idempotencyKey: 'chave-repetida-123',
-        itens: [{ produtoId: prodUuid1, quantidade: 1 }],
+        senha: 10,
+        dataSequencial: '2026-09-14',
+        status: StatusPedido.AGUARDANDO_PAGAMENTO,
+        valorTotal: 50.0,
+        origemOffline: false,
+        preparoZero: false,
+        itens: { create: [] },
+      };
+
+      const mockPrisma = criarMockPrisma({ pedidoExistente });
+      const service = new PedidosService(mockPrisma);
+
+      const dto: CriarPedidoDto = {
+        idempotencyKey: 'chave-repetida-123',
+        itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
       };
 
       const resultado = await service.criar(mockNegocioId, dto);
@@ -530,60 +552,48 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
     });
 
     test('gera senha sequencial diária incrementada para o mesmo estabelecimento', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
+      let pedidoCriadoDados: PedidoGravado | null = null;
 
-      let pedidoCriado: any = null;
-      mockPrisma = {
-        $transaction: async (callback: any) => callback(mockPrisma),
-        pedido: {
-          findFirst: async (args: any) => {
-            if (args?.orderBy?.senha === 'desc') {
-              return { senha: 41 };
-            }
-            return null;
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Lanche',
+            precoBase: 10.0,
+            tempoEstimadoPreparo: 5,
+            esgotado: false,
+            ativo: true,
           },
-          create: async (args: any) => {
-            pedidoCriado = args.data;
-            return { id: 'ped-42', ...args.data };
-          },
+        ],
+        ultimoPedido: { senha: 41 },
+        onCriarPedido: (dados) => {
+          pedidoCriadoDados = dados;
         },
-        produto: {
-          findMany: async () => [
-            {
-              id: prodUuid1,
-              negocioId: mockNegocioId,
-              nome: 'Lanche',
-              precoBase: 10.0,
-              tempoEstimadoPreparo: 5,
-              esgotado: false,
-              ativo: true,
-            },
-          ],
-        },
-        adicional: { findMany: async () => [] },
-        itemDoGrupo: { findMany: async () => [] },
-      };
+      });
 
-      service = new PedidosService(mockPrisma);
+      const service = new PedidosService(mockPrisma);
 
-      const dto = {
-        itens: [{ produtoId: prodUuid1, quantidade: 1 }],
+      const dto: CriarPedidoDto = {
+        itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
       };
 
       await service.criar(mockNegocioId, dto);
-      expect(pedidoCriado.senha).toBe(42);
+      expect(pedidoCriadoDados).not.toBeNull();
+      if (pedidoCriadoDados) {
+        const dados = pedidoCriadoDados as PedidoGravado;
+        expect(dados.senha).toBe(42);
+      }
     });
 
-    test('buscarPorId lança NotFoundException se o pedido for de outro estabelecimento', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
-
-      mockPrisma = {
+    test('buscarPorId lança NotFoundException se o pedido for de outro estabelecimento', () => {
+      const mockPrisma = {
         pedido: {
-          findFirst: async () => null,
+          findFirst: () => Promise.resolve(null),
         },
-      };
+      } as unknown as PrismaService;
 
-      service = new PedidosService(mockPrisma);
+      const service = new PedidosService(mockPrisma);
 
       expect(
         service.buscarPorId(mockNegocioId, 'pedido-outro-tenant'),
@@ -591,94 +601,102 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
     });
 
     test('listar filtra estritamente pelo negocioId autenticado', async () => {
-      const { PedidosService } = await import('../src/pedidos/pedidos.service');
-
-      let filtroCapturado: any = null;
-      mockPrisma = {
+      let filtroCapturadoNegocioId = '';
+      const mockPrisma = {
         pedido: {
-          findMany: async (args: any) => {
-            filtroCapturado = args.where;
-            return [{ id: 'p1', negocioId: mockNegocioId }];
+          findMany: (args: { where: { negocioId: string } }) => {
+            filtroCapturadoNegocioId = args.where.negocioId;
+            return Promise.resolve([{ id: 'p1', negocioId: mockNegocioId }]);
           },
         },
-      };
+      } as unknown as PrismaService;
 
-      service = new PedidosService(mockPrisma);
+      const service = new PedidosService(mockPrisma);
 
       const pedidos = await service.listar(mockNegocioId);
-      expect(filtroCapturado.negocioId).toBe(mockNegocioId);
+      expect(filtroCapturadoNegocioId).toBe(mockNegocioId);
       expect(pedidos).toHaveLength(1);
     });
   });
 
   describe('PedidosController — Rotas e Isolamento de Tenant (TDD)', () => {
-    let controller: any;
-    let mockService: any;
-    const userPayload: any = {
+    const userPayload: UserPayload = {
       sub: 'usr-123',
       email: 'dono@estabelecimento.com',
       negocioId: 'negocio-uuid-teste',
-      role: 'DONO',
+      role: Role.DONO,
     };
 
-    beforeEach(async () => {
-      const { PedidosController } = await import(
-        '../src/pedidos/pedidos.controller'
-      );
-
-      mockService = {
-        criar: async (negocioId: string, dto: any, options: any) => ({
-          id: 'pedido-criado',
-          negocioId,
-          ...dto,
-          ...options,
-        }),
-        listar: async (negocioId: string, filtro: any) => [
-          { id: 'p-1', negocioId, ...filtro },
-        ],
-        buscarPorId: async (negocioId: string, id: string) => ({
-          id,
-          negocioId,
-        }),
-      };
-
-      controller = new PedidosController(mockService);
-    });
+    const criarMockService = () =>
+      ({
+        criar: (
+          negocioId: string,
+          dto: CriarPedidoDto,
+          options?: { dispositivoId?: string; idempotencyKey?: string },
+        ) =>
+          Promise.resolve({
+            id: 'pedido-criado',
+            negocioId,
+            ...dto,
+            ...options,
+          }),
+        listar: (
+          negocioId: string,
+          filtro?: { status?: StatusPedido; dataSequencial?: string },
+        ) => Promise.resolve([{ id: 'p-1', negocioId, ...filtro }]),
+        buscarPorId: (negocioId: string, id: string) =>
+          Promise.resolve({
+            id,
+            negocioId,
+          }),
+      }) as unknown as PedidosService;
 
     test('POST /pedidos extrai negocioId do token e repassa opções de idempotência', async () => {
-      const dto = {
+      const mockService = criarMockService();
+      const controller = new PedidosController(mockService);
+
+      const dto: CriarPedidoDto = {
         itens: [
           {
-            produtoId: 'a1b2c3d4-e5f6-4890-abcd-ef1234567890',
+            produtoId: produtoUuid1,
             quantidade: 1,
           },
         ],
       };
 
-      const resultado = await controller.criar(
+      const resultado = (await controller.criar(
         userPayload,
         dto,
         'idemp-header-99',
-      );
+      )) as { negocioId: string; idempotencyKey?: string };
+
       expect(resultado.negocioId).toBe('negocio-uuid-teste');
       expect(resultado.idempotencyKey).toBe('idemp-header-99');
     });
 
     test('GET /pedidos extrai negocioId do token e repassa filtros', async () => {
-      const resultado = await controller.listar(
+      const mockService = criarMockService();
+      const controller = new PedidosController(mockService);
+
+      const resultado = (await controller.listar(
         userPayload,
-        'PENDENTE' as any,
+        StatusPedido.PENDENTE,
         '2026-09-14',
-      );
+      )) as Array<{ id: string; negocioId: string }>;
+
       expect(resultado).toHaveLength(1);
       expect(resultado[0].negocioId).toBe('negocio-uuid-teste');
     });
 
     test('GET /pedidos/:id busca o pedido filtrado pelo negocioId do token', async () => {
-      const resultado = await controller.buscarPorId(
+      const mockService = criarMockService();
+      const controller = new PedidosController(mockService);
+
+      const resultado = (await controller.buscarPorId(
         userPayload,
         'ped-uuid-123',
-      );
+      )) as { id: string; negocioId: string };
+
       expect(resultado.id).toBe('ped-uuid-123');
       expect(resultado.negocioId).toBe('negocio-uuid-teste');
     });

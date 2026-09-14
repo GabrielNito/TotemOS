@@ -145,12 +145,10 @@ export class PedidosController {
   @ApiResponse({
     status: 404,
     type: ErrorResponseDto,
-    description: 'Pedido não encontrado ou não pertence a este estabelecimento.',
+    description:
+      'Pedido não encontrado ou não pertence a este estabelecimento.',
   })
-  async buscarPorId(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string,
-  ) {
+  async buscarPorId(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return this.pedidosService.buscarPorId(user.negocioId, id);
   }
 }
