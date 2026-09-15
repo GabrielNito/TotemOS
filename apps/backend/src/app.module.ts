@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
+import { PedidosModule } from './pedidos/pedidos.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -18,6 +19,7 @@ import { AppService } from './app.service';
     PrismaModule,
     AuthModule,
     CatalogoModule,
+    PedidosModule,
   ],
   controllers: [AppController],
   providers: [

@@ -193,6 +193,7 @@ model Pedido {
   valorTotal     Decimal      @db.Decimal(10, 2)
   observacoes    String?
   origemOffline  Boolean      @default(false)
+  preparoZero    Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
