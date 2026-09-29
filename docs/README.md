@@ -9,7 +9,7 @@ apps/
 ├── backend/     — NestJS + Bun + Prisma + PostgreSQL. O motor: negócio, catálogo, pedido, pagamento.
 ├── dashboard/   — Next.js. Gestão de catálogo, relatórios, configuração, dispositivos.
 ├── totem/       — React Native. App cliente-facing: catálogo, carrinho, pagamento.
-└── painel/      — React Native. App da equipe: fila de pedidos, e também roda o servidor local.
+└── kds/         — React Native. App da equipe: fila de pedidos, e também roda o servidor local.
 
 docs/            — documentos de planejamento completos (mover pra cá ao montar o repo):
 ├── regras-de-negocio-totem.md   — plano de negócio completo, origem, mercado, todas as regras
@@ -21,12 +21,12 @@ docs/            — documentos de planejamento completos (mover pra cá ao mont
 
 ## Por onde começar
 
-Cada `apps/*/SPEC.md` é o ponto de entrada de cada frente — autocontido o suficiente pra trabalhar naquela parte sem precisar ler os cinco documentos de `docs/` inteiros, com link pra eles quando precisar de mais profundidade.
+Cada `docs/*-SPEC.md` é o ponto de entrada de cada frente — autocontido o suficiente pra trabalhar naquela parte sem precisar ler os cinco documentos de `docs/` inteiros, com link pra eles quando precisar de mais profundidade.
 
 Ordem de construção sugerida (detalhe em `docs/arquitetura-tecnica-v1.md`, seção 1):
 1. `apps/backend` — motor e modelo de dados
 2. `apps/totem` — fluxo de pedido + pagamento (primeiro "uau" da demonstração)
-3. `apps/painel` — fila em tempo real (segundo "uau")
+3. `apps/kds` — fila em tempo real (segundo "uau")
 4. `apps/dashboard` — gestão de catálogo e relatórios
 
 ## Escopo da v1

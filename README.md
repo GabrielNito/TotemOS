@@ -23,7 +23,7 @@ TotemOS/
 │   ├── backend/               # Bun + NestJS + Fastify + Prisma + PostgreSQL
 │   ├── dashboard/             # Next.js (App Router) — Gestão de catálogo, relatórios e dispositivos
 │   ├── totem/                 # React Native (Expo dev client) + WatermelonDB — App do cliente no tablet
-│   └── painel/                # React Native (Expo dev client) + Servidor local — Fila KDS da cozinha
+│   └── kds/                   # React Native (Expo dev client) + Servidor local — Fila KDS da cozinha
 ```
 
 ---
