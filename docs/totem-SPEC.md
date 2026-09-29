@@ -32,7 +32,7 @@ Não existe tela de login tradicional. Setup inicial: dono gera código na dashb
 
 ## Comunicação local com o painel
 
-O totem é **cliente puro** — quem roda o servidor é o painel (ver `apps/painel/SPEC.md`). O totem precisa: descobrir o painel na rede local (mDNS, verificando `negocio_id` antes de aceitar conexão) e enviar o pedido via HTTP/WebSocket pro servidor local do painel.
+O totem é **cliente puro** — quem roda o servidor é o painel (ver `docs/painel-SPEC.md`). O totem precisa: descobrir o painel na rede local (mDNS, verificando `negocio_id` antes de aceitar conexão) e enviar o pedido via HTTP/WebSocket pro servidor local do painel.
 
 ## Ainda em validação (spike necessário)
 
