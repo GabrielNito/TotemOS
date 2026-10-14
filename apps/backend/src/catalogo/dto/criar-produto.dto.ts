@@ -48,6 +48,10 @@ export const CriarProdutoSchema = z.object({
     .describe(
       'Tempo estimado de preparo em minutos. 0 = sem preparo (ex: bebidas enlatadas)',
     ),
+  ativo: z
+    .boolean()
+    .default(true)
+    .describe('Status de ativação do produto no catálogo'),
   adicionais: z
     .array(AdicionalInputSchema)
     .optional()

@@ -2,6 +2,7 @@ import { env } from "./env"
 import { getAuthToken } from "./auth"
 import type { AuthResponse, UserSession } from "./auth"
 import type { LoginFormValues, RegistrarFormValues } from "./schemas/auth"
+import type { Categoria, Produto } from "./types/models"
 
 export class ApiError extends Error {
   constructor(
@@ -26,7 +27,9 @@ export async function fetchApi<T>(
   const resolvedToken = token || getAuthToken()
 
   const requestHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(restOptions.body !== undefined && restOptions.body !== null
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...(headers as Record<string, string>),
   }
 
@@ -101,4 +104,137 @@ export async function validarPinApi(
     method: "POST",
     body: JSON.stringify({ pin, negocioId }),
   })
+}
+
+type PrecoSerializado = number | string
+
+type CategoriaApi = Omit<Categoria, "produtos">
+
+interface AdicionalApi {
+  id: string
+  produtoId: string
+  nome: string
+  preco: PrecoSerializado
+  maximo: number
+  esgotado: boolean
+}
+
+interface ProdutoApi extends Omit<Produto, "precoBase" | "adicionais"> {
+  precoBase: PrecoSerializado
+  adicionais: AdicionalApi[]
+}
+
+interface CatalogoAdministrativoApi {
+  categorias: CategoriaApi[]
+  produtos: ProdutoApi[]
+}
+
+export interface CatalogoAdministrativo {
+  categorias: Categoria[]
+  produtos: Produto[]
+}
+
+export interface CategoriaInput {
+  nome?: string
+  ordem?: number
+  ativo?: boolean
+}
+
+export interface AdicionalInput {
+  id?: string
+  nome: string
+  preco: number
+  maximo: number
+  esgotado?: boolean
+}
+
+export interface ProdutoInput {
+  categoriaId?: string
+  nome?: string
+  precoBase?: number
+  tempoEstimadoPreparo?: number
+  ativo?: boolean
+  adicionais?: AdicionalInput[]
+}
+
+export interface CriarProdutoInput {
+  categoriaId: string
+  nome: string
+  precoBase: number
+  tempoEstimadoPreparo: number
+  ativo: boolean
+  adicionais: Array<Omit<AdicionalInput, "id" | "esgotado">>
+}
+
+function normalizarPreco(preco: PrecoSerializado): number {
+  const valor = typeof preco === "string" ? Number(preco) : preco
+
+  if (!Number.isFinite(valor)) {
+    throw new Error("A API retornou um preço inválido")
+  }
+
+  return valor
+}
+
+function normalizarProduto(produto: ProdutoApi): Produto {
+  return {
+    ...produto,
+    precoBase: normalizarPreco(produto.precoBase),
+    adicionais: produto.adicionais.map((adicional) => ({
+      ...adicional,
+      preco: normalizarPreco(adicional.preco),
+    })),
+  }
+}
+
+export async function getCatalogoAdministrativo(): Promise<CatalogoAdministrativo> {
+  const catalogo = await fetchApi<CatalogoAdministrativoApi>(
+    "/catalogo/admin",
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  )
+
+  return {
+    categorias: catalogo.categorias,
+    produtos: catalogo.produtos.map(normalizarProduto),
+  }
+}
+
+export function createCategoria(
+  data: Required<Pick<CategoriaInput, "nome" | "ordem">>
+) {
+  return fetchApi<Categoria>("/catalogo/categorias", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateCategoria(id: string, data: CategoriaInput) {
+  return fetchApi<Categoria>(`/catalogo/categorias/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
+
+export function createProduto(data: CriarProdutoInput) {
+  return fetchApi<ProdutoApi>("/catalogo/produtos", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }).then(normalizarProduto)
+}
+
+export function updateProduto(id: string, data: ProdutoInput) {
+  return fetchApi<ProdutoApi>(`/catalogo/produtos/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  }).then(normalizarProduto)
+}
+
+export function deactivateProduto(id: string) {
+  return fetchApi<Pick<Produto, "id" | "nome" | "ativo">>(
+    `/catalogo/produtos/${id}`,
+    { method: "DELETE" }
+  )
 }
