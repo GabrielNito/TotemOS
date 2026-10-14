@@ -36,6 +36,12 @@ export class RolesGuard implements CanActivate {
       );
     }
 
+    if (user.isDispositivo) {
+      throw new ForbiddenException(
+        'Acesso negado: Dispositivos não podem acessar rotas administrativas',
+      );
+    }
+
     const hasRole = requiredRoles.includes(user.role);
     if (!hasRole) {
       throw new ForbiddenException(

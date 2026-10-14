@@ -78,6 +78,18 @@ describe('Catálogo — Validação de Schemas Zod (TDD)', () => {
       }
     });
 
+    test('usa ativo=true como default para novos produtos', () => {
+      const resultado = CriarProdutoSchema.safeParse({
+        categoriaId,
+        nome: 'Água Mineral',
+        precoBase: 5.0,
+      });
+      expect(resultado.success).toBe(true);
+      if (resultado.success) {
+        expect(resultado.data.ativo).toBe(true);
+      }
+    });
+
     test('rejeita precoBase negativo', () => {
       const resultado = CriarProdutoSchema.safeParse({
         categoriaId,

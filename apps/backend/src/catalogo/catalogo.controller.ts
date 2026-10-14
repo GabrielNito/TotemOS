@@ -19,11 +19,15 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { UserPayload } from '../auth/decorators/current-user.decorator';
 import { CategoriasService } from './categorias.service';
 import { ProdutosService } from './produtos.service';
 import { CriarCategoriaDto } from './dto/criar-categoria.dto';
+import { AtualizarCategoriaDto } from './dto/atualizar-categoria.dto';
 import { CriarProdutoDto } from './dto/criar-produto.dto';
 import { AtualizarProdutoDto } from './dto/atualizar-produto.dto';
 import { ErrorResponseDto } from '../auth/dto/auth-response.dto';
@@ -40,7 +44,8 @@ export class CatalogoController {
 
   @Post('categorias')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Criar categoria no catálogo do estabelecimento',
@@ -62,11 +67,61 @@ export class CatalogoController {
     type: ErrorResponseDto,
     description: 'Token JWT ausente ou inválido.',
   })
+  @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
+  })
   async criarCategoria(
     @CurrentUser() user: UserPayload,
     @Body() dto: CriarCategoriaDto,
   ) {
     return this.categoriasService.criar(user.negocioId, dto);
+  }
+
+  @Put('categorias/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Atualizar categoria do catálogo',
+    description:
+      'Atualiza os campos informados da categoria, incluindo a ativação. Verifica isolamento de tenant antes de persistir.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID da categoria a ser atualizada' })
+  @ApiBody({ type: AtualizarCategoriaDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Categoria atualizada com sucesso.',
+  })
+  @ApiResponse({
+    status: 400,
+    type: ErrorResponseDto,
+    description: 'Falha de validação Zod.',
+  })
+  @ApiResponse({
+    status: 401,
+    type: ErrorResponseDto,
+    description: 'Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
+  })
+  @ApiResponse({
+    status: 404,
+    type: ErrorResponseDto,
+    description:
+      'Categoria não encontrada ou não pertence a este estabelecimento.',
+  })
+  async atualizarCategoria(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body() dto: AtualizarCategoriaDto,
+  ) {
+    return this.categoriasService.atualizar(user.negocioId, id, dto);
   }
 
   // ─── Catálogo Público ────────────────────────────────────────────────────
@@ -90,11 +145,40 @@ export class CatalogoController {
     return this.produtosService.listarCatalogoPublico(negocioId);
   }
 
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Retorna o catálogo administrativo do estabelecimento',
+    description:
+      'Retorna categorias, produtos e adicionais do tenant autenticado sem ocultar categorias vazias ou itens inativos e esgotados.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Categorias e produtos administrativos, incluindo todos os status e adicionais.',
+  })
+  @ApiResponse({
+    status: 401,
+    type: ErrorResponseDto,
+    description: 'Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
+  })
+  async getCatalogoAdministrativo(@CurrentUser() user: UserPayload) {
+    return this.produtosService.listarCatalogoAdministrativo(user.negocioId);
+  }
+
   // ─── Produtos ────────────────────────────────────────────────────────────
 
   @Post('produtos')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Criar produto no catálogo',
@@ -118,6 +202,11 @@ export class CatalogoController {
     description: 'Token JWT ausente ou inválido.',
   })
   @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
+  })
+  @ApiResponse({
     status: 404,
     type: ErrorResponseDto,
     description:
@@ -132,7 +221,8 @@ export class CatalogoController {
 
   @Put('produtos/:id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Atualizar produto do catálogo',
@@ -156,6 +246,11 @@ export class CatalogoController {
     description: 'Token JWT ausente ou inválido.',
   })
   @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
+  })
+  @ApiResponse({
     status: 404,
     type: ErrorResponseDto,
     description:
@@ -171,12 +266,13 @@ export class CatalogoController {
 
   @Delete('produtos/:id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.DONO, Role.GERENTE)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Desativar produto do catálogo (soft delete)',
     description:
-      'Define ativo=false no produto. O produto não será mais exibido no Totem, mas o histórico de pedidos é preservado. Operação irreversível pelo cliente.',
+      'Define ativo=false no produto. O produto não será mais exibido no Totem, mas o histórico de pedidos é preservado. A reativação é feita pela atualização administrativa do produto.',
   })
   @ApiParam({ name: 'id', description: 'UUID do produto a ser desativado' })
   @ApiResponse({
@@ -187,6 +283,11 @@ export class CatalogoController {
     status: 401,
     type: ErrorResponseDto,
     description: 'Token JWT ausente ou inválido.',
+  })
+  @ApiResponse({
+    status: 403,
+    type: ErrorResponseDto,
+    description: 'Usuário sem perfil autorizado para administrar o catálogo.',
   })
   @ApiResponse({
     status: 404,

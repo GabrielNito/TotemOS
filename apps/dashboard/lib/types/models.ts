@@ -69,7 +69,7 @@ export interface Produto {
   id: string
   negocioId: string
   categoriaId: string
-  categoria?: Categoria
+  categoria?: Pick<Categoria, "id" | "nome">
   nome: string
   descricao?: string | null
   precoBase: number

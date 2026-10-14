@@ -27,6 +27,7 @@ export class ProdutosService {
         precoBase: dto.precoBase,
         imagemUrl: dto.imagemUrl,
         tempoEstimadoPreparo: dto.tempoEstimadoPreparo ?? 0,
+        ativo: dto.ativo,
         adicionais: dto.adicionais?.length
           ? {
               create: dto.adicionais.map((a) => ({
@@ -64,7 +65,10 @@ export class ProdutosService {
       // Sincronização de adicionais se o array foi fornecido no payload
       if (dto.adicionais !== undefined) {
         const adicionaisExistentes = await tx.adicional.findMany({
-          where: { produtoId },
+          where: {
+            produtoId,
+            produto: { is: { negocioId } },
+          },
         });
         const idsExistentes = new Set(adicionaisExistentes.map((a) => a.id));
         const idsEnviados = new Set<string>();
@@ -73,8 +77,12 @@ export class ProdutosService {
           if (item.id && idsExistentes.has(item.id)) {
             // Atualiza adicional existente pertencente ao produto
             idsEnviados.add(item.id);
-            await tx.adicional.update({
-              where: { id: item.id },
+            const atualizacao = await tx.adicional.updateMany({
+              where: {
+                id: item.id,
+                produtoId,
+                produto: { is: { negocioId } },
+              },
               data: {
                 nome: item.nome,
                 preco: item.preco,
@@ -82,6 +90,12 @@ export class ProdutosService {
                 esgotado: item.esgotado ?? false,
               },
             });
+
+            if (atualizacao.count === 0) {
+              throw new NotFoundException(
+                'Adicional não encontrado ou não pertence a este estabelecimento',
+              );
+            }
           } else {
             // Cria novo adicional para o produto
             const novo = await tx.adicional.create({
@@ -107,13 +121,14 @@ export class ProdutosService {
             where: {
               id: { in: idsParaRemover },
               produtoId,
+              produto: { is: { negocioId } },
             },
           });
         }
       }
 
-      return tx.produto.update({
-        where: { id: produtoId },
+      const atualizacao = await tx.produto.updateMany({
+        where: { id: produtoId, negocioId },
         data: {
           ...(dto.nome !== undefined && { nome: dto.nome }),
           ...(dto.descricao !== undefined && { descricao: dto.descricao }),
@@ -128,6 +143,16 @@ export class ProdutosService {
             categoriaId: dto.categoriaId,
           }),
         },
+      });
+
+      if (atualizacao.count === 0) {
+        throw new NotFoundException(
+          'Produto não encontrado ou não pertence a este estabelecimento',
+        );
+      }
+
+      return tx.produto.findFirstOrThrow({
+        where: { id: produtoId, negocioId },
         include: {
           adicionais: true,
           categoria: { select: { id: true, nome: true } },
@@ -140,14 +165,20 @@ export class ProdutosService {
     // Soft delete — verifica propriedade antes de desativar
     await this.verificarPropriedadeProduto(produtoId, negocioId);
 
-    return this.prisma.produto.update({
-      where: { id: produtoId },
+    const resultado = await this.prisma.produto.updateMany({
+      where: { id: produtoId, negocioId },
       data: { ativo: false },
-      select: {
-        id: true,
-        nome: true,
-        ativo: true,
-      },
+    });
+
+    if (resultado.count === 0) {
+      throw new NotFoundException(
+        'Produto não encontrado ou não pertence a este estabelecimento',
+      );
+    }
+
+    return this.prisma.produto.findFirstOrThrow({
+      where: { id: produtoId, negocioId },
+      select: { id: true, nome: true, ativo: true },
     });
   }
 
@@ -174,6 +205,25 @@ export class ProdutosService {
 
     // Remove categorias sem nenhum produto disponível para exibição no Totem
     return categorias.filter((c) => c.produtos.length > 0);
+  }
+
+  async listarCatalogoAdministrativo(negocioId: string) {
+    const [categorias, produtos] = await Promise.all([
+      this.prisma.categoria.findMany({
+        where: { negocioId },
+        orderBy: { ordem: 'asc' },
+      }),
+      this.prisma.produto.findMany({
+        where: { negocioId },
+        orderBy: { nome: 'asc' },
+        include: {
+          adicionais: true,
+          categoria: { select: { id: true, nome: true } },
+        },
+      }),
+    ]);
+
+    return { categorias, produtos };
   }
 
   private async verificarPropriedadeProduto(

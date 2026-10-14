@@ -287,9 +287,13 @@ model Pagamento {
 - `PUT /negocios/:id/config`: Atualiza parâmetros (exige PIN do dono).
 
 ### 3.3 Catálogo
-- `GET /catalogo/publico/:negocioId`: Retorna todo o catálogo otimizado para exibição no Totem.
-- `POST /catalogo/categorias`, `POST /catalogo/produtos`, `POST /catalogo/combos`: Manutenção de catálogo.
-- `PATCH /catalogo/produtos/:id/esgotado`: Toggle rápido de disponibilidade.
+- `GET /catalogo/publico/:negocioId`: Rota pública destinada ao Totem. Retorna apenas categorias e conteúdo disponível para venda.
+- `GET /catalogo/admin`: Rota autenticada para usuários humanos `DONO` ou `GERENTE`. Deriva o `negocioId` da identidade autenticada e retorna a visão administrativa completa, incluindo categorias vazias ou inativas, produtos ativos, inativos ou esgotados e adicionais.
+- `POST /catalogo/categorias`: Cria categoria para administração do catálogo por `DONO` ou `GERENTE`.
+- `PUT /catalogo/categorias/:id`: Edita ou ativa/desativa categoria com isolamento por tenant.
+- `POST /catalogo/produtos`, `PUT /catalogo/produtos/:id`: Criação e edição administrativas de produtos por `DONO` ou `GERENTE`.
+- `DELETE /catalogo/produtos/:id`: Desativação lógica (*soft delete*) administrativa de produto por `DONO` ou `GERENTE`.
+- Adicional de Produto possui `nome`, `preco`, `maximo` e `esgotado`. `GrupoDeEscolha` pertence exclusivamente a Combo.
 
 ### 3.4 Pedidos & Ciclo de Vida
 - `POST /pedidos`: Criação de pedido com snapshot completo.
