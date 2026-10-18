@@ -73,6 +73,9 @@ function createDiscoveryBackend() {
     resolve(value: unknown) {
       listeners.resolved.forEach(listener => listener(value));
     },
+    error(value: unknown) {
+      listeners.error.forEach(listener => listener(value));
+    },
   };
 }
 
@@ -213,6 +216,113 @@ describe("cliente LAN experimental do Totem", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it("ignora resolved tardio depois de uma rejeição terminal", async () => {
+    const discovery = createDiscoveryBackend();
+    const socket = new FakeWebSocket();
+    const fetchImpl = createHealthFetch();
+    const webSocketFactory = jest.fn(() => socket);
+    const client = createTotemLanSpikeClient({
+      negocioId: "tenant-a",
+      createDiscoveryBackend: () => discovery.backend,
+      fetchImpl,
+      webSocketFactory,
+    });
+
+    client.start();
+    discovery.resolve(createService());
+    await flushAsyncWork();
+    socket.open();
+    socket.message({
+      type: "handshake_rejected",
+      code: "TENANT_MISMATCH",
+    });
+
+    discovery.resolve(createService());
+    await flushAsyncWork();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(webSocketFactory).toHaveBeenCalledTimes(1);
+    expect(discovery.backend.scan).toHaveBeenCalledTimes(1);
+    expect(client.getSnapshot().retryAttempt).toBe(0);
+    expect(client.getSnapshot().state).toBe("erro");
+    expect(client.getSnapshot().lastError).toContain("TENANT_MISMATCH");
+    client.stop();
+  });
+
+  it("ignora erro tardio da descoberta depois de uma rejeição terminal", async () => {
+    jest.useFakeTimers();
+    try {
+      const firstDiscovery = createDiscoveryBackend();
+      const secondDiscovery = createDiscoveryBackend();
+      const socket = new FakeWebSocket();
+      let discoveryCalls = 0;
+      const client = createTotemLanSpikeClient({
+        negocioId: "tenant-a",
+        createDiscoveryBackend: () => {
+          discoveryCalls += 1;
+          return discoveryCalls === 1
+            ? firstDiscovery.backend
+            : secondDiscovery.backend;
+        },
+        fetchImpl: createHealthFetch(),
+        webSocketFactory: () => socket,
+      });
+
+      client.start();
+      firstDiscovery.resolve(createService());
+      await flushAsyncWork();
+      socket.open();
+      socket.message({
+        type: "handshake_rejected",
+        code: "TENANT_MISMATCH",
+      });
+
+      firstDiscovery.error(new Error("erro tardio de descoberta"));
+      jest.advanceTimersByTime(5_000);
+      await flushAsyncWork();
+
+      expect(discoveryCalls).toBe(1);
+      expect(secondDiscovery.backend.scan).not.toHaveBeenCalled();
+      expect(client.getSnapshot().retryAttempt).toBe(0);
+      expect(client.getSnapshot().state).toBe("erro");
+      expect(client.getSnapshot().lastError).toContain("TENANT_MISMATCH");
+      client.stop();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("ignora diagnóstico tardio do WebSocket rejeitado", async () => {
+    const discovery = createDiscoveryBackend();
+    const socket = new FakeWebSocket();
+    const client = createTotemLanSpikeClient({
+      negocioId: "tenant-a",
+      createDiscoveryBackend: () => discovery.backend,
+      fetchImpl: createHealthFetch(),
+      webSocketFactory: () => socket,
+    });
+
+    client.start();
+    discovery.resolve(createService());
+    await flushAsyncWork();
+    socket.open();
+    socket.message({
+      type: "handshake_rejected",
+      code: "TENANT_MISMATCH",
+    });
+
+    socket.message({
+      type: "diagnostic_ack",
+      id: "late-diagnostic",
+      status: "ok",
+    });
+
+    expect(client.getSnapshot().retryAttempt).toBe(0);
+    expect(client.getSnapshot().state).toBe("erro");
+    expect(client.getSnapshot().lastError).toContain("TENANT_MISMATCH");
+    client.stop();
   });
 
   it("limpa descoberta, WebSocket e retry ao parar", async () => {

@@ -190,6 +190,7 @@ export function createTotemLanSpikeClient(
   >();
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let connectionGeneration = 0;
+  let terminalHandshakeRejectedGeneration: number | null = null;
   let diagnosticSequence = 0;
 
   const notify = () => {
@@ -294,7 +295,11 @@ export function createTotemLanSpikeClient(
     };
 
     candidate.onmessage = event => {
-      if (!active || generation !== connectionGeneration) {
+      if (
+        !active ||
+        generation !== connectionGeneration ||
+        terminalHandshakeRejectedGeneration === generation
+      ) {
         return;
       }
 
@@ -317,6 +322,7 @@ export function createTotemLanSpikeClient(
       }
 
       if (message.type === "handshake_rejected") {
+        terminalHandshakeRejectedGeneration = generation;
         fail(
           new Error(`Handshake rejeitado: ${message.code}`),
           "terminal_handshake_rejection",
@@ -406,7 +412,10 @@ export function createTotemLanSpikeClient(
       discoveryCleanup = createDiscoverySession(
         backend,
         service => {
-          if (!active) {
+          if (
+            !active ||
+            terminalHandshakeRejectedGeneration !== null
+          ) {
             return;
           }
 
@@ -430,7 +439,7 @@ export function createTotemLanSpikeClient(
           void connectToService(service);
         },
         error => {
-          if (active) {
+          if (active && terminalHandshakeRejectedGeneration === null) {
             fail(error);
           }
         },
@@ -447,6 +456,7 @@ export function createTotemLanSpikeClient(
       }
       active = true;
       clearRetry();
+      terminalHandshakeRejectedGeneration = null;
       snapshot = {
         ...snapshot,
         service: null,

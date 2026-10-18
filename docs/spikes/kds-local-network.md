@@ -195,7 +195,7 @@ Separação por alvo:
 # Evidências
 
 - KDS: 5 suites, 17 testes, `UNIT_PASS`.
-- Totem: 7 suites, 21 testes, `UNIT_PASS`.
+- Totem: 7 suites, 24 testes, `UNIT_PASS`.
 - Lint KDS e Totem: `PASS`.
 - Typecheck KDS e Totem: `PASS`.
 - Export Metro Android KDS e Totem: `PASS`. Isso não equivale a build Android nativo.
@@ -685,11 +685,11 @@ O resultado desta rodada é `TOTEM_WINDOWS_NATIVE_PASS` para build, instalação
 
 Na revisão do Card #19, foi reproduzido e corrigido exclusivamente o retry indevido após `handshake_rejected` com `TENANT_MISMATCH` no cliente LAN experimental do Totem.
 
-- RED: o novo teste cobriu descoberta, health, criação do WebSocket, rejeição `TENANT_MISMATCH`, callbacks `onerror`/`onclose` atrasados e avanço de 5 segundos nos timers. Antes da correção, o `onerror` tardio substituiu o erro terminal por um erro de transporte e o `retryAttempt` avançou de `0` para `1`.
-- Causa raiz: `fail(error, false)` não agendava retry no caminho da rejeição, mas callbacks posteriores de `onerror` e `onclose` ainda podiam seguir o fluxo transitório enquanto `active=true`.
-- GREEN: o cliente passou a registrar a intenção de fechamento por socket. Rejeição terminal de handshake e encerramento solicitado ignoram `onerror`/`onclose` posteriores, preservando o erro e sem iniciar retry; falhas transitórias e desconexões inesperadas continuam iniciando retry. A geração da conexão segue descartando eventos de sockets antigos.
+- RED: além dos callbacks `onerror`/`onclose` já cobertos, três regressões reproduziram eventos tardios após `TENANT_MISMATCH`: `resolved` iniciou uma segunda consulta HTTP e WebSocket; erro do backend iniciou nova discovery/retry e substituiu o erro terminal; `diagnostic_ack` tardio limpou `lastError`. O avanço de 5 segundos confirmou o efeito do retry.
+- Causa raiz: a rejeição não agendava retry no caminho terminal, mas a sessão permanecia apenas com `active=true`; callbacks posteriores de discovery e mensagens do mesmo WebSocket ainda eram aceitos como eventos atuais.
+- GREEN: o cliente mantém um marcador da geração rejeitada. `resolved`, erro de discovery e mensagens posteriores dessa sessão são ignorados até uma reinicialização explícita com `start()` após `stop()`. A intenção de fechamento por socket continua protegendo `onerror`/`onclose`; falhas transitórias e desconexões inesperadas continuam iniciando retry. A geração da conexão segue descartando eventos de sockets antigos.
 - Regressão: o cliente ainda reconecta após queda inesperada, cancela timers e listeners em `stop()`, inicia nova sessão depois de `stop()` e ignora callbacks obsoletos.
-- Resultado: `apps/totem` passou em 7 suítes e 21 testes; KDS permaneceu em 5 suítes e 17 testes. Lint, typecheck e export Metro Android passaram nos dois apps.
+- Resultado: `apps/totem` passou em 7 suítes e 24 testes; KDS permaneceu em 5 suítes e 17 testes. Lint, typecheck e export Metro Android passaram nos dois apps.
 - O fechamento independente `close(1000) → 1006` não foi alterado nem tratado por hipótese; permanece `FAIL` e fora do escopo desta correção.
 
 ## Resumo proposto para PR
@@ -710,8 +710,8 @@ Validar a viabilidade experimental de um KDS Android publicar HTTP/WebSocket e m
 ### Testes executados
 
 - KDS: 5 suítes e 17 testes, lint, typecheck e export Metro `PASS`.
-- Totem: 7 suítes e 21 testes, lint, typecheck e export Metro `PASS`.
-- Regressão do cliente LAN: `TENANT_MISMATCH` terminal ignora `onerror`/`onclose` posteriores, preserva o erro, não aumenta retry, não redescobre e não cria novo WebSocket; queda transitória, stop/restart e callbacks obsoletos permanecem cobertos e `PASS`.
+- Totem: 7 suítes e 24 testes, lint, typecheck e export Metro `PASS`.
+- Regressão do cliente LAN: `TENANT_MISMATCH` terminal ignora `resolved` e erros tardios de discovery, mensagens tardias do WebSocket rejeitado e `onerror`/`onclose` posteriores, preserva o erro, não aumenta retry, não redescobre e não cria novo WebSocket; queda transitória, stop/restart e callbacks obsoletos permanecem cobertos e `PASS`.
 - KDS Android nativo no Galaxy A54: build, instalação, HTTP, WebSocket, `TENANT_MISMATCH` e publicação mDNS `PASS`.
 - Totem Android contra fixture Windows: mDNS, HTTP 200/404 pela LAN, handshake, `diagnostic_ack`, `TENANT_MISMATCH`, retry/reconexão e estabilidade de 15 minutos `PASS`.
 - Fechamento abrupto reproduzido com `1006`, comportamento esperado quando não há close frame.
