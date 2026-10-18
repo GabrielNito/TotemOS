@@ -19,7 +19,7 @@ Scope: validar a estrutura diagnóstica HTTP/WebSocket/mDNS entre KDS e Totem se
   CHECK: npm test -- --runInBand && node -e "console.log('TOTEM_TESTS_PASSED')"
   EXPECT: TOTEM_TESTS_PASSED
   CWD: apps/totem
-  EVIDENCE: PASS: reexecutado após a correção de ciclo de vida; 7 suites e 19 testes passaram.
+  EVIDENCE: PASS: reexecutado após a correção de ciclo de vida; 7 suites e 21 testes passaram, incluindo rejeição terminal de handshake, reinício após stop e callbacks obsoletos.
 
 - [x] G3: o lint do KDS passa sem erros ou warnings
   CHECK: npm run lint && node -e "console.log('KDS_LINT_PASSED')"
@@ -96,6 +96,7 @@ Scope: validar a estrutura diagnóstica HTTP/WebSocket/mDNS entre KDS e Totem se
 - KDS Android nativo: `PASS` nos experimentos comprovados no Galaxy A54.
 - Totem Android contra fixture Windows: `PASS` para mDNS, HTTP LAN, handshake, `diagnostic_ack`, `TENANT_MISMATCH`, reconexão e estabilidade de 15 minutos.
 - Reconexão e estabilidade inicial: `PASS` nos cenários executados.
+- Cliente Totem: rejeição `TENANT_MISMATCH` é terminal para a sessão atual; `onerror`/`onclose` posteriores não incrementam `retryAttempt`, não iniciam nova descoberta, não apagam o erro e não criam novo WebSocket. Quedas transitórias continuam em retry, e `stop()`/gerações continuam protegendo cleanup e callbacks obsoletos.
 - KDS Android ↔ Totem Android: `NOT_TESTED`.
 - Fechamento WebSocket voluntário com `close(1000)`: `FAIL`, observado como erro seguido de `1006`, `wasClean=false`.
 - Fechamento WebSocket após queda abrupta: `1006` esperado, reproduzido separadamente e não convertido artificialmente em sucesso.

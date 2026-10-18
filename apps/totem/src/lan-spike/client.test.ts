@@ -43,6 +43,10 @@ class FakeWebSocket implements LanSpikeWebSocket {
     this.onmessage?.({ data: JSON.stringify(data) });
   }
 
+  error(message?: string): void {
+    this.onerror?.({ message });
+  }
+
   closeFromServer(): void {
     this.closed = true;
     this.onclose?.();
@@ -158,6 +162,59 @@ describe("cliente LAN experimental do Totem", () => {
     client.stop();
   });
 
+  it("não agenda retry depois de uma rejeição de handshake", async () => {
+    jest.useFakeTimers();
+    try {
+      const firstDiscovery = createDiscoveryBackend();
+      const secondDiscovery = createDiscoveryBackend();
+      const sockets: FakeWebSocket[] = [];
+      let discoveryCalls = 0;
+      const webSocketFactory = jest.fn(() => {
+        const nextSocket = new FakeWebSocket();
+        sockets.push(nextSocket);
+        return nextSocket;
+      });
+      const client = createTotemLanSpikeClient({
+        negocioId: "tenant-a",
+        createDiscoveryBackend: () => {
+          discoveryCalls += 1;
+          return discoveryCalls === 1
+            ? firstDiscovery.backend
+            : secondDiscovery.backend;
+        },
+        fetchImpl: createHealthFetch(),
+        webSocketFactory,
+      });
+
+      client.start();
+      firstDiscovery.resolve(createService());
+      await flushAsyncWork();
+
+      const firstSocket = sockets[0];
+      firstSocket.open();
+      firstSocket.message({
+        type: "handshake_rejected",
+        code: "TENANT_MISMATCH",
+      });
+      firstSocket.error("erro tardio do transporte");
+      firstSocket.closeFromServer();
+
+      expect(client.getSnapshot().lastError).toContain("TENANT_MISMATCH");
+      expect(client.getSnapshot().retryAttempt).toBe(0);
+
+      jest.advanceTimersByTime(5_000);
+      await flushAsyncWork();
+
+      expect(client.getSnapshot().lastError).toContain("TENANT_MISMATCH");
+      expect(client.getSnapshot().retryAttempt).toBe(0);
+      expect(discoveryCalls).toBe(1);
+      expect(webSocketFactory).toHaveBeenCalledTimes(1);
+      client.stop();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("limpa descoberta, WebSocket e retry ao parar", async () => {
     jest.useFakeTimers();
     const discovery = createDiscoveryBackend();
@@ -215,6 +272,59 @@ describe("cliente LAN experimental do Totem", () => {
     expect(secondDiscovery.backend.scan).toHaveBeenCalledTimes(1);
     client.stop();
     jest.useRealTimers();
+  });
+
+  it("permite uma nova sessão e ignora callbacks da sessão anterior", async () => {
+    const firstDiscovery = createDiscoveryBackend();
+    const secondDiscovery = createDiscoveryBackend();
+    const sockets: FakeWebSocket[] = [];
+    let discoveryCalls = 0;
+    const client = createTotemLanSpikeClient({
+      negocioId: "tenant-a",
+      createDiscoveryBackend: () => {
+        discoveryCalls += 1;
+        return discoveryCalls === 1
+          ? firstDiscovery.backend
+          : secondDiscovery.backend;
+      },
+      fetchImpl: createHealthFetch(),
+      webSocketFactory: () => {
+        const nextSocket = new FakeWebSocket();
+        sockets.push(nextSocket);
+        return nextSocket;
+      },
+    });
+
+    client.start();
+    firstDiscovery.resolve(createService());
+    await flushAsyncWork();
+    const staleSocket = sockets[0];
+
+    client.stop();
+    client.start();
+    secondDiscovery.resolve(createService());
+    await flushAsyncWork();
+    const currentSocket = sockets[1];
+    currentSocket.open();
+    currentSocket.message({
+      type: "handshake_ack",
+      protocol: LAN_SPIKE_PROTOCOL,
+      version: LAN_SPIKE_PROTOCOL_VERSION,
+    });
+
+    staleSocket.open();
+    staleSocket.message({
+      type: "handshake_rejected",
+      code: "TENANT_MISMATCH",
+    });
+    staleSocket.closeFromServer();
+
+    expect(client.getSnapshot().state).toBe("conectado");
+    expect(client.getSnapshot().lastError).toBeNull();
+    expect(client.getSnapshot().retryAttempt).toBe(0);
+    expect(discoveryCalls).toBe(2);
+    expect(sockets).toHaveLength(2);
+    client.stop();
   });
 
   it("transforma timeout HTTP em erro controlado", async () => {

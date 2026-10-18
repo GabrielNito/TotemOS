@@ -69,6 +69,13 @@ export interface TotemLanSpikeSnapshot {
 
 type SnapshotListener = (snapshot: TotemLanSpikeSnapshot) => void;
 
+type FailureDisposition = "transient" | "terminal_handshake_rejection";
+type SocketCloseIntent =
+  | "unexpected"
+  | "transient_failure"
+  | "terminal_handshake_rejection"
+  | "client_requested";
+
 const DEFAULT_HEALTH_TIMEOUT_MS = 3_000;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 const DEFAULT_RETRY_MAX_DELAY_MS = 5_000;
@@ -177,6 +184,10 @@ export function createTotemLanSpikeClient(
   };
   let discoveryCleanup: (() => void) | null = null;
   let socket: LanSpikeWebSocket | null = null;
+  const socketCloseIntents = new WeakMap<
+    LanSpikeWebSocket,
+    SocketCloseIntent
+  >();
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let connectionGeneration = 0;
   let diagnosticSequence = 0;
@@ -231,16 +242,25 @@ export function createTotemLanSpikeClient(
     }, delay);
   };
 
-  const fail = (error: unknown, shouldRetry = true) => {
+  const fail = (
+    error: unknown,
+    disposition: FailureDisposition = "transient",
+  ) => {
     const message = errorMessage(error);
     snapshot = { ...snapshot, lastError: message };
     setState({ type: "ERROR", message });
     if (socket) {
       const currentSocket = socket;
       socket = null;
+      socketCloseIntents.set(
+        currentSocket,
+        disposition === "terminal_handshake_rejection"
+          ? "terminal_handshake_rejection"
+          : "transient_failure",
+      );
       currentSocket.close(1011, "diagnostic error");
     }
-    if (shouldRetry) {
+    if (disposition === "transient") {
       scheduleRetry();
     }
   };
@@ -297,7 +317,10 @@ export function createTotemLanSpikeClient(
       }
 
       if (message.type === "handshake_rejected") {
-        fail(new Error(`Handshake rejeitado: ${message.code}`), false);
+        fail(
+          new Error(`Handshake rejeitado: ${message.code}`),
+          "terminal_handshake_rejection",
+        );
         return;
       }
 
@@ -311,7 +334,16 @@ export function createTotemLanSpikeClient(
 
     candidate.onerror = event => {
       if (active && generation === connectionGeneration) {
-        fail(new Error(event.message ?? "Erro no WebSocket do KDS"));
+        const closeIntent = socketCloseIntents.get(candidate) ?? "unexpected";
+        switch (closeIntent) {
+          case "terminal_handshake_rejection":
+          case "client_requested":
+            return;
+          case "unexpected":
+          case "transient_failure":
+            fail(new Error(event.message ?? "Erro no WebSocket do KDS"));
+            return;
+        }
       }
     };
 
@@ -321,8 +353,17 @@ export function createTotemLanSpikeClient(
       }
       socket = null;
       if (active) {
-        setState({ type: "DISCONNECTED" });
-        scheduleRetry();
+        const closeIntent = socketCloseIntents.get(candidate) ?? "unexpected";
+        switch (closeIntent) {
+          case "terminal_handshake_rejection":
+          case "client_requested":
+            return;
+          case "unexpected":
+          case "transient_failure":
+            setState({ type: "DISCONNECTED" });
+            scheduleRetry();
+            return;
+        }
       }
     };
   };
@@ -381,6 +422,7 @@ export function createTotemLanSpikeClient(
           if (socket) {
             const currentSocket = socket;
             socket = null;
+            socketCloseIntents.set(currentSocket, "client_requested");
             currentSocket.close(1000, "novo serviço descoberto");
           }
           snapshot = { ...snapshot, service, lastError: null };
@@ -428,6 +470,7 @@ export function createTotemLanSpikeClient(
       if (socket) {
         const currentSocket = socket;
         socket = null;
+        socketCloseIntents.set(currentSocket, "client_requested");
         currentSocket.close(1000, "diagnostic stop");
       }
       setState({ type: "DISCONNECTED" });
