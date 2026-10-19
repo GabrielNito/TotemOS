@@ -41,7 +41,11 @@ export const AtualizarProdutoSchema = z.object({
     .min(1, 'Nome do produto não pode ser vazio')
     .optional()
     .describe('Nome do produto exibido no cardápio'),
-  descricao: z.string().optional().describe('Descrição detalhada do produto'),
+  descricao: z
+    .string()
+    .optional()
+    .nullable()
+    .describe('Descrição detalhada do produto'),
   precoBase: z
     .number()
     .positive('Preço base deve ser um valor positivo')
@@ -51,6 +55,7 @@ export const AtualizarProdutoSchema = z.object({
     .string()
     .url('URL de imagem inválida')
     .optional()
+    .nullable()
     .describe('URL pública da imagem do produto'),
   tempoEstimadoPreparo: z
     .number()

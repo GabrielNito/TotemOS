@@ -168,6 +168,40 @@ describe('Catálogo — Validação de Schemas Zod (TDD)', () => {
       });
       expect(resultado.success).toBe(false);
     });
+
+    test('aceita esgotado explicitamente na criação e usa false como default', () => {
+      const comEsgotado = CriarProdutoSchema.safeParse({
+        categoriaId,
+        nome: 'X-Bacon',
+        precoBase: 28,
+        esgotado: true,
+      });
+      expect(comEsgotado.success).toBe(true);
+      if (comEsgotado.success) {
+        expect(comEsgotado.data.esgotado).toBe(true);
+      }
+
+      const padrao = CriarProdutoSchema.safeParse({
+        categoriaId,
+        nome: 'X-Bacon',
+        precoBase: 28,
+      });
+      expect(padrao.success).toBe(true);
+      if (padrao.success) {
+        expect(padrao.data.esgotado).toBe(false);
+      }
+    });
+
+    test('aceita imagemUrl e descricao como null ou vazios', () => {
+      const resultado = CriarProdutoSchema.safeParse({
+        categoriaId,
+        nome: 'Suco',
+        precoBase: 10,
+        imagemUrl: null,
+        descricao: null,
+      });
+      expect(resultado.success).toBe(true);
+    });
   });
 
   // ─── Atualizar Produto (partial) ──────────────────────────────────────────
@@ -198,6 +232,18 @@ describe('Catálogo — Validação de Schemas Zod (TDD)', () => {
         tempoEstimadoPreparo: -1,
       });
       expect(resultado.success).toBe(false);
+    });
+
+    test('aceita limpar imagemUrl e descricao passando null', () => {
+      const resultado = AtualizarProdutoSchema.safeParse({
+        imagemUrl: null,
+        descricao: null,
+      });
+      expect(resultado.success).toBe(true);
+      if (resultado.success) {
+        expect(resultado.data.imagemUrl).toBeNull();
+        expect(resultado.data.descricao).toBeNull();
+      }
     });
 
     test('aceita atualização com novos adicionais e adicionais existentes', () => {

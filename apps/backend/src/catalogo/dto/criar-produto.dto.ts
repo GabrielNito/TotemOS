@@ -30,6 +30,7 @@ export const CriarProdutoSchema = z.object({
   descricao: z
     .string()
     .optional()
+    .nullable()
     .describe('Descrição detalhada do produto (ingredientes, modo de preparo)'),
   precoBase: z
     .number()
@@ -39,6 +40,7 @@ export const CriarProdutoSchema = z.object({
     .string()
     .url('URL de imagem inválida')
     .optional()
+    .nullable()
     .describe('URL pública da imagem do produto'),
   tempoEstimadoPreparo: z
     .number()
@@ -48,6 +50,11 @@ export const CriarProdutoSchema = z.object({
     .describe(
       'Tempo estimado de preparo em minutos. 0 = sem preparo (ex: bebidas enlatadas)',
     ),
+  esgotado: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Indica se o produto inicia esgotado'),
   ativo: z
     .boolean()
     .default(true)
