@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useFieldArray, useForm, Controller } from "react-hook-form"
+import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { ImageIcon, Loader2, Plus, Trash2, Zap } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -222,6 +222,7 @@ export function ProdutoDialog({
 }: ProdutoDialogProps) {
   const [formError, setFormError] = React.useState<string | null>(null)
   const [saveBlocked, setSaveBlocked] = React.useState(false)
+  const [failedImageUrl, setFailedImageUrl] = React.useState<string | null>(null)
   const {
     register,
     control,
@@ -230,6 +231,17 @@ export function ProdutoDialog({
     formState: { errors, isSubmitting },
   } = useForm<ProdutoFormValues>({
     resolver: zodResolver(ProdutoFormSchema),
+    defaultValues: {
+      nome: "",
+      descricao: "",
+      precoBase: 0,
+      imagemUrl: "",
+      tempoEstimadoPreparo: 0,
+      categoriaId: "",
+      ativo: true,
+      esgotado: false,
+      adicionais: [],
+    },
   })
   const { fields, append, remove } = useFieldArray({
     control,
@@ -237,13 +249,22 @@ export function ProdutoDialog({
     keyName: "fieldId",
   })
 
+  const imagemUrlValue = useWatch({ control, name: "imagemUrl" })
+  const tempoEstimadoValue = useWatch({ control, name: "tempoEstimadoPreparo" })
+  const imageError = Boolean(
+    imagemUrlValue && failedImageUrl === imagemUrlValue
+  )
+
   React.useEffect(() => {
     reset({
       nome: produto?.nome ?? "",
+      descricao: produto?.descricao ?? "",
       precoBase: produto?.precoBase ?? 0,
+      imagemUrl: produto?.imagemUrl ?? "",
       tempoEstimadoPreparo: produto?.tempoEstimadoPreparo ?? 0,
-      categoriaId: produto?.categoriaId ?? "",
+      categoriaId: produto?.categoriaId ?? (categorias[0]?.id ?? ""),
       ativo: produto?.ativo ?? true,
+      esgotado: produto?.esgotado ?? false,
       adicionais:
         produto?.adicionais?.map((adicional) => ({
           id: adicional.id,
@@ -253,12 +274,13 @@ export function ProdutoDialog({
           esgotado: adicional.esgotado,
         })) ?? [],
     })
-  }, [produto, open, reset])
+  }, [produto, open, reset, categorias])
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setFormError(null)
       setSaveBlocked(false)
+      setFailedImageUrl(null)
     }
     onOpenChange(nextOpen)
   }
@@ -290,7 +312,7 @@ export function ProdutoDialog({
             {produto ? "Editar produto" : "Adicionar produto"}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Configure preço, preparo e adicionais deste item.
+            Configure informações, preços, imagem, preparo e modificadores deste item.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={handleSubmit(submit)}>
@@ -362,30 +384,126 @@ export function ProdutoDialog({
                 disabled={isSubmitting || saveBlocked}
                 {...register("tempoEstimadoPreparo", { valueAsNumber: true })}
               />
+              {tempoEstimadoValue === 0 && (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <Zap className="size-3" /> Preparo Zero: avança direto para PRONTO
+                </span>
+              )}
             </Campo>
           </div>
 
-          <Controller
-            control={control}
-            name="ativo"
-            render={({ field }) => (
-              <label className="flex items-center justify-between rounded-2xl bg-muted/40 px-3.5 py-3">
-                <span>
-                  <span className="block text-xs font-semibold">
-                    Produto ativo
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    Desative para ocultar o item do Totem.
-                  </span>
+          <Campo
+            label="Descrição detalhada (opcional)"
+            error={errors.descricao?.message}
+            htmlFor="produto-descricao"
+          >
+            <textarea
+              id="produto-descricao"
+              rows={2}
+              placeholder="Ex: Pão brioche artesanal, hambúrguer de costela 160g, queijo prato e maionese da casa..."
+              className={cn(
+                "w-full resize-none rounded-xl border border-input bg-background p-3 text-xs placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden",
+                errors.descricao?.message && "border-destructive focus-visible:ring-destructive"
+              )}
+              disabled={isSubmitting || saveBlocked}
+              {...register("descricao")}
+            />
+          </Campo>
+
+          <div className="grid gap-3">
+            <Campo
+              label="URL da Imagem (pública)"
+              error={errors.imagemUrl?.message}
+              htmlFor="produto-imagem"
+            >
+              <Input
+                id="produto-imagem"
+                type="url"
+                placeholder="https://exemplo.com/fotos/lanche.jpg"
+                className={campoClass(errors.imagemUrl?.message)}
+                disabled={isSubmitting || saveBlocked}
+                {...register("imagemUrl")}
+              />
+            </Campo>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-3">
+              <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/40 bg-muted">
+                {imagemUrlValue && !imageError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={imagemUrlValue}
+                    alt="Prévia do produto"
+                    className="size-full object-cover"
+                    onError={() => setFailedImageUrl(imagemUrlValue)}
+                  />
+                ) : (
+                  <ImageIcon className="size-6 text-muted-foreground/50" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold">
+                  {imagemUrlValue
+                    ? imageError
+                      ? "Não foi possível carregar a imagem"
+                      : "Foto carregada"
+                    : "Sem foto cadastrada"}
                 </span>
-                <Switch
-                  checked={field.value}
-                  disabled={isSubmitting || saveBlocked}
-                  onCheckedChange={field.onChange}
-                />
-              </label>
-            )}
-          />
+                <span className="block text-[11px] text-muted-foreground">
+                  {imagemUrlValue
+                    ? imageError
+                      ? "Verifique se a URL é pública e aponta para uma imagem válida."
+                      : "Esta imagem será exibida nos totens de autoatendimento."
+                    : "Itens sem foto utilizam a identificação padrão no Totem."}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="ativo"
+              render={({ field }) => (
+                <label className="flex items-center justify-between rounded-2xl bg-muted/40 p-3.5">
+                  <span className="pr-2">
+                    <span className="block text-xs font-semibold">
+                      Produto ativo
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Desative para ocultar do Totem.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={field.value}
+                    disabled={isSubmitting || saveBlocked}
+                    onCheckedChange={field.onChange}
+                  />
+                </label>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="esgotado"
+              render={({ field }) => (
+                <label className="flex items-center justify-between rounded-2xl bg-muted/40 p-3.5">
+                  <span className="pr-2">
+                    <span className="block text-xs font-semibold">
+                      Produto esgotado
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Permanece no catálogo, mas bloqueado no Totem.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={field.value}
+                    disabled={isSubmitting || saveBlocked}
+                    onCheckedChange={field.onChange}
+                  />
+                </label>
+              )}
+            />
+          </div>
 
           <section className="grid gap-3 rounded-2xl border border-border/40 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -457,23 +575,21 @@ export function ProdutoDialog({
                     })}
                   />
                 </Campo>
-                {produto && (
-                  <Controller
-                    control={control}
-                    name={`adicionais.${index}.esgotado`}
-                    render={({ field: statusField }) => (
-                      <label className="flex items-center gap-2 self-end pb-2 text-[11px] text-muted-foreground">
-                        <Switch
-                          size="sm"
-                          checked={statusField.value}
-                          disabled={isSubmitting || saveBlocked}
-                          onCheckedChange={statusField.onChange}
-                        />
-                        Esgotado
-                      </label>
-                    )}
-                  />
-                )}
+                <Controller
+                  control={control}
+                  name={`adicionais.${index}.esgotado`}
+                  render={({ field: statusField }) => (
+                    <label className="flex items-center gap-2 self-end pb-2 text-[11px] text-muted-foreground">
+                      <Switch
+                        size="sm"
+                        checked={statusField.value}
+                        disabled={isSubmitting || saveBlocked}
+                        onCheckedChange={statusField.onChange}
+                      />
+                      Esgotado
+                    </label>
+                  )}
+                />
                 <Button
                   type="button"
                   variant="ghost"

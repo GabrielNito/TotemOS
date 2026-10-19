@@ -26,14 +26,22 @@ export const AdicionalFormSchema = z.object({
 
 export const ProdutoFormSchema = z.object({
   nome: z.string().trim().min(1, "O nome do produto é obrigatório"),
+  descricao: z.string().trim().optional(),
   precoBase: numeroObrigatorio("Informe um preço válido").positive(
     "O preço deve ser maior que zero"
   ),
+  imagemUrl: z
+    .string()
+    .trim()
+    .url("Informe uma URL de imagem válida")
+    .optional()
+    .or(z.literal("")),
   tempoEstimadoPreparo: numeroObrigatorio("Informe um tempo válido")
     .int("O tempo deve ser um número inteiro")
     .min(0, "O tempo não pode ser negativo"),
   categoriaId: z.string().uuid("Selecione uma categoria válida"),
   ativo: z.boolean(),
+  esgotado: z.boolean(),
   adicionais: z.array(AdicionalFormSchema),
 })
 

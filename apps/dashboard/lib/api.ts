@@ -151,8 +151,11 @@ export interface AdicionalInput {
 export interface ProdutoInput {
   categoriaId?: string
   nome?: string
+  descricao?: string | null
   precoBase?: number
+  imagemUrl?: string | null
   tempoEstimadoPreparo?: number
+  esgotado?: boolean
   ativo?: boolean
   adicionais?: AdicionalInput[]
 }
@@ -160,10 +163,13 @@ export interface ProdutoInput {
 export interface CriarProdutoInput {
   categoriaId: string
   nome: string
+  descricao?: string | null
   precoBase: number
+  imagemUrl?: string | null
   tempoEstimadoPreparo: number
+  esgotado?: boolean
   ativo: boolean
-  adicionais: Array<Omit<AdicionalInput, "id" | "esgotado">>
+  adicionais: Array<Omit<AdicionalInput, "id">>
 }
 
 function normalizarPreco(preco: PrecoSerializado): number {
