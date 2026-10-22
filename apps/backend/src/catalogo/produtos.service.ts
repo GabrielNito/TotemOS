@@ -27,6 +27,7 @@ export class ProdutosService {
         precoBase: dto.precoBase,
         imagemUrl: dto.imagemUrl,
         tempoEstimadoPreparo: dto.tempoEstimadoPreparo ?? 0,
+        esgotado: dto.esgotado ?? false,
         ativo: dto.ativo,
         adicionais: dto.adicionais?.length
           ? {

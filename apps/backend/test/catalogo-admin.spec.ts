@@ -233,6 +233,7 @@ describe('Catálogo administrativo', () => {
         precoBase: 25,
         imagemUrl: undefined,
         tempoEstimadoPreparo: 12,
+        esgotado: false,
         ativo: false,
         adicionais: {
           create: [{ nome: 'Bacon', preco: 4, maximo: 2 }],
