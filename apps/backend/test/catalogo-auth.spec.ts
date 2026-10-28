@@ -3,10 +3,12 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role, TipoDispositivo } from '@prisma/client';
 import { CatalogoController } from '../src/catalogo/catalogo.controller';
+import { DeviceTokenGuard } from '../src/auth/guards/device-token.guard';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
 
 process.env.JWT_SECRET = 'segredo-de-teste';
+process.env.DEVICE_TOKEN_PEPPER = 'pepper-device-teste';
 
 const usuario = {
   sub: 'usuario-1',
@@ -64,19 +66,20 @@ describe('Autorização do catálogo administrativo', () => {
   for (const tipo of [TipoDispositivo.TOTEM, TipoDispositivo.PAINEL]) {
     test(`deviceToken ${tipo} é rejeitado no catálogo administrativo`, async () => {
       const { context } = contexto('Bearer token-dispositivo');
-      const jwt = { verifyAsync: () => Promise.reject(new Error('não é JWT')) };
       const prisma = {
         dispositivo: {
-          findUnique: () =>
+          findFirst: () =>
             Promise.resolve({
               id: 'device-1',
               negocioId: 'negocio-a',
               ativo: true,
               tipo,
+              tokenHash: 'hash-do-token',
+              revogadoEm: null,
             }),
         },
       };
-      const auth = new JwtAuthGuard(jwt as never, prisma as never);
+      const auth = new DeviceTokenGuard(prisma as never);
       expect(await auth.canActivate(context)).toBe(true);
       expect(() =>
         new RolesGuard(new Reflector()).canActivate(context),

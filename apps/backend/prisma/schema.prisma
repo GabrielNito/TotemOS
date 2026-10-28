@@ -18,6 +18,12 @@ enum TipoDispositivo {
   PAINEL
 }
 
+enum StatusCodigoPareamento {
+  ATIVO
+  CONSUMIDO
+  EXPIRADO
+}
+
 enum StatusPedido {
   AGUARDANDO_PAGAMENTO
   PENDENTE
@@ -48,30 +54,31 @@ enum MeioPagamento {
 }
 
 model Negocio {
-  id           String          @id @default(uuid())
-  nome         String
-  slug         String          @unique
-  pinDonoHash  String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id          String   @id @default(uuid())
+  nome        String
+  slug        String   @unique
+  pinDonoHash String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  usuarios     Usuario[]
-  dispositivos Dispositivo[]
-  config       NegocioConfig?
-  categorias   Categoria[]
-  produtos     Produto[]
-  combos       Combo[]
-  pedidos      Pedido[]
+  usuarios          Usuario[]
+  dispositivos      Dispositivo[]
+  codigosPareamento CodigoPareamento[]
+  config            NegocioConfig?
+  categorias        Categoria[]
+  produtos          Produto[]
+  combos            Combo[]
+  pedidos           Pedido[]
 }
 
 model NegocioConfig {
-  id                      String            @id @default(uuid())
-  negocioId               String            @unique
-  negocio                 Negocio           @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  modoIdentificacao       ModoIdentificacao @default(OPCIONAL)
-  tempoPadraoPreparo      Int               @default(15)
-  permitirPagamentoOffline Boolean         @default(true)
-  mensagemBoasVindas      String?
+  id                       String            @id @default(uuid())
+  negocioId                String            @unique
+  negocio                  Negocio           @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  modoIdentificacao        ModoIdentificacao @default(OPCIONAL)
+  tempoPadraoPreparo       Int               @default(15)
+  permitirPagamentoOffline Boolean           @default(true)
+  mensagemBoasVindas       String?
 }
 
 model Usuario {
@@ -83,20 +90,51 @@ model Usuario {
   nome      String
   role      Role     @default(DONO)
   createdAt DateTime @default(now())
+
+  codigosPareamento CodigoPareamento[] @relation("CodigoPareamentoCriadoPor")
 }
 
 model Dispositivo {
-  id               String          @id @default(uuid())
-  negocioId        String
-  negocio          Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  nome             String
-  tipo             TipoDispositivo
-  token            String          @unique
-  codigoPareamento String?
-  pareadoEm        DateTime?
-  mpPointDeviceId  String?
-  ativo            Boolean         @default(true)
-  createdAt        DateTime        @default(now())
+  id              String          @id @default(uuid())
+  negocioId       String
+  negocio         Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome            String
+  tipo            TipoDispositivo
+  tokenHash       String          @unique
+  pareadoEm       DateTime?
+  mpPointDeviceId String?
+  ativo           Boolean         @default(true)
+  revogadoEm      DateTime?
+  createdAt       DateTime        @default(now())
+}
+
+model CodigoPareamento {
+  id                 String                 @id @default(uuid())
+  negocioId          String
+  negocio            Negocio                @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  criadoPorUsuarioId String
+  criadoPor          Usuario                @relation("CodigoPareamentoCriadoPor", fields: [criadoPorUsuarioId], references: [id], onDelete: Restrict)
+  nome               String
+  tipo               TipoDispositivo
+  codigoHash         String
+  expiraEm           DateTime
+  status             StatusCodigoPareamento @default(ATIVO)
+  consumidoEm        DateTime?
+  createdAt          DateTime               @default(now())
+  // Unique active-code index is created explicitly in the PostgreSQL migration.
+
+  @@index([codigoHash, status])
+  @@index([negocioId, createdAt])
+}
+
+model PareamentoRateLimit {
+  chave        String   @id
+  janelaInicio DateTime
+  tentativas   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([janelaInicio])
 }
 
 model Categoria {
@@ -128,12 +166,12 @@ model Produto {
 }
 
 model ProdutoVariacao {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   produtoId String
-  produto   Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
   nome      String
-  preco     Decimal  @db.Decimal(10, 2)
-  esgotado  Boolean  @default(false)
+  preco     Decimal @db.Decimal(10, 2)
+  esgotado  Boolean @default(false)
 }
 
 model Adicional {
