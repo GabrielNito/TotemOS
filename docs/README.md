@@ -23,6 +23,9 @@ docs/            — documentos de planejamento completos (mover pra cá ao mont
 
 Cada `docs/*-SPEC.md` é o ponto de entrada de cada frente — autocontido o suficiente pra trabalhar naquela parte sem precisar ler os cinco documentos de `docs/` inteiros, com link pra eles quando precisar de mais profundidade.
 
+O fluxo implementado de pareamento dos apps mobile e suas evidências de
+validação estão em [`mobile-pairing.md`](./mobile-pairing.md).
+
 Ordem de construção sugerida (detalhe em `docs/arquitetura-tecnica-v1.md`, seção 1):
 1. `apps/backend` — motor e modelo de dados
 2. `apps/totem` — fluxo de pedido + pagamento (primeiro "uau" da demonstração)
