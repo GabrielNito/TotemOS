@@ -29,13 +29,9 @@ export interface Dispositivo {
   negocioId: string
   nome: string
   tipo: TipoDispositivo
-  token: string
-  codigoPareamento?: string | null
-  pareadoEm?: string | null
-  mpPointDeviceId?: string | null
+  pareadoEm: string | null
   ativo: boolean
-  ipLocal?: string
-  versaoApp?: string
+  revogadoEm: string | null
   createdAt: string
 }
 

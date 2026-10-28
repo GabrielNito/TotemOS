@@ -2,7 +2,12 @@ import { env } from "./env"
 import { getAuthToken } from "./auth"
 import type { AuthResponse, UserSession } from "./auth"
 import type { LoginFormValues, RegistrarFormValues } from "./schemas/auth"
-import type { Categoria, Produto } from "./types/models"
+import type {
+  Categoria,
+  Dispositivo,
+  Produto,
+  TipoDispositivo,
+} from "./types/models"
 
 export class ApiError extends Error {
   constructor(
@@ -70,6 +75,10 @@ export async function fetchApi<T>(
     throw new ApiError(response.status, errorMessage, errorDetails)
   }
 
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -103,6 +112,45 @@ export async function validarPinApi(
   return fetchApi<{ valido: boolean }>("/auth/validar-pin", {
     method: "POST",
     body: JSON.stringify({ pin, negocioId }),
+  })
+}
+
+export interface DispositivosResponse {
+  dispositivos: Dispositivo[]
+}
+
+export interface GerarCodigoPareamentoInput {
+  nome: string
+  tipo: TipoDispositivo
+}
+
+export interface GerarCodigoPareamentoResponse {
+  codigo: string
+  expiraEm: string
+}
+
+export function getDispositivos(): Promise<DispositivosResponse> {
+  return fetchApi<DispositivosResponse>("/dispositivos", {
+    method: "GET",
+    cache: "no-store",
+  })
+}
+
+export function gerarCodigoPareamento(
+  data: GerarCodigoPareamentoInput
+): Promise<GerarCodigoPareamentoResponse> {
+  return fetchApi<GerarCodigoPareamentoResponse>(
+    "/dispositivos/parear/codigo",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  )
+}
+
+export function revogarDispositivo(id: string): Promise<void> {
+  return fetchApi<void>(`/dispositivos/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   })
 }
 

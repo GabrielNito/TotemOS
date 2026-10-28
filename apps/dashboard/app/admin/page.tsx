@@ -153,11 +153,11 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* Card 4: Totens Online */}
+            {/* Card 4: Totens cadastrados */}
             <div className="group flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs transition-all hover:border-border/80">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Totens Ativos
+                  Totens cadastrados
                 </span>
                 <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <TabletSmartphone className="size-4" />
@@ -172,12 +172,12 @@ export default function AdminDashboardPage() {
                     className={cn(
                       "size-1.5 rounded-full",
                       totensAtivosCount > 0
-                        ? "bg-emerald-500"
+                        ? "bg-primary"
                         : "bg-muted-foreground/50"
                     )}
                   />
                   {totensTotalCount > 0
-                    ? `${totensAtivosCount} conectados`
+                    ? `${totensAtivosCount} ativos no cadastro`
                     : "Nenhum pareado"}
                 </span>
               </div>
@@ -293,7 +293,7 @@ export default function AdminDashboardPage() {
           {/* Card Hero: Gráfico Spline Customizado (Estilo Imagem 5) */}
           <ChartSplineMetric />
 
-          {/* Card de Status dos Dispositivos & Maquininhas */}
+          {/* Card de Cadastro dos Dispositivos */}
           <div className="rounded-3xl border border-border/40 bg-card p-6 shadow-xs backdrop-blur-xs">
             <div className="flex items-center justify-between pb-4">
               <div className="space-y-0.5">
@@ -301,14 +301,14 @@ export default function AdminDashboardPage() {
                   Hardware & Terminais
                 </h4>
                 <p className="text-xs text-muted-foreground">
-                  Status de conexão dos dispositivos pareados.
+                  Cadastros de dispositivos pareados.
                 </p>
               </div>
               <Radio
                 className={cn(
                   "size-4",
                   dispositivos.length > 0
-                    ? "animate-pulse text-emerald-500"
+                    ? "text-primary"
                     : "text-muted-foreground/40"
                 )}
               />
@@ -335,7 +335,7 @@ export default function AdminDashboardPage() {
                           {dev.nome}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
-                          {dev.mpPointDeviceId || "Terminal Mercado Pago"}
+                          {dev.tipo === "TOTEM" ? "Totem" : "Painel KDS"}
                         </span>
                       </div>
                     </div>
@@ -343,7 +343,7 @@ export default function AdminDashboardPage() {
                       variant="outline"
                       className="rounded-full text-[10px]"
                     >
-                      {dev.ativo ? "Online" : "Offline"}
+                      {dev.ativo ? "Ativo no cadastro" : "Revogado"}
                     </Badge>
                   </div>
                 ))}
@@ -354,7 +354,8 @@ export default function AdminDashboardPage() {
                   Nenhum dispositivo pareado
                 </span>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Conecte seus totens e painéis para monitorar o status aqui.
+                  Conecte seus totens e painéis para consultar os cadastros
+                  aqui.
                 </p>
                 <Link
                   href="/admin/dispositivos"
