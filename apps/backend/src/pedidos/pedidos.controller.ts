@@ -20,13 +20,15 @@ import {
   ApiQuery,
   ApiHeader,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AnyAuthGuard } from '../auth/guards/any-auth.guard';
+import { DeviceTypeGuard } from '../auth/guards/device-type.guard';
+import { DeviceTypes } from '../auth/decorators/device-types.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { UserPayload } from '../auth/decorators/current-user.decorator';
 import { PedidosService } from './pedidos.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { ErrorResponseDto } from '../auth/dto/auth-response.dto';
-import { StatusPedido } from '@prisma/client';
+import { StatusPedido, TipoDispositivo } from '@prisma/client';
 
 @ApiTags('Pedidos')
 @Controller('pedidos')
@@ -35,7 +37,8 @@ export class PedidosController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard, DeviceTypeGuard)
+  @DeviceTypes(TipoDispositivo.TOTEM)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Criar novo pedido com snapshot imutável de preços',
@@ -71,7 +74,7 @@ export class PedidosController {
     @Headers('idempotency-key') headerIdempotencyKey?: string,
   ) {
     const idempotencyKey = headerIdempotencyKey || dto.idempotencyKey;
-    const dispositivoId = user.isDispositivo ? user.sub : undefined;
+    const dispositivoId = user.identity === 'DEVICE' ? user.sub : undefined;
 
     return this.pedidosService.criar(user.negocioId, dto, {
       dispositivoId,
@@ -81,7 +84,8 @@ export class PedidosController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard, DeviceTypeGuard)
+  @DeviceTypes(TipoDispositivo.PAINEL)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Listar pedidos do estabelecimento',
@@ -122,7 +126,8 @@ export class PedidosController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard, DeviceTypeGuard)
+  @DeviceTypes(TipoDispositivo.PAINEL)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Obter detalhes de um pedido por ID',

@@ -624,7 +624,9 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       sub: 'usr-123',
       email: 'dono@estabelecimento.com',
       negocioId: 'negocio-uuid-teste',
+      identity: 'USER',
       role: Role.DONO,
+      isDispositivo: false,
     };
 
     const criarMockService = () =>

@@ -72,6 +72,7 @@ export class AuthService {
       email: usuarioCriado.email,
       negocioId: negocio.id,
       role: usuarioCriado.role,
+      identity: 'USER' as const,
     };
 
     return {
@@ -107,6 +108,7 @@ export class AuthService {
       email: usuario.email,
       negocioId: usuario.negocioId,
       role: usuario.role,
+      identity: 'USER' as const,
     };
 
     return {

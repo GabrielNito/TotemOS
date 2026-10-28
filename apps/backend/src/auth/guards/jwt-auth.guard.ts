@@ -3,24 +3,31 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
 import { Role } from '@prisma/client';
-import { UserPayload } from '../decorators/current-user.decorator';
+import type {
+  HumanUserPayload,
+  PrincipalIdentity,
+} from '../decorators/current-user.decorator';
+
+interface UntrustedJwtPayload {
+  sub?: string;
+  email?: string;
+  negocioId?: string;
+  identity?: PrincipalIdentity;
+  role?: Role;
+  isDispositivo?: boolean;
+}
 
 interface RequestWithUserAndHeaders {
   headers: Record<string, string | undefined>;
-  user?: UserPayload;
+  user?: HumanUserPayload;
 }
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(
-    private jwtService: JwtService,
-    @Optional() private prisma?: PrismaService,
-  ) {}
+  constructor(private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
@@ -40,31 +47,34 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<UserPayload>(token, {
-        secret: jwtSecret,
-      });
-      request.user = payload;
-      return true;
-    } catch {
-      // Se não for JWT válido, verifica se é um token de dispositivo cadastrado
-      if (this.prisma) {
-        const dispositivo = await this.prisma.dispositivo.findUnique({
-          where: { token },
-        });
-
-        if (dispositivo && dispositivo.ativo) {
-          request.user = {
-            sub: dispositivo.id,
-            email: '',
-            negocioId: dispositivo.negocioId,
-            role: Role.GERENTE,
-            isDispositivo: true,
-            tipoDispositivo: dispositivo.tipo,
-          };
-          return true;
-        }
+      const payload = await this.jwtService.verifyAsync<UntrustedJwtPayload>(
+        token,
+        {
+          secret: jwtSecret,
+        },
+      );
+      if (
+        !payload.sub ||
+        !payload.email ||
+        !payload.negocioId ||
+        !payload.role ||
+        ![Role.DONO, Role.GERENTE].includes(payload.role) ||
+        payload.identity === 'DEVICE' ||
+        payload.isDispositivo
+      ) {
+        throw new UnauthorizedException('Identidade de usuário inválida');
       }
 
+      request.user = {
+        sub: payload.sub,
+        email: payload.email,
+        negocioId: payload.negocioId,
+        identity: 'USER',
+        isDispositivo: false,
+        role: payload.role,
+      };
+      return true;
+    } catch {
       throw new UnauthorizedException(
         'Token de autenticação inválido ou expirado',
       );

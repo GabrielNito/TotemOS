@@ -19,10 +19,15 @@ function handlerDa(prototipo: object, nome: string): () => void {
 }
 
 function contextoPara(user: { role: Role; isDispositivo?: boolean }) {
+  const principal = {
+    identity: 'USER' as const,
+    isDispositivo: false,
+    ...user,
+  };
   return {
     getHandler: () => handlerDa(RotaAdministrativa.prototype, 'catalogo'),
     getClass: () => RotaAdministrativa,
-    switchToHttp: () => ({ getRequest: () => ({ user }) }),
+    switchToHttp: () => ({ getRequest: () => ({ user: principal }) }),
   } as never;
 }
 
@@ -46,7 +51,13 @@ describe('RolesGuard', () => {
       getHandler: () => handlerDa(RotaDoDono.prototype, 'executar'),
       getClass: () => RotaDoDono,
       switchToHttp: () => ({
-        getRequest: () => ({ user: { role: Role.GERENTE } }),
+        getRequest: () => ({
+          user: {
+            identity: 'USER',
+            isDispositivo: false,
+            role: Role.GERENTE,
+          },
+        }),
       }),
     } as never;
 

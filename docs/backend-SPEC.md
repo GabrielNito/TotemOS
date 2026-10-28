@@ -21,6 +21,7 @@ Especificação técnica completa e modelo de dados do motor backend da platafor
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -35,6 +36,12 @@ enum Role {
 enum TipoDispositivo {
   TOTEM
   PAINEL
+}
+
+enum StatusCodigoPareamento {
+  ATIVO
+  CONSUMIDO
+  EXPIRADO
 }
 
 enum StatusPedido {
@@ -76,6 +83,7 @@ model Negocio {
 
   usuarios     Usuario[]
   dispositivos Dispositivo[]
+  codigosPareamento CodigoPareamento[]
   config       NegocioConfig?
   categorias   Categoria[]
   produtos     Produto[]
@@ -102,20 +110,50 @@ model Usuario {
   nome      String
   role      Role     @default(DONO)
   createdAt DateTime @default(now())
+
+  codigosPareamento CodigoPareamento[] @relation("CodigoPareamentoCriadoPor")
 }
 
 model Dispositivo {
-  id               String          @id @default(uuid())
-  negocioId        String
-  negocio          Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  nome             String
-  tipo             TipoDispositivo
-  token            String          @unique
-  codigoPareamento String?
-  pareadoEm        DateTime?
-  mpPointDeviceId  String?
-  ativo            Boolean         @default(true)
-  createdAt        DateTime        @default(now())
+  id              String          @id @default(uuid())
+  negocioId       String
+  negocio         Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome            String
+  tipo            TipoDispositivo
+  tokenHash       String          @unique
+  pareadoEm       DateTime?
+  mpPointDeviceId String?
+  ativo           Boolean         @default(true)
+  revogadoEm      DateTime?
+  createdAt       DateTime        @default(now())
+}
+
+model CodigoPareamento {
+  id                 String                 @id @default(uuid())
+  negocioId          String
+  negocio            Negocio                @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  criadoPorUsuarioId String
+  criadoPor          Usuario                @relation("CodigoPareamentoCriadoPor", fields: [criadoPorUsuarioId], references: [id], onDelete: Restrict)
+  nome               String
+  tipo               TipoDispositivo
+  codigoHash         String
+  expiraEm           DateTime
+  status             StatusCodigoPareamento @default(ATIVO)
+  consumidoEm        DateTime?
+  createdAt          DateTime               @default(now())
+
+  @@index([codigoHash, status])
+  @@index([negocioId, createdAt])
+}
+
+model PareamentoRateLimit {
+  chave        String   @id
+  janelaInicio DateTime
+  tentativas   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([janelaInicio])
 }
 
 model Categoria {
@@ -271,6 +309,15 @@ model Pagamento {
 }
 ```
 
+O Prisma 6.x não representa índices únicos parciais no schema. A migration
+deve criar explicitamente o índice global dos códigos ainda ativos:
+
+```sql
+CREATE UNIQUE INDEX "CodigoPareamento_codigoHash_ativo_key"
+ON "CodigoPareamento" ("codigoHash")
+WHERE "status" = 'ATIVO';
+```
+
 ---
 
 ## 3. Grupo de Endpoints da API HTTP
@@ -278,8 +325,11 @@ model Pagamento {
 ### 3.1 Autenticação e Pareamento
 - `POST /auth/login`: Autenticação do dono da Dashboard (JWT).
 - `POST /auth/validar-pin`: Validação de PIN de segurança do dono.
-- `POST /dispositivos/codigo`: Gera código temporário de pareamento (6 dígitos).
-- `POST /dispositivos/parear`: Valida o código e retorna um `deviceToken` definitivo.
+- `POST /dispositivos/parear/codigo`: Gera código temporário de pareamento (6 dígitos), somente para `DONO`.
+- `POST /dispositivos/parear/ativar`: Valida e consome o código, retornando o `deviceToken` opaco uma única vez.
+- `GET /dispositivos`: Lista dispositivos do tenant para `DONO` ou `GERENTE`, sem segredos.
+- `DELETE /dispositivos/:id`: Revoga dispositivo, somente para `DONO`.
+- `GET /dispositivos/me`: Retorna a identidade do dispositivo autenticado por `deviceToken`.
 - `POST /dispositivos/:id/maquininha-point`: Associa uma maquininha Mercado Pago Point ao Totem.
 
 ### 3.2 Configurações & Negócio
@@ -296,7 +346,8 @@ model Pagamento {
 - Adicional de Produto possui `nome`, `preco`, `maximo` e `esgotado`. `GrupoDeEscolha` pertence exclusivamente a Combo.
 
 ### 3.4 Pedidos & Ciclo de Vida
-- `POST /pedidos`: Criação de pedido com snapshot completo.
+- `POST /pedidos`: Criação de pedido com snapshot completo, aceita usuário humano ou `TOTEM`.
+- `GET /pedidos`, `GET /pedidos/:id`: Consulta da fila, aceita usuário humano ou `PAINEL`; `TOTEM` é rejeitado.
 - `POST /pedidos/reconciliar`: Envio em lote de pedidos criados offline durante queda de internet.
 - `GET /pedidos/fila/:negocioId`: Fila de pedidos para o Painel (KDS).
 - `PATCH /pedidos/:id/status`: Transição de status.

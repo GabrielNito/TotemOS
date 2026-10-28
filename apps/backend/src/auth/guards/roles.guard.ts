@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { UserPayload } from '../decorators/current-user.decorator';
+import type { UserPayload } from '../decorators/current-user.decorator';
 
 interface RequestWithUser {
   user?: UserPayload;
@@ -36,7 +36,7 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    if (user.isDispositivo) {
+    if (user.identity !== 'USER' || user.isDispositivo) {
       throw new ForbiddenException(
         'Acesso negado: Dispositivos não podem acessar rotas administrativas',
       );
