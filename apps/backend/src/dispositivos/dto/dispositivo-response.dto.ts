@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TipoDispositivo } from '@prisma/client';
+import { ModoIdentificacao, TipoDispositivo } from '@prisma/client';
 
 export class DispositivoResumoDto {
   @ApiProperty({ format: 'uuid' })
@@ -48,7 +48,27 @@ export class ListarDispositivosResponseDto {
   dispositivos!: DispositivoResumoDto[];
 }
 
+export class NegocioDoDispositivoDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  nome!: string;
+
+  @ApiProperty({ enum: ModoIdentificacao })
+  modoIdentificacao!: ModoIdentificacao;
+
+  @ApiProperty({ nullable: true })
+  mensagemBoasVindas!: string | null;
+
+  @ApiProperty()
+  pagamentoPointConfigurado!: boolean;
+}
+
 export class DispositivoMeResponseDto {
   @ApiProperty({ type: DispositivoResumoDto })
   dispositivo!: DispositivoResumoDto;
+
+  @ApiProperty({ type: NegocioDoDispositivoDto })
+  negocio!: NegocioDoDispositivoDto;
 }
