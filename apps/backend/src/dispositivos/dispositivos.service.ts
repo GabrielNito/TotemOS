@@ -13,6 +13,7 @@ import {
   Role,
   StatusCodigoPareamento,
   TipoDispositivo,
+  ModoIdentificacao,
 } from '@prisma/client';
 import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -245,14 +246,38 @@ export class DispositivosService implements OnModuleInit {
   async me(negocioId: string, id: string) {
     const dispositivo = await this.prisma.dispositivo.findFirst({
       where: { id, negocioId, ativo: true, revogadoEm: null },
-      select: SAFE_DEVICE_SELECT,
+      select: {
+        ...SAFE_DEVICE_SELECT,
+        mpPointDeviceId: true,
+        negocio: {
+          select: {
+            id: true,
+            nome: true,
+            config: {
+              select: { modoIdentificacao: true, mensagemBoasVindas: true },
+            },
+          },
+        },
+      },
     });
 
-    if (!dispositivo) {
+    if (!dispositivo || dispositivo.negocio.id !== negocioId) {
       throw new UnauthorizedException('Dispositivo inválido ou revogado');
     }
 
-    return { dispositivo: this.toSafeDevice(dispositivo) };
+    return {
+      dispositivo: this.toSafeDevice(dispositivo),
+      negocio: {
+        id: dispositivo.negocio.id,
+        nome: dispositivo.negocio.nome,
+        modoIdentificacao:
+          dispositivo.negocio.config?.modoIdentificacao ??
+          ModoIdentificacao.OPCIONAL,
+        mensagemBoasVindas:
+          dispositivo.negocio.config?.mensagemBoasVindas ?? null,
+        pagamentoPointConfigurado: Boolean(dispositivo.mpPointDeviceId),
+      },
+    };
   }
 
   private async verificarRateLimit(ip: string): Promise<void> {

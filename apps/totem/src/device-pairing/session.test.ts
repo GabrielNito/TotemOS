@@ -36,6 +36,45 @@ function createApi(): PairingApi {
 }
 
 describe("device session state", () => {
+  it("restaura a identidade visual do mesmo negócio autenticado", async () => {
+    const api = createApi();
+    const negocio = {
+      id: device.negocioId,
+      nome: "Cafeteria da Praça",
+      modoIdentificacao: "NOME" as const,
+      mensagemBoasVindas: "Escolha seu café.",
+      pagamentoPointConfigurado: false,
+    };
+    jest.spyOn(api, "me").mockResolvedValue({ dispositivo: device, negocio });
+    const result = await restoreDeviceSession({
+      api,
+      expectedDeviceType: "TOTEM",
+      storage: createStorage("token-de-teste"),
+    });
+    expect(result).toMatchObject({ kind: "authenticated", negocio });
+  });
+
+  it("recusa metadados de outro negócio sem apagar a credencial válida", async () => {
+    const api = createApi();
+    const storage = createStorage("token-de-teste");
+    jest.spyOn(api, "me").mockResolvedValue({
+      dispositivo: device,
+      negocio: {
+        id: "other-tenant",
+        nome: "Outro",
+        modoIdentificacao: "OPCIONAL",
+        mensagemBoasVindas: null,
+        pagamentoPointConfigurado: false,
+      },
+    });
+    const result = await restoreDeviceSession({
+      api,
+      expectedDeviceType: "TOTEM",
+      storage,
+    });
+    expect(result.kind).toBe("error");
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
   it("fica aguardando pareamento quando não existe token", async () => {
     const api = createApi();
     const storage = createStorage(null);

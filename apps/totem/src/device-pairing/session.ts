@@ -1,8 +1,4 @@
-import {
-  activateDevice,
-  getCurrentDevice,
-  PairingApiError,
-} from "./api";
+import { activateDevice, getCurrentDevice, PairingApiError } from "./api";
 import {
   deleteDeviceToken,
   getDeviceToken,
@@ -13,6 +9,7 @@ import type {
   DeviceIdentity,
   DeviceMeResponse,
   DeviceType,
+  NegocioIdentity,
 } from "./types";
 
 export interface PairingApi {
@@ -36,6 +33,7 @@ export type AuthenticatedSessionResult = {
   deviceToken: string;
   dispositivo: DeviceIdentity;
   kind: "authenticated";
+  negocio?: NegocioIdentity;
 };
 
 export type RestoreDeviceSessionResult =
@@ -97,7 +95,33 @@ function hasExpectedDeviceType(
   dispositivo: DeviceIdentity,
   expectedDeviceType: DeviceType | undefined,
 ): boolean {
-  return expectedDeviceType === undefined || dispositivo.tipo === expectedDeviceType;
+  return (
+    expectedDeviceType === undefined || dispositivo.tipo === expectedDeviceType
+  );
+}
+
+function authenticatedResult(
+  deviceToken: string,
+  response: DeviceMeResponse,
+): AuthenticatedSessionResult | { kind: "error"; message: string } {
+  const negocio = response.negocio;
+  if (
+    negocio &&
+    (negocio.id !== response.dispositivo.negocioId ||
+      typeof negocio.nome !== "string" ||
+      !negocio.nome.trim() ||
+      !["NOME", "CODIGO", "OPCIONAL"].includes(negocio.modoIdentificacao) ||
+      (negocio.mensagemBoasVindas !== null &&
+        typeof negocio.mensagemBoasVindas !== "string") ||
+      typeof negocio.pagamentoPointConfigurado !== "boolean")
+  )
+    return { kind: "error", message: SESSION_ERROR_MESSAGE };
+  return {
+    deviceToken,
+    dispositivo: response.dispositivo,
+    kind: "authenticated",
+    ...(negocio ? { negocio } : {}),
+  };
 }
 
 export async function restoreDeviceSession({
@@ -121,11 +145,7 @@ export async function restoreDeviceSession({
       return { kind: "error", message: INVALID_DEVICE_TYPE_MESSAGE };
     }
 
-    return {
-      deviceToken,
-      dispositivo: response.dispositivo,
-      kind: "authenticated",
-    };
+    return authenticatedResult(deviceToken, response);
   } catch (error) {
     if (getStatusCode(error) === 401) {
       await deleteTokenQuietly(storage);
@@ -173,11 +193,7 @@ export async function pairDevice(
       return { kind: "error", message: INVALID_DEVICE_TYPE_MESSAGE };
     }
 
-    return {
-      deviceToken: activation.deviceToken,
-      dispositivo: response.dispositivo,
-      kind: "authenticated",
-    };
+    return authenticatedResult(activation.deviceToken, response);
   } catch (error) {
     if (getStatusCode(error) === 401) {
       await deleteTokenQuietly(storage);

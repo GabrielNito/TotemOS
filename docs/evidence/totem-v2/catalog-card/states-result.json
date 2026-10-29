@@ -1,0 +1,17 @@
+{
+  "negocioId": "ae72652c-b912-4180-9adb-41e65c134e5c",
+  "actualOrdersCreated": 0,
+  "paymentsStarted": 0,
+  "catalogMutations": 0,
+  "scenarios": [
+    "loading/empty/retry: PASS",
+    "http-error/retry: PASS",
+    "network-error/retry: PASS",
+    "invalid/retry: PASS",
+    "availability/required variation/real additional maximum: PASS"
+  ],
+  "additionalMaximum": 2,
+  "configuredUnitPrice": 49.8,
+  "result": "PASS",
+  "checkedAt": "2026-10-29T16:39:18.8216593Z"
+}

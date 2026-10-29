@@ -1,0 +1,8 @@
+{
+  "startedAt": "2026-10-29T16:01:42.1503513Z",
+  "dialogWaitSeconds": 62,
+  "standbyWaitSeconds": 62,
+  "dialogCheckedAt": "2026-10-29T16:02:58.6779100Z",
+  "standbyCheckedAt": "2026-10-29T16:04:15.1826676Z",
+  "result": "PASS"
+}

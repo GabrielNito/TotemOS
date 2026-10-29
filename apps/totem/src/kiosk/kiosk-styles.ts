@@ -1,0 +1,57 @@
+import { StyleSheet } from "react-native";
+
+export const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#fff" },
+  blurred: { filter: [{ blur: 4 }] },
+  standby: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 15,
+    padding: 32,
+    backgroundColor: "#f0e5d4",
+  },
+  brand: { alignItems: "center", width: "100%" },
+  brandName: {
+    textAlign: "center",
+    fontFamily: "BarlowCondensed",
+    fontWeight: "700",
+    fontSize: 40,
+    lineHeight: 36,
+    color: "#773b2e",
+  },
+  brandSub: {
+    fontSize: 9,
+    lineHeight: 8.1,
+    fontWeight: "500",
+    letterSpacing: 1.62,
+    marginTop: 10,
+    color: "#773b2e",
+  },
+  standbyTitle: {
+    width: "100%",
+    fontFamily: "BarlowCondensed",
+    fontSize: 36,
+    lineHeight: 36,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#2d2622",
+  },
+  standbyCopy: {
+    fontSize: 15,
+    lineHeight: 22.5,
+    textAlign: "center",
+    color: "#716861",
+  },
+  standbyAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 7,
+    backgroundColor: "#773b2e",
+  },
+  standbyActionText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+});

@@ -1,0 +1,22 @@
+{
+  "url": "https://totemos-kiosk-preview.vercel.app/v2",
+  "source": [
+    {
+      "sha256": "B6ADC08B8A528EE0D22A04C8941CF441248D7E9062D18A7E8F7D12ADE0A9D25B",
+      "file": "app/v2/page.tsx"
+    },
+    {
+      "sha256": "89CB84F38627BE6AE380EA4EF2B6E552B252AB761B8306D79D2CC0EF904D12E8",
+      "file": "app/v2/model.ts"
+    },
+    {
+      "sha256": "00D5A2A686E31E5ACD2EFC762CB77B487F58EEDDD921E57D2C6AB7348C86543B",
+      "file": "app/v2/v2.module.css"
+    },
+    {
+      "sha256": "BDF2E98157B647E7E224689CE0F4A407F86720E977C68DA48872D4DB5E0EDD64",
+      "file": "app/v2/motion.css"
+    }
+  ],
+  "localProject": "C:/Users/Nito/Downloads/TotemOS-totem-ui-temp"
+}

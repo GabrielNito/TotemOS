@@ -5,7 +5,7 @@ export default function ParearScreen() {
     <PairingScreen
       destination="/catalogo"
       expectedDeviceType="TOTEM"
-      title="Parear Totem"
+      title="Ative seu totem"
     />
   );
 }

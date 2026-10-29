@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-29T16:14:22.324Z",
+  "build": "round24",
+  "device": "Samsung Galaxy A54 SM-A546E",
+  "visualComparisonPairs": 50,
+  "missingNative": [],
+  "allPairsFromInstalledApk": true,
+  "tests": {
+    "command": "bun run test -- --runInBand",
+    "suites": 30,
+    "passed": 123,
+    "failed": 0
+  },
+  "lint": {
+    "command": "bun run lint",
+    "errors": 0,
+    "warnings": 0
+  },
+  "typecheck": {
+    "command": "bun run typecheck",
+    "result": "PASS"
+  },
+  "productPhotos": {
+    "count": 7,
+    "sha256MatchesOriginalReference": true
+  },
+  "domain": {
+    "configurationCases": 960,
+    "assertions": 5760,
+    "result": "PASS",
+    "currentModelSha256MatchesRecordedDomainAudit": true
+  },
+  "catalogScroll": {
+    "before": [
+      56,
+      760,
+      1024,
+      1212
+    ],
+    "after": [
+      56,
+      760,
+      1024,
+      1212
+    ],
+    "result": "PASS"
+  },
+  "scope": "Brioche demonstration, A54 portrait, explicitly simulated payments",
+  "limits": [
+    "Native and browser font rasterization/subpixel metrics differ.",
+    "Motion is implemented with native Reanimated instead of browser View Transition/Motion.",
+    "No claim of absolute pixel identity or validation on other device sizes."
+  ]
+}
