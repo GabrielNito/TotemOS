@@ -2,9 +2,27 @@
 
 Visão geral da topologia de rede, fluxos de dados e estratégias de resiliência offline do ecossistema TotemOS.
 
+## Delimitação do roadmap em 29/10/2026
+
+Este documento preserva a arquitetura histórica de intenção. Os diagramas e
+fluxos Point/LAN/WS/reconciliação abaixo **não descrevem recursos entregues**.
+Na base `ef20663`, criação de pedidos, snapshots, senha nullable e pareamento
+existem; pagamento, emissão de senha, fila operacional e transições ainda não.
+
+O [roadmap](https://trello.com/c/iKSJ1R4J) define P0 cloud-online, com backend
+e PostgreSQL persistentes, e liberação DEMO protegida sem cobrança; P1 mesas;
+P2 provider financeiro de teste; Point física, impressão, LAN e offline pós-MVP.
+O [spike LAN #19](spikes/kds-local-network.md) permanece INCONCLUSIVO.
+
+Contrato atual auditado, propostas e conflitos com regras globais:
+[ADR 0001, PROPOSTA](adr/0001-contrato-operacional-p0.md) e
+[matriz de divergências](contrato-operacional-divergencias.md).
+Solicitação KDS com numeração atômica no backend aguarda revisão do Caio;
+não altera automaticamente a regra global histórica.
+
 ---
 
-## 1. Topologia Geral do Sistema
+## 1. Topologia histórica proposta, não implementada integralmente
 
 ```mermaid
 graph TD
@@ -38,7 +56,7 @@ graph TD
 
 ---
 
-## 2. Fluxo de Venda Online (Com Conexão)
+## 2. Fluxo futuro com Point física, não implementado
 
 1. **Seleção e Intent**: O cliente escolhe os itens no **Totem 1** e solicita o pagamento.
 2. **Intent Point**: O **Totem 1** envia `POST /pagamentos/intent` para o **Backend Cloud**.
@@ -50,7 +68,7 @@ graph TD
 
 ---
 
-## 3. Fluxo de Resiliência Offline (Sem Conexão à Nuvem)
+## 3. Hipótese offline pós-MVP, não validada
 
 ```mermaid
 sequenceDiagram
@@ -71,16 +89,18 @@ sequenceDiagram
 
 ---
 
-## 4. Escopo da v1 vs Futuro
+## 4. Escopo histórico da v1, substituído pelo roadmap P0/P1/P2
 
-### Incluído na v1
+### Intenção histórica, sem prova de implementação
+
 - Isolamento estrito por `negocioId`.
 - Atribuição de senha pelo Painel de Pedidos.
 - Mapeamento 1:1 de Totem para Maquininha MP Point.
 - Snapshot obrigatório de preços (`precoNoMomento`).
 - Reconciliação em lote offline com UUID de idempotência.
 
-### Fora do Escopo da v1
+### Exclusões históricas
+
 - Planos e cobrança de SaaS ao lojista.
 - Emissão fiscal (NFC-e / SAT).
 - Impressoras térmicas dedicadas (impressão limitada à maquininha MP Point se disponível).

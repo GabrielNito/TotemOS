@@ -1,45 +1,40 @@
-# [Nome do projeto a definir] — Plataforma de Totens de Autoatendimento
+# TotemOS: documentação
 
-Plataforma B2B que permite donos de pequenos negócios adicionarem totens de autoatendimento aos próprios negócios, com painel de pedidos e dashboard de gestão. Origem, mercado e regras de negócio completas em `docs/regras-de-negocio-totem.md`.
+Plataforma de autoatendimento com backend, Totem, painel KDS e Dashboard.
+Este índice distingue especificação, entrega comprovada e proposta de arquitetura.
 
-## Estrutura do repositório
+## Contrato operacional P0, card #28
 
-```
-apps/
-├── backend/     — NestJS + Bun + Prisma + PostgreSQL. O motor: negócio, catálogo, pedido, pagamento.
-├── dashboard/   — Next.js. Gestão de catálogo, relatórios, configuração, dispositivos.
-├── totem/       — React Native. App cliente-facing: catálogo, carrinho, pagamento.
-└── kds/         — React Native. App da equipe: fila de pedidos, e também roda o servidor local.
+- [ADR 0001: produção, senha, pagamento e DEMO](adr/0001-contrato-operacional-p0.md), **PROPOSTA**, aguardando revisão do Caio.
+- [Matriz de divergências e textos recomendados para aprovação](contrato-operacional-divergencias.md).
+- [Contratos HTTP propostos, sem endpoints implementados neste card](contrato-operacional-http-p0.md).
+- [Roadmap P0/P1/P2 e pós-MVP](https://trello.com/c/iKSJ1R4J).
 
-docs/            — documentos de planejamento completos (mover pra cá ao montar o repo):
-├── regras-de-negocio-totem.md   — plano de negócio completo, origem, mercado, todas as regras
-├── arquitetura-tecnica-v1.md    — escopo da v1 e visão geral de arquitetura
-├── stack-detalhada-v1.md        — decisões de stack aprofundadas, com riscos e achados de pesquisa
-├── backend-modelo-e-rotas.md    — schema Prisma completo e lista de rotas
-└── frontend-dashboard-nextjs.md — estrutura de rotas e componentes da dashboard
-```
+P0 usa backend cloud e PostgreSQL. LAN permanece inconclusiva; DEMO é proposta
+de liberação operacional em ambiente isolado, não aprovação financeira.
+Point física, impressão e operação offline são pós-MVP.
 
-## Por onde começar
+## Especificações por aplicação
 
-Cada `docs/*-SPEC.md` é o ponto de entrada de cada frente — autocontido o suficiente pra trabalhar naquela parte sem precisar ler os cinco documentos de `docs/` inteiros, com link pra eles quando precisar de mais profundidade.
+- [Backend](backend-SPEC.md): NestJS, Bun, Prisma, PostgreSQL; rotas existentes e futuras identificadas.
+- [Totem](totem-SPEC.md): app React Native, catálogo e pedido real; limites do checkout.
+- [Painel KDS](painel-SPEC.md): app React Native, fila planejada; hipótese LAN separada do P0.
+- [Dashboard](dashboard-SPEC.md): gestão web; especificação não comprova entrega de todos os recursos.
+- [Arquitetura histórica v1 e delimitação do roadmap](arquitetura-tecnica-v1.md).
 
-O fluxo implementado de pareamento dos apps mobile e suas evidências de
-validação estão em [`mobile-pairing.md`](./mobile-pairing.md).
+## Entregas e experimentos documentados
 
-Ordem de construção sugerida (detalhe em `docs/arquitetura-tecnica-v1.md`, seção 1):
-1. `apps/backend` — motor e modelo de dados
-2. `apps/totem` — fluxo de pedido + pagamento (primeiro "uau" da demonstração)
-3. `apps/kds` — fila em tempo real (segundo "uau")
-4. `apps/dashboard` — gestão de catálogo e relatórios
+- [Contrato de pareamento backend](device-pairing-contract.md).
+- [Pareamento mobile](mobile-pairing.md).
+- [Catálogo conectado do Totem](totem-catalogo-card.md).
+- [Criação de pedido real e limites do PR #13](totem-pedido-real.md).
+- [Evidências do pedido real](evidence/totem-pedido-real/README.md).
+- [Spike LAN #19, resultado INCONCLUSIVO](spikes/kds-local-network.md).
 
-## Escopo da v1
+Os documentos históricos `regras-de-negocio-totem.md`, `stack-detalhada-v1.md`,
+`backend-modelo-e-rotas.md` e `frontend-dashboard-nextjs.md` não existem na base
+auditada em 29/10/2026. Não usar suas referências antigas como prova de contrato
+ou de recurso implementado, nem inferir seu conteúdo.
 
-Não entra: planos/faturamento de cobrança do lojista, fiscal/NFC-e, aquisição de clientes. Detalhe completo em `docs/arquitetura-tecnica-v1.md`.
-
-## Stack
-
-Bun · NestJS + Fastify · Prisma · PostgreSQL · Zod · React Native (Expo, dev client) · WatermelonDB · Next.js (App Router) · Mercado Pago Point API
-
-## Pré-requisitos de setup (não é Expo Go)
-
-Totem e painel exigem Expo com **development client** (não Expo Go) — WatermelonDB e kiosk mode dependem de módulos nativos que o Expo Go não suporta. Detalhe em `docs/stack-detalhada-v1.md`.
+Regras globais: [AGENTS.md](../AGENTS.md),
+[backend](../.agents/rules/backend.md) e [contribuição](../CONTRIBUTING.md).
