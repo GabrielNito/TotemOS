@@ -42,8 +42,11 @@ import {
 } from "./model";
 import { cartTotal, saveCartLine, changeCartQuantity } from "./cart-state";
 import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
+import { createOrderSubmission } from "./order-api";
+import { buildOrderRequest, type PendingOrder } from "./order-submission";
+import { OrderStatus } from "./order-status";
 
-type Screen = "catalog" | "product" | "cart" | "identification" | "payment";
+type Screen = "catalog" | "product" | "cart" | "identification" | "order";
 const allCategory = "__all__";
 function categoryIcon(name: string) {
   const value = name.toLocaleLowerCase("pt-BR");
@@ -101,20 +104,43 @@ function BusinessKiosk({
   const [editing, setEditing] = useState<CartLine>();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartReady, setCartReady] = useState(false);
+  const submission = useMemo(
+    () => createOrderSubmission(negocioId),
+    [negocioId],
+  );
+  const [orderResult, setOrderResult] = useState<PendingOrder>();
+  const [orderBusy, setOrderBusy] = useState(false);
+  const orderSending = useRef(false);
+  const [orderError, setOrderError] = useState("");
+  const [restoreFailed, setRestoreFailed] = useState(false);
   useEffect(() => {
     let mounted = true;
-    void loadBusinessCart(negocioId).then((stored) => {
-      if (!mounted) return;
-      setCart(stored);
-      setCartReady(true);
-    });
+    void Promise.all([loadBusinessCart(negocioId), submission.restore()])
+      .then(([stored]) => {
+        if (!mounted) return;
+        setCart(stored);
+        if (submission.attempt) {
+          setCurrentScreen("order");
+          setOrderResult(submission.attempt.result);
+        }
+        setCartReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setRestoreFailed(true);
+        setOrderError(
+          "Não foi possível recuperar o pedido salvo. Consulte novamente antes de continuar.",
+        );
+        setCurrentScreen("order");
+        setCartReady(true);
+      });
     return () => {
       mounted = false;
     };
-  }, [negocioId]);
+  }, [negocioId, submission]);
   useEffect(() => {
-    if (cartReady) void saveBusinessCart(negocioId, cart);
-  }, [negocioId, cart, cartReady]);
+    if (cartReady && !restoreFailed) void saveBusinessCart(negocioId, cart);
+  }, [negocioId, cart, cartReady, restoreFailed]);
   const [identity, setIdentity] = useState<CheckoutIdentity>({
     name: "",
     cpf: "",
@@ -131,10 +157,15 @@ function BusinessKiosk({
   const { transition, navigate } = motion;
   const go = useCallback(
     (next: Screen) => {
+      if (
+        (submission.attempt || orderBusy || restoreFailed) &&
+        next !== "order"
+      )
+        return;
       if (product) navigate(next, product, () => setCurrentScreen(next));
       else setCurrentScreen(next);
     },
-    [navigate, product],
+    [navigate, product, submission, orderBusy, restoreFailed],
   );
   const back = useCallback(
     () =>
@@ -145,9 +176,7 @@ function BusinessKiosk({
             : "catalog"
           : screen === "cart"
             ? "catalog"
-            : screen === "payment"
-              ? "identification"
-              : "cart",
+            : "cart",
       ),
     [screen, editing, go],
   );
@@ -167,6 +196,7 @@ function BusinessKiosk({
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        if (screen === "order") return true;
         if (standby) {
           setStandby(false);
           return true;
@@ -180,6 +210,38 @@ function BusinessKiosk({
   }, [standby, screen, back]);
   const showNotice = (message: string) =>
     setNotice((current) => ({ message, version: current.version + 1 }));
+  const sendOrder = async () => {
+    if (orderSending.current) return;
+    orderSending.current = true;
+    setOrderBusy(true);
+    setOrderError("");
+    setCurrentScreen("order");
+    try {
+      if (restoreFailed) {
+        await submission.restore();
+        setCart(await loadBusinessCart(negocioId));
+        setRestoreFailed(false);
+        if (!submission.attempt) {
+          setCurrentScreen("cart");
+          return;
+        }
+      }
+      if (!submission.attempt)
+        await submission.prepare(
+          buildOrderRequest(cart, identity.name, identificationMode),
+        );
+      setOrderResult(await submission.submit());
+    } catch (error) {
+      setOrderError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível confirmar o pedido. Consulte novamente.",
+      );
+    } finally {
+      orderSending.current = false;
+      setOrderBusy(false);
+    }
+  };
   const openProduct = (next: BusinessMenuProduct, line?: CartLine) => {
     setProduct(next);
     setEditing(line);
@@ -346,12 +408,13 @@ function BusinessKiosk({
                 />
               </MotionScene>
             )}
-            {(screen === "identification" || screen === "payment") && (
+            {screen === "identification" && (
               <MotionScene key={screen} style={s.root}>
                 <CheckoutScreen
                   simulation={false}
                   onEditItem={editItem}
                   identificationMode={identificationMode}
+                  identificationActionLabel="Registrar pedido"
                   stage={screen}
                   total={total}
                   items={items}
@@ -359,9 +422,26 @@ function BusinessKiosk({
                   onIdentityChange={setIdentity}
                   onBack={back}
                   onComplete={() => {
-                    if (screen === "identification") go("payment");
+                    void sendOrder();
                   }}
                   onRestart={() => go("catalog")}
+                />
+              </MotionScene>
+            )}
+            {screen === "order" && (
+              <MotionScene key="order" style={s.root}>
+                <OrderStatus
+                  result={orderResult}
+                  busy={orderBusy}
+                  error={orderError}
+                  onRetry={() => {
+                    void sendOrder();
+                  }}
+                  onBack={
+                    !submission.attempt && !restoreFailed
+                      ? () => setCurrentScreen("cart")
+                      : undefined
+                  }
                 />
               </MotionScene>
             )}

@@ -56,6 +56,7 @@ export class PedidosService {
           id: { in: produtoIds },
           negocioId,
         },
+        include: { variacoes: true },
       });
 
       const produtosMap = new Map(produtosDb.map((p) => [p.id, p]));
@@ -87,6 +88,7 @@ export class PedidosService {
         ? await tx.adicional.findMany({
             where: {
               id: { in: adicionalIds },
+              produto: { negocioId },
             },
           })
         : [];
@@ -105,6 +107,7 @@ export class PedidosService {
         ? await tx.itemDoGrupo.findMany({
             where: {
               id: { in: escolhaIds },
+              grupo: { combo: { negocioId } },
             },
           })
         : [];
@@ -124,12 +127,32 @@ export class PedidosService {
           todosComPreparoZero = false;
         }
 
-        const precoProduto = Number(produto.precoBase);
+        const variacoes = produto.variacoes ?? [];
+        const correspondentes = variacoes.filter(
+          (v) => v.nome === item.variacaoNome,
+        );
+        const variacao = correspondentes[0];
+        if (
+          (variacoes.length > 0 &&
+            (correspondentes.length !== 1 || variacao.esgotado)) ||
+          (variacoes.length === 0 && item.variacaoNome)
+        ) {
+          throw new BadRequestException(
+            'Selecione uma variação válida e disponível.',
+          );
+        }
+        const precoProduto = Number(variacao?.preco ?? produto.precoBase);
         let subtotalAdicionais = 0;
         const adicionaisParaCriar: Prisma.PedidoItemAdicionalCreateWithoutPedidoItemInput[] =
           [];
 
         if (item.adicionais && item.adicionais.length > 0) {
+          const ids = item.adicionais.map((a) => a.adicionalId);
+          if (new Set(ids).size !== ids.length) {
+            throw new BadRequestException(
+              'Não repita adicionais no mesmo item.',
+            );
+          }
           for (const adic of item.adicionais) {
             const adicionalDb = adicionaisMap.get(adic.adicionalId);
             if (!adicionalDb || adicionalDb.produtoId !== produto.id) {
@@ -195,7 +218,7 @@ export class PedidosService {
           precoNoMomento: precoProduto,
           quantidade: item.quantidade,
           observacao: item.observacao,
-          variacaoNome: item.variacaoNome,
+          variacaoNome: variacao?.nome,
           adicionais: adicionaisParaCriar.length
             ? { create: adicionaisParaCriar }
             : undefined,
@@ -205,20 +228,8 @@ export class PedidosService {
         });
       }
 
-      // 6. Data sequencial e cálculo de senha sequencial diária
+      // A senha diária será atribuída pelo KDS ao receber o pedido elegível.
       const dataSequencial = new Date().toISOString().slice(0, 10);
-
-      const ultimoPedido = await tx.pedido.findFirst({
-        where: {
-          negocioId,
-          dataSequencial,
-        },
-        orderBy: {
-          senha: 'desc',
-        },
-      });
-
-      const proximaSenha = ultimoPedido ? ultimoPedido.senha + 1 : 1;
 
       // 7. Persistência do Pedido com snapshots imutáveis
       return tx.pedido.create({
@@ -226,7 +237,7 @@ export class PedidosService {
           negocioId,
           dispositivoId: options?.dispositivoId,
           idempotencyKey,
-          senha: proximaSenha,
+          senha: null,
           dataSequencial,
           status: StatusPedido.AGUARDANDO_PAGAMENTO,
           nomeCliente: dto.nomeCliente,

@@ -245,7 +245,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       negocioId: string;
       dispositivoId?: string;
       idempotencyKey?: string;
-      senha: number;
+      senha: number | null;
       dataSequencial: string;
       status: StatusPedido;
       nomeCliente?: string;
@@ -551,7 +551,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       expect(resultado.id).toBe('pedido-existente-1');
     });
 
-    test('gera senha sequencial diária incrementada para o mesmo estabelecimento', async () => {
+    test('não atribui senha antes do recebimento pelo KDS', async () => {
       let pedidoCriadoDados: PedidoGravado | null = null;
 
       const mockPrisma = criarMockPrisma({
@@ -582,7 +582,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       expect(pedidoCriadoDados).not.toBeNull();
       if (pedidoCriadoDados) {
         const dados = pedidoCriadoDados as PedidoGravado;
-        expect(dados.senha).toBe(42);
+        expect(dados.senha).toBeNull();
       }
     });
 

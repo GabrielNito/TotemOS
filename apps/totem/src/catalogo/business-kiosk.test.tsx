@@ -10,7 +10,11 @@ import { ContextDialog } from "../kiosk/context-dialog";
 import { KioskStandby } from "../kiosk/standby";
 import type { CatalogCategory } from "./model";
 import { createCartLine } from "./model";
+import { createOrderSubmission } from "./order-api";
+import { OrderStatus } from "./order-status";
 import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
+jest.mock("./order-api", () => ({ createOrderSubmission: jest.fn() }));
+jest.mock("./order-status", () => ({ OrderStatus: () => null }));
 
 jest.mock("./cart-storage", () => ({
   loadBusinessCart: jest.fn(async () => []),
@@ -19,6 +23,20 @@ jest.mock("./cart-storage", () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(loadBusinessCart).mockResolvedValue([]);
+  jest.mocked(createOrderSubmission).mockImplementation(
+    () =>
+      ({
+        attempt: null,
+        restore: jest.fn(async () => {}),
+        prepare: jest.fn(async () => {}),
+        submit: jest.fn(async () => ({
+          id: "server-order",
+          negocioId: "tenant-real",
+          status: "AGUARDANDO_PAGAMENTO",
+          valorTotal: "80.00",
+        })),
+      }) as unknown as ReturnType<typeof createOrderSubmission>,
+  );
 });
 
 jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
@@ -124,6 +142,59 @@ test("the real service dialog suspends standby until it is closed", async () => 
   }
 });
 
+test("recovers a pending attempt on restart and keeps navigation locked while checking its result", async () => {
+  const submit = jest
+    .fn()
+    .mockRejectedValueOnce(new Error("rede"))
+    .mockResolvedValue({ id: "recovered", valorTotal: "45.00" });
+  const attempt = { request: { itens: [] }, key: "saved" };
+  jest
+    .mocked(createOrderSubmission)
+    .mockReturnValue({
+      attempt,
+      restore: jest.fn(async () => {}),
+      submit,
+    } as unknown as ReturnType<typeof createOrderSubmission>);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  try {
+    expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
+    await act(async () => tree.root.findByType(OrderStatus).props.onRetry());
+    expect(tree.root.findByType(OrderStatus).props.error).toBe("rede");
+    expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
+    await act(async () => tree.root.findByType(OrderStatus).props.onRetry());
+    expect(tree.root.findByType(OrderStatus).props.result.id).toBe("recovered");
+    expect(submit).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test("does not overwrite the cart when pending-order storage fails to load", async () => {
+  jest.mocked(createOrderSubmission).mockReturnValue({
+    attempt: null,
+    restore: jest.fn(async () => {
+      throw new Error("storage");
+    }),
+  } as unknown as ReturnType<typeof createOrderSubmission>);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  try {
+    expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
+    expect(saveBusinessCart).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
 test("restores before writing and remounts the cart when the authenticated tenant changes", async () => {
   let finish!: (cart: Awaited<ReturnType<typeof loadBusinessCart>>) => void;
   jest.mocked(loadBusinessCart).mockImplementationOnce(
@@ -223,25 +294,11 @@ test("the paired catalog uses real IDs through configuration, cart editing, undo
     await act(async () =>
       tree.root.findByType(CheckoutScreen).props.onComplete(),
     );
-    expect(tree.root.findByType(CheckoutScreen).props.stage).toBe("payment");
-    const checkout = tree.root.findByType(CheckoutScreen);
-    await act(async () => checkout.props.onComplete());
-    expect(tree.root.findByType(CheckoutScreen).props.stage).toBe("payment");
-    await act(async () => checkout.props.onEditItem(key));
-    const editor = tree.root.findByType(BusinessProductScreen);
-    expect(editor.props.initialLine.key).toBe(key);
-    expect(editor.props.product.id).toBe("product-real");
-    expect(editor.props.initialLine.precoNoMomento).toBe(25.7);
-    await act(async () =>
-      editor.props.onSave(editor.props.initialLine.selection, 2),
-    );
-    expect(cart().props.items).toHaveLength(1);
-    expect(cart().props.items[0]).toMatchObject({
-      unitPrice: 25.7,
-      quantity: 2,
+    expect(tree.root.findByType(OrderStatus).props.result).toMatchObject({
+      id: "server-order",
+      valorTotal: "80.00",
     });
-    await act(async () => cart().props.onCheckout());
-    expect(tree.root.findByType(CheckoutScreen).props.total).toBe(51.4);
+    expect(createOrderSubmission).toHaveBeenCalled();
   } finally {
     await act(async () => tree.unmount());
   }

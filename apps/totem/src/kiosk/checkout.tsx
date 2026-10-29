@@ -59,6 +59,7 @@ export type CheckoutScreenProps = {
   simulation?: boolean;
   onPayment?: (method: "card" | "pix") => void;
   identificationMode?: "NOME" | "CODIGO" | "OPCIONAL";
+  identificationActionLabel?: string;
 };
 
 type Payment = "card" | "pix";
@@ -230,6 +231,7 @@ export function CheckoutScreen({
   simulation = true,
   onPayment,
   identificationMode = "NOME",
+  identificationActionLabel = "Escolher pagamento",
 }: CheckoutScreenProps) {
   const { mode } = useContext(ExperienceContext);
   const { width } = useWindowDimensions();
@@ -773,7 +775,7 @@ export function CheckoutScreen({
             }
           >
             {stage === "identification"
-              ? "Escolher pagamento"
+              ? identificationActionLabel
               : simulation
                 ? "Simular pagamento"
                 : "Pagar"}
