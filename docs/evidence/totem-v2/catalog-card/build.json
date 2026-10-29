@@ -1,0 +1,450 @@
+{
+  "round": "catalog-card",
+  "apkSha256": "A3D5C0C95CBEE74C2E9633E82C59DA1752FB6B2617E16441D68DBAB73022E3EF",
+  "apiBaseUrl": "http://127.0.0.1:3036",
+  "date": "2026-10-29T16:30:32.9522433Z",
+  "method": "Expo export:embed Hermes bytecode, existing native release APK, zipalign 16 KiB, debug signing; not a full Gradle build",
+  "bundleSha256": "1AEEA15CCF29B71A42126BE7F65365B7E5315A31F2BBCCBCB5330F313E5250AB",
+  "source": [
+    {
+      "sha256": "578F47D45F970B2B24C635389D1052CDFFA072151F3F3FAA729BC4622456F3BD",
+      "file": "cart.tsx"
+    },
+    {
+      "sha256": "65D0574DC66CC68095FD81F3F97390254D98A82368AA7D15F5CE72676A748AF1",
+      "file": "catalog.tsx"
+    },
+    {
+      "sha256": "67AB01377453629C5072FC41B19BB6AF70D093FAA84FE9CC050D4C202D0B5C18",
+      "file": "category-rail.test.js"
+    },
+    {
+      "sha256": "0FE51B8915282FC116B77367755B15DAF34A93367C5CB98E5DA386A6926CDF12",
+      "file": "category-rail.tsx"
+    },
+    {
+      "sha256": "7051DF7829A7F96469017FBB48DAF78819A86BB03E8D462E208C184F66718E6B",
+      "file": "checkout.test.tsx"
+    },
+    {
+      "sha256": "EB22C300B70F0A5E7F4CC87DB7F4D047D72E22CBA53A1FD1DDA17159D636F97C",
+      "file": "checkout.tsx"
+    },
+    {
+      "sha256": "C4BB70165EFC8BC1CC62AE4AAC6F52D90501951F1950F471AD16046E3CDF00DA",
+      "file": "context-dialog.test.tsx"
+    },
+    {
+      "sha256": "52BFB29395FE486BD00AC058FDEB74B653CFF80E4AF5067D6B1ADC58A0492546",
+      "file": "context-dialog.tsx"
+    },
+    {
+      "sha256": "3C32A6893CBECFBD3B6B60BA38DBFDFAAC111F20EE7D9D019A543F46BFCEB0B5",
+      "file": "entry-screen.test.tsx"
+    },
+    {
+      "sha256": "6BD85EFBCD231F1480939DBC9D41D611E4CC1B43A620C16DC813B549785ADA7C",
+      "file": "experience-context.ts"
+    },
+    {
+      "sha256": "94C85F262C840A2C43E041B09EF84BA7B7DDB052C85E27451C7A9BC985766ED5",
+      "file": "kiosk-screen.test.tsx"
+    },
+    {
+      "sha256": "AFDEA96D9AC425477D547E07B70CBD4B94FC95904B115A69F0CC2453066D5A75",
+      "file": "kiosk-screen.tsx"
+    },
+    {
+      "sha256": "5A975E01378B73A449167CDD664DC117774FEC841E0B7AEE27699B1CB0ABCBD2",
+      "file": "kiosk-styles.ts"
+    },
+    {
+      "sha256": "0BE4E543E2255E48FECB81ABFF19361538736988E7B6212DD23D76464BB61EFF",
+      "file": "menu-screen.tsx"
+    },
+    {
+      "sha256": "7B6C01415260848AD343DB68842C45BAD1E605BDD42BFE4FB1053CE8F54E318A",
+      "file": "motion.tsx"
+    },
+    {
+      "sha256": "BCE2FA6257BB386E13FD2CC2A5067BC84F1FBB5C952EB322C0F05940F89E1E6C",
+      "file": "notice.test.js"
+    },
+    {
+      "sha256": "71A7A9F778088D1DA674BD9F2AEAACCB69CD71FA47B4DF8A5B36CB76BC18689C",
+      "file": "notice.tsx"
+    },
+    {
+      "sha256": "C88826E0C092BE63716FE3B37EDA22411B4A58565FC357ED997D0D118CA03504",
+      "file": "preview-session.test.ts"
+    },
+    {
+      "sha256": "35B19083E7D86274B28F257FB309857F7C983069D93DEF78B4A97211A0FFA080",
+      "file": "preview-session.ts"
+    },
+    {
+      "sha256": "3C63749013012CA0D60BE59ED69E96534260CE529C8FCC17AA6B2E722BE79D82",
+      "file": "product-art.tsx"
+    },
+    {
+      "sha256": "9D37BA07CD54FF057F8181EF5CDA2578E96593B967B8B7CB333AD2659EBB144C",
+      "file": "product-motion.test.tsx"
+    },
+    {
+      "sha256": "09170837F1A2180CCCF4A886B94AED1A24B9060E27C87D25B05C695A383459E5",
+      "file": "product-motion.ts"
+    },
+    {
+      "sha256": "8E23AFC563EC6FF62A3FA7F7F58C3E05687972A0F3DBF2BF32985D78911ED4BE",
+      "file": "product-shell.tsx"
+    },
+    {
+      "sha256": "1CB9463BC229F55BD4240D22905828F803872E235ED488AB6AF66FEA22226075",
+      "file": "product-styles.ts"
+    },
+    {
+      "sha256": "DFB079C697199FF20AE2F8DC6B2288876E9E5BE339C8EC6CAAC3BBDE095048E7",
+      "file": "product.tsx"
+    },
+    {
+      "sha256": "F03728258DC9431DC57E6BCB681F275981A70506C0355A3055E83DACABAE1A1F",
+      "file": "reference-model.test.ts"
+    },
+    {
+      "sha256": "160B659F59BAFFB5ABB8695509618BE9F730FE0D262CD70A0A7004A7D4045402",
+      "file": "reference-model.ts"
+    },
+    {
+      "sha256": "949033F551E4201430148C32C6EF7FF9F1D7CA154E12B9B08D98F6BDFEED4FCF",
+      "file": "section-reveal.ts"
+    },
+    {
+      "sha256": "897D0436334C25774D0AB9BD7A190EF608F3786FC1DDDA3F50CB9906E3A72D7C",
+      "file": "standby.tsx"
+    },
+    {
+      "sha256": "71893860AE2B581C44949E36B5653FE04709DA441C38CF9EA5528A862E9ADCB8",
+      "file": "ui.test.js"
+    },
+    {
+      "sha256": "BFED4CA3FB1E679D61E6A9E72BD38C9651D2E04B3C2D86365DC7BC394595B82F",
+      "file": "ui.tsx"
+    },
+    {
+      "sha256": "26D9440486571630E1B3726706A5CD0627F1B3B512009F4DC270636EE7E42B91",
+      "file": "use-kiosk-fonts.ts"
+    }
+  ],
+  "appSource": [
+    {
+      "sha256": "CC1A7AD0D019DDB1D32D0ECB588BA0AC26CE41D8625DD6C366348B25F83A28EC",
+      "file": "src/global.css"
+    },
+    {
+      "sha256": "A8BB13D1D3E15858D6AD46EF5BF1D18260EDC81AFC6BDA18FF1C719D1783F569",
+      "file": "src/app/_layout.tsx"
+    },
+    {
+      "sha256": "944F24A739EC77C50A02A728B28415F845FB9A25D03F63653F0345F4C1C159E1",
+      "file": "src/app/catalogo.tsx"
+    },
+    {
+      "sha256": "DB1FA227C99BCADBD6889624BD0533ADAA87721449A22B3B968A3EAFB4FD76C1",
+      "file": "src/app/index.tsx"
+    },
+    {
+      "sha256": "0E5A5324EAB04695AA570FC78E221906F2EE0DFC95D0484A6234D9F4FD5D4520",
+      "file": "src/app/parear.tsx"
+    },
+    {
+      "sha256": "1D56E4950DF5149620522D78069EC497C67B33B64B2388086FC02E6B2B061108",
+      "file": "src/app/spike.tsx"
+    },
+    {
+      "sha256": "3A619E124EB595FEF0B72F83730A9E8413A33EA04A68BA484D50F8C3669D5727",
+      "file": "src/catalogo/api.test.ts"
+    },
+    {
+      "sha256": "7CFFDB740F99F0548A56AE454539CC9407A193915FAD1EA1AF88435504C5671F",
+      "file": "src/catalogo/api.ts"
+    },
+    {
+      "sha256": "DAFC2A41803E93A91217E8F9AFAA7C66CE3C67B582251A318A9A09F5D40A691E",
+      "file": "src/catalogo/business-kiosk.test.tsx"
+    },
+    {
+      "sha256": "D388E706ABEC6D2F36AD46458CD123ECC45F733C2823EC4C775A93FEC2FBCC11",
+      "file": "src/catalogo/business-kiosk.tsx"
+    },
+    {
+      "sha256": "9A7396DA69019415E95F6117A4D726A3F34CEEA5B715CF77F38F174295EB0EF7",
+      "file": "src/catalogo/business-product.test.tsx"
+    },
+    {
+      "sha256": "AEB0F2FC881CB18408E89FFAD1764163520C15529EE94C02CE3CE93C4DEA441E",
+      "file": "src/catalogo/business-product.tsx"
+    },
+    {
+      "sha256": "4CEFCE84CCB80D96101FC7FD1354FA4B2AAF0FF161CDB8CC1906249CE2D499F8",
+      "file": "src/catalogo/cart-state.test.ts"
+    },
+    {
+      "sha256": "EB514645A0EFBFE78467A0C86EDD81F53714B9071EF70421524CFD7E1AFFA2C5",
+      "file": "src/catalogo/cart-state.ts"
+    },
+    {
+      "sha256": "59F787CA7BC684483D708B6095FB98FC72F173E4D2122F50FCB7F739728994FD",
+      "file": "src/catalogo/cart-storage.test.ts"
+    },
+    {
+      "sha256": "F74FA2C682DAE620970D7E89B176358350D8691356452F2E0DD7B172AD7C400A",
+      "file": "src/catalogo/cart-storage.ts"
+    },
+    {
+      "sha256": "83642A732A4621FA6E31E96645C5806F386774644E8351730300503B62C489C3",
+      "file": "src/catalogo/catalogo-screen.test.tsx"
+    },
+    {
+      "sha256": "F74AC09F632F73095EAFCDBD61F1CC770AB93D1A23ED0CE30B68CB42C9F33DEA",
+      "file": "src/catalogo/catalogo-screen.tsx"
+    },
+    {
+      "sha256": "8393E6533B80AC6120E18D0E6891E44AC247FB99A558186533FEE5C03ED675CE",
+      "file": "src/catalogo/menu-model.test.ts"
+    },
+    {
+      "sha256": "BD114ABB57BF2B7A724798E49DBC1AA4D379D8D8FE6185E0E49907BDCF8A9FB1",
+      "file": "src/catalogo/menu-model.ts"
+    },
+    {
+      "sha256": "D90C944CDDE0AE64DA476BCC013008101F87A8B71730BFFC29F798D63CF891C3",
+      "file": "src/catalogo/model.test.ts"
+    },
+    {
+      "sha256": "FAC62469B392B64CA296AC2A7D6C6D41716A1F612EF4504209C3BE2404F76045",
+      "file": "src/catalogo/model.ts"
+    },
+    {
+      "sha256": "9220FAD655D5919EC22B9DE76A59E2AD76A1A7E6073521213AF20563C15BFCFF",
+      "file": "src/components/pairing-code.ts"
+    },
+    {
+      "sha256": "FC0F8610744682A1118F662CF748582F4235BA2C2CABF9823993B7E38D3CAD1C",
+      "file": "src/components/pairing-screen.test.ts"
+    },
+    {
+      "sha256": "75B186982094DF1BB7F7BD6C0D2FA5E8C2DBEB1B6BED16789DAF8509AE40E5C5",
+      "file": "src/components/pairing-screen.tsx"
+    },
+    {
+      "sha256": "02AE4AEA6A4B0EC22223C73044A51CF6CF4A726378719ACCE1BF6C0EB52549C8",
+      "file": "src/device-pairing/api.test.ts"
+    },
+    {
+      "sha256": "0954796654D26CD316ECBD6EBF78CE85986C50717BCF52E7706F7F0A351659E3",
+      "file": "src/device-pairing/api.ts"
+    },
+    {
+      "sha256": "537FBA3D70F8AFB936CDE858B17A6EDBE8A75BFF56AC1B2B4E8096F3580766D6",
+      "file": "src/device-pairing/session.test.ts"
+    },
+    {
+      "sha256": "8FA557402BA01F4D0516EE8BAFE257C6E9B9D783AF6D263C6C3E7F3E72E5BE1D",
+      "file": "src/device-pairing/session.ts"
+    },
+    {
+      "sha256": "32DC10CDE6C8E66E2FEEBC41B454E55EF272C6B8826669937E54FE8EA2FA5572",
+      "file": "src/device-pairing/types.ts"
+    },
+    {
+      "sha256": "578F47D45F970B2B24C635389D1052CDFFA072151F3F3FAA729BC4622456F3BD",
+      "file": "src/kiosk/cart.tsx"
+    },
+    {
+      "sha256": "65D0574DC66CC68095FD81F3F97390254D98A82368AA7D15F5CE72676A748AF1",
+      "file": "src/kiosk/catalog.tsx"
+    },
+    {
+      "sha256": "67AB01377453629C5072FC41B19BB6AF70D093FAA84FE9CC050D4C202D0B5C18",
+      "file": "src/kiosk/category-rail.test.js"
+    },
+    {
+      "sha256": "0FE51B8915282FC116B77367755B15DAF34A93367C5CB98E5DA386A6926CDF12",
+      "file": "src/kiosk/category-rail.tsx"
+    },
+    {
+      "sha256": "7051DF7829A7F96469017FBB48DAF78819A86BB03E8D462E208C184F66718E6B",
+      "file": "src/kiosk/checkout.test.tsx"
+    },
+    {
+      "sha256": "EB22C300B70F0A5E7F4CC87DB7F4D047D72E22CBA53A1FD1DDA17159D636F97C",
+      "file": "src/kiosk/checkout.tsx"
+    },
+    {
+      "sha256": "C4BB70165EFC8BC1CC62AE4AAC6F52D90501951F1950F471AD16046E3CDF00DA",
+      "file": "src/kiosk/context-dialog.test.tsx"
+    },
+    {
+      "sha256": "52BFB29395FE486BD00AC058FDEB74B653CFF80E4AF5067D6B1ADC58A0492546",
+      "file": "src/kiosk/context-dialog.tsx"
+    },
+    {
+      "sha256": "3C32A6893CBECFBD3B6B60BA38DBFDFAAC111F20EE7D9D019A543F46BFCEB0B5",
+      "file": "src/kiosk/entry-screen.test.tsx"
+    },
+    {
+      "sha256": "6BD85EFBCD231F1480939DBC9D41D611E4CC1B43A620C16DC813B549785ADA7C",
+      "file": "src/kiosk/experience-context.ts"
+    },
+    {
+      "sha256": "94C85F262C840A2C43E041B09EF84BA7B7DDB052C85E27451C7A9BC985766ED5",
+      "file": "src/kiosk/kiosk-screen.test.tsx"
+    },
+    {
+      "sha256": "AFDEA96D9AC425477D547E07B70CBD4B94FC95904B115A69F0CC2453066D5A75",
+      "file": "src/kiosk/kiosk-screen.tsx"
+    },
+    {
+      "sha256": "5A975E01378B73A449167CDD664DC117774FEC841E0B7AEE27699B1CB0ABCBD2",
+      "file": "src/kiosk/kiosk-styles.ts"
+    },
+    {
+      "sha256": "0BE4E543E2255E48FECB81ABFF19361538736988E7B6212DD23D76464BB61EFF",
+      "file": "src/kiosk/menu-screen.tsx"
+    },
+    {
+      "sha256": "7B6C01415260848AD343DB68842C45BAD1E605BDD42BFE4FB1053CE8F54E318A",
+      "file": "src/kiosk/motion.tsx"
+    },
+    {
+      "sha256": "BCE2FA6257BB386E13FD2CC2A5067BC84F1FBB5C952EB322C0F05940F89E1E6C",
+      "file": "src/kiosk/notice.test.js"
+    },
+    {
+      "sha256": "71A7A9F778088D1DA674BD9F2AEAACCB69CD71FA47B4DF8A5B36CB76BC18689C",
+      "file": "src/kiosk/notice.tsx"
+    },
+    {
+      "sha256": "C88826E0C092BE63716FE3B37EDA22411B4A58565FC357ED997D0D118CA03504",
+      "file": "src/kiosk/preview-session.test.ts"
+    },
+    {
+      "sha256": "35B19083E7D86274B28F257FB309857F7C983069D93DEF78B4A97211A0FFA080",
+      "file": "src/kiosk/preview-session.ts"
+    },
+    {
+      "sha256": "3C63749013012CA0D60BE59ED69E96534260CE529C8FCC17AA6B2E722BE79D82",
+      "file": "src/kiosk/product-art.tsx"
+    },
+    {
+      "sha256": "9D37BA07CD54FF057F8181EF5CDA2578E96593B967B8B7CB333AD2659EBB144C",
+      "file": "src/kiosk/product-motion.test.tsx"
+    },
+    {
+      "sha256": "09170837F1A2180CCCF4A886B94AED1A24B9060E27C87D25B05C695A383459E5",
+      "file": "src/kiosk/product-motion.ts"
+    },
+    {
+      "sha256": "8E23AFC563EC6FF62A3FA7F7F58C3E05687972A0F3DBF2BF32985D78911ED4BE",
+      "file": "src/kiosk/product-shell.tsx"
+    },
+    {
+      "sha256": "1CB9463BC229F55BD4240D22905828F803872E235ED488AB6AF66FEA22226075",
+      "file": "src/kiosk/product-styles.ts"
+    },
+    {
+      "sha256": "DFB079C697199FF20AE2F8DC6B2288876E9E5BE339C8EC6CAAC3BBDE095048E7",
+      "file": "src/kiosk/product.tsx"
+    },
+    {
+      "sha256": "F03728258DC9431DC57E6BCB681F275981A70506C0355A3055E83DACABAE1A1F",
+      "file": "src/kiosk/reference-model.test.ts"
+    },
+    {
+      "sha256": "160B659F59BAFFB5ABB8695509618BE9F730FE0D262CD70A0A7004A7D4045402",
+      "file": "src/kiosk/reference-model.ts"
+    },
+    {
+      "sha256": "949033F551E4201430148C32C6EF7FF9F1D7CA154E12B9B08D98F6BDFEED4FCF",
+      "file": "src/kiosk/section-reveal.ts"
+    },
+    {
+      "sha256": "897D0436334C25774D0AB9BD7A190EF608F3786FC1DDDA3F50CB9906E3A72D7C",
+      "file": "src/kiosk/standby.tsx"
+    },
+    {
+      "sha256": "71893860AE2B581C44949E36B5653FE04709DA441C38CF9EA5528A862E9ADCB8",
+      "file": "src/kiosk/ui.test.js"
+    },
+    {
+      "sha256": "BFED4CA3FB1E679D61E6A9E72BD38C9651D2E04B3C2D86365DC7BC394595B82F",
+      "file": "src/kiosk/ui.tsx"
+    },
+    {
+      "sha256": "26D9440486571630E1B3726706A5CD0627F1B3B512009F4DC270636EE7E42B91",
+      "file": "src/kiosk/use-kiosk-fonts.ts"
+    },
+    {
+      "sha256": "8704D7192AF8C90DBF7D6CAF443B6034F7F0972BA00C4C4E4A02507EA247F3D2",
+      "file": "src/lan-spike/client.test.ts"
+    },
+    {
+      "sha256": "8B318046D3C5BBF6E8B9CC5F585F9CF277C82172BE3EE63B8202ACD8405EFE32",
+      "file": "src/lan-spike/client.ts"
+    },
+    {
+      "sha256": "80C80FFCC03EA6C5DF9FA4775C150344FD7898BDAB7AA715D6DB667BE2E3EC24",
+      "file": "src/lan-spike/connection.test.ts"
+    },
+    {
+      "sha256": "A0AB5E5FD2789D020725C0563C2234722C948BD16FD0D6611F407C05E852A2AE",
+      "file": "src/lan-spike/connection.ts"
+    },
+    {
+      "sha256": "5D50E875B4A7970784383B2650775B998B58AF64016308A34B7DD692AD02B82D",
+      "file": "src/lan-spike/discovery-client.test.ts"
+    },
+    {
+      "sha256": "15184E737508236870DF04311575BDFB90140ACBAE3B90CEB6FC557FC4DF86B3",
+      "file": "src/lan-spike/discovery-client.ts"
+    },
+    {
+      "sha256": "D7718382DADDE86D473E5C5C52290044485DD2CC4BB1E6D39B2F4957DE237615",
+      "file": "src/lan-spike/discovery.test.ts"
+    },
+    {
+      "sha256": "341DDFF6A1775E229BA8142C5BBB450AACD4F1AF59F8A2F9876CC728D9216FED",
+      "file": "src/lan-spike/discovery.ts"
+    },
+    {
+      "sha256": "305A8988310B06CB5E839A8A07D7CD3A38E4A70414DF1FB710C15FED1FD21693",
+      "file": "src/lan-spike/native-discovery.ts"
+    },
+    {
+      "sha256": "B4FBE9E37C7366B6CE331D74778C3346909AA29B22AF92ECD629AA0CC9C86694",
+      "file": "src/lan-spike/protocol.test.ts"
+    },
+    {
+      "sha256": "46FDE648A92E7888000A8C19E88E29AD04340535164BECF47A5F94CD2819A825",
+      "file": "src/lan-spike/protocol.ts"
+    },
+    {
+      "sha256": "E35C7D5E96CAF540F5B7303AB3E39BDD4E3A0E7962C204D6C1EE288C7B7AD6D2",
+      "file": "src/lan-spike/runtime.test.ts"
+    },
+    {
+      "sha256": "7EAEFB8E3EF7ADB24206D0A30578AA24203F60798DDE155FBECA9AB0BC03A546",
+      "file": "src/lan-spike/runtime.ts"
+    },
+    {
+      "sha256": "3AC5D101AE4B3C8C09DCA0350FFF2422CA51ABB45025D7E4A85330C4FB6C3558",
+      "file": "src/storage/device-token.test.ts"
+    },
+    {
+      "sha256": "EFC6083D15139A297A93085EC963EFCC2D8B5DDF2C1155013E59D020C8753FFB",
+      "file": "src/storage/device-token.ts"
+    }
+  ],
+  "previewFlag": "EXPO_PUBLIC_KIOSK_PREVIEW=0",
+  "baseApkSha256": "C5D3814867A3834CA2CCDCF871A7547952CF6369AB7F147F4904CCF8CBE2A544"
+}

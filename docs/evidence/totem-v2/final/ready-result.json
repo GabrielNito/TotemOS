@@ -1,0 +1,10 @@
+{
+  "cartEmpty": true,
+  "result": "PASS",
+  "pairingDataPreserved": true,
+  "context": "counter",
+  "wifiRestored": "1",
+  "mobileDataRestored": "1",
+  "entry": "MAIN/LAUNCHER",
+  "initialContentRestoredExactly": true
+}

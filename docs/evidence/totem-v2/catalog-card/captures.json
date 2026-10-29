@@ -1,0 +1,98 @@
+{
+  "crop": {
+    "left": 0,
+    "top": 95,
+    "width": 1080,
+    "height": 2203
+  },
+  "viewport": {
+    "width": 384,
+    "height": 783
+  },
+  "captures": [
+    {
+      "file": "device-01-paired-entry.png",
+      "originalSha256": "059b48296ba35c08e61a2ac6f436de695f5461f65551775973ff6f81f008ea38"
+    },
+    {
+      "file": "device-02-paired-catalog.png",
+      "originalSha256": "2d2a24f8737da65a959b75bb94d6ad8b9c217ee87bb3c68295dd00b4555475ef"
+    },
+    {
+      "file": "device-03-paired-product.png",
+      "originalSha256": "19a32bb7bfb8028044c2f3f65428fe8f5cf410daee40539fd96f3d3d04dcccb4"
+    },
+    {
+      "file": "device-04-paired-configured.png",
+      "originalSha256": "5e9a4ad1a092e26e2ae19e44adaeaf0eb95b9adb07ef3a3fb7c39f7866c7d215"
+    },
+    {
+      "file": "device-05-paired-cart.png",
+      "originalSha256": "83b4445838350356ff26e90d260f67a974c6fad5f054ead56d2737edfbbd1ba7"
+    },
+    {
+      "file": "device-06-paired-edited-cart.png",
+      "originalSha256": "6414e07a35c9f07b9151e0c2f7e5092cf6e78ff542a7f570a49b154deac85473"
+    },
+    {
+      "file": "device-07-paired-identification.png",
+      "originalSha256": "9c23aa7b453fa8e60de6e42ac3a3b96b15fe90c9f4a08e30aa3c979aedd8c24f"
+    },
+    {
+      "file": "device-08-paired-payment.png",
+      "originalSha256": "68f6e3ccb25cf9187b143a990734a2bcdfaa414a0738de1c2f63ca512aa383b1"
+    },
+    {
+      "file": "device-09-paired-restored-cart.png",
+      "originalSha256": "cb3f51519204f19f5de6419d00478d455ffba9bc4483a1c164baa8ded120b4e6"
+    },
+    {
+      "file": "device-10-brioche-restored.png",
+      "originalSha256": "e1fe8e5e452de9416fa6556fb5fe71fdfb0a01dc337e1bb12816ba19e83312d7"
+    },
+    {
+      "file": "states-01-loading.png",
+      "originalSha256": "3f91a5632212afa8e58460053eb3056bb93db38ce2482258a048fdf4cd8458b2"
+    },
+    {
+      "file": "states-02-empty.png",
+      "originalSha256": "08fd48bcb9c62a597106b564bf7ab0090d9c73848924599840e53596abc19b0d"
+    },
+    {
+      "file": "states-03-empty-recovered.png",
+      "originalSha256": "a577727470aa260684caedcb49547bd225ac472b235517b1f4ec3f83a0171822"
+    },
+    {
+      "file": "states-04-http-error.png",
+      "originalSha256": "a277fd69c3ab594da8a2fd3ec98829dcbd77bfbb38ebb0fb6523ee13fb65b3e8"
+    },
+    {
+      "file": "states-04-invalid.png",
+      "originalSha256": "a277fd69c3ab594da8a2fd3ec98829dcbd77bfbb38ebb0fb6523ee13fb65b3e8"
+    },
+    {
+      "file": "states-04-network-error.png",
+      "originalSha256": "a277fd69c3ab594da8a2fd3ec98829dcbd77bfbb38ebb0fb6523ee13fb65b3e8"
+    },
+    {
+      "file": "states-05-http-error-recovered.png",
+      "originalSha256": "a577727470aa260684caedcb49547bd225ac472b235517b1f4ec3f83a0171822"
+    },
+    {
+      "file": "states-05-invalid-recovered.png",
+      "originalSha256": "da51161d56a925d239105c118dda886531842d85541951df211c1e646a078c3e"
+    },
+    {
+      "file": "states-05-network-error-recovered.png",
+      "originalSha256": "da51161d56a925d239105c118dda886531842d85541951df211c1e646a078c3e"
+    },
+    {
+      "file": "states-06-availability-filtered.png",
+      "originalSha256": "1282a7b36f20ece54b1f9fb5d9d933b7a6ed30b93b3a04e699c60260844d9ff3"
+    },
+    {
+      "file": "states-07-real-additional-maximum.png",
+      "originalSha256": "011de8906db6e276ba5161ce2d533c8dafbd1e30667250bbd031a9b101531329"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "payment": "simulation",
+  "mobileDataDuringTest": "0",
+  "result": "PASS",
+  "wifiDuringTest": "0",
+  "checkedAt": "2026-10-29T15:51:20.8131197Z",
+  "launchedVia": "MAIN/LAUNCHER"
+}

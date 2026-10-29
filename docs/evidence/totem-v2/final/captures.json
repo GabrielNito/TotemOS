@@ -1,0 +1,270 @@
+{
+  "generatedAt": "2026-10-29T16:10:56.918Z",
+  "columns": [
+    "Reference V2",
+    "Native A54"
+  ],
+  "nativeCrop": {
+    "left": 0,
+    "top": 95,
+    "width": 1080,
+    "height": 2203
+  },
+  "viewport": {
+    "width": 384,
+    "height": 783
+  },
+  "comparisons": [
+    {
+      "file": "01-standby.png",
+      "referenceSha256": "2deec828604e6079a379f16d166830c2b61e8bb719692ac886bd6e691561742c",
+      "nativeSha256": "63880503f272c95c3801b7a660f7bf5aeba568f37d56a7fc6f2302b29eec05eb"
+    },
+    {
+      "file": "02-catalog.png",
+      "referenceSha256": "93458a2f32f50a39916f2fe3cec60a1a8f7759839bef7e7e6ca7f97e3479be58",
+      "nativeSha256": "8ec75e20803b2156f1eff4235e6d3fdb915a6b7dba461bb8ac9d27933d5095b1"
+    },
+    {
+      "file": "03-product.png",
+      "referenceSha256": "94e8a960bd89aee60928f8d2cc6b3c1312609cf5745c158ec264d20f87b40932",
+      "nativeSha256": "580cea8faf173a28a1f7230e768c71c62bcf501f480748fe1dd24a25df3a7dd5"
+    },
+    {
+      "file": "04-product-selected.png",
+      "referenceSha256": "13dbd0664c7e0dbe9c73cab885471dcedb08872df68a0f642556d30cc528b183",
+      "nativeSha256": "24cd7d2bd131d275dcd5e39b210b265e5c2ae2b872e35dea08c237b4c54af1ad"
+    },
+    {
+      "file": "05-cart.png",
+      "referenceSha256": "4643533028bf6d82866612c537cb0b685fdf8a2a48c6698901b0e70924f1ee1d",
+      "nativeSha256": "3dfc98c1bd9fef08a1508d4acf273ff99c8fd9d93b3c0de730fa05e1b804958a"
+    },
+    {
+      "file": "06-identification.png",
+      "referenceSha256": "3451756b7125a778127cf769d1592f148932d79f8d24287ecdf7a9b7a31b1dda",
+      "nativeSha256": "6dfaada5c5d9837b93e4afc2c8450da718f5f0b1c74a5394d408cfd12ffd74b1"
+    },
+    {
+      "file": "07-payment.png",
+      "referenceSha256": "dfd08b3cab893936e10f4ca98ad46d0236be7c1fb9a22ed93355e9e123728771",
+      "nativeSha256": "d9b1c193d710b496ba665103a4b115c2d8cd9ba8e3fc954be2ccb536d6655c52"
+    },
+    {
+      "file": "08-confirmation.png",
+      "referenceSha256": "0ad979ef248dbe82257bd9a7e6c00c2d708b1e3e7285a6ecf7669596c67e4c99",
+      "nativeSha256": "c4a5a6061eba860d1906e683506b8de2513fd1438040ac47bf0897a107c69fbb"
+    },
+    {
+      "file": "09-context.png",
+      "referenceSha256": "6743b4cacf42f64a2aa50d1eef31f7656a807700684dd32a7177b0266cc3498e",
+      "nativeSha256": "422d3c636fd574a4a5dd9ba579f7a6300ce5bda9ea78399de9c2bf58642e6a23"
+    },
+    {
+      "file": "10-combos.png",
+      "referenceSha256": "56149815ddd6b589aaf2c47c88cd5926474c356aaaad0595570ef108eeac177f",
+      "nativeSha256": "6d8e3783a222efd581a1d7c8d2d178063fc39c70f5cb7fcdaf52fb8561c16f9f"
+    },
+    {
+      "file": "11-combo-product.png",
+      "referenceSha256": "3d66da8f8d87a4469bf5350e866c92296868eecb83565bb423d7c7b3b413ac7f",
+      "nativeSha256": "9d1b5f3f9a1b4eada05c125918ebd43a15b40432014f310c2aeebbd5d6760109"
+    },
+    {
+      "file": "12-combo-cart.png",
+      "referenceSha256": "abaa01281334d3f705d3ed58b2302943918d9ef0ec0c1559d6750d5a8d33128d",
+      "nativeSha256": "cb2aad989cc0cfc374949f229c5cf31dbe5c2f8a905149175f7215f45b3c7078"
+    },
+    {
+      "file": "13-removal-dialog.png",
+      "referenceSha256": "c864d4873421183e089dbe81f24e06682ba646cb378c507c2c1291a9f9c417ca",
+      "nativeSha256": "d0b44a3b4424f080e4aed13c60a01fef6a790fa56f4662f2470a4246c0d4d8ef"
+    },
+    {
+      "file": "14-empty-cart.png",
+      "referenceSha256": "46cc97d5053d9819de8c3c4c22c7374d39471b74b616dc52c85e234138466575",
+      "nativeSha256": "750393468107e564a3e7ac9dbd581312220847673ad1a940c6b3e1f6d63dbf2e"
+    },
+    {
+      "file": "15-restored-cart.png",
+      "referenceSha256": "0189cb39210fc439365d036108a7e7e89a24e001793be0366649ea9dec705ac5",
+      "nativeSha256": "b7d5e0e2d6f7041be34b6dffe4f9f2f9354c6790b81d959e6d0772b36240e5f5"
+    },
+    {
+      "file": "16-invalid-cpf.png",
+      "referenceSha256": "dee44bac364d348121d12ec2a334a11e73283a5ea2895e5ef3bfa65940f4058b",
+      "nativeSha256": "d2ed9d5c020eba3666b9fc616faa3d76a526f19d1c6491691c7a590e9b8e79df"
+    },
+    {
+      "file": "17-pix-selected.png",
+      "referenceSha256": "6f53c39b50bf26a07c2f47d24c1d34c9af2fc7dd16ea4d2956a12d1fdc92d009",
+      "nativeSha256": "ae3f61e7a40c303eb0fd40b65c74e9c2557ce3e28fdf47f8d5d61d16212a0bd7"
+    },
+    {
+      "file": "18-table-cart.png",
+      "referenceSha256": "022602f202fa6d748a51d4c7b3389a83a8e97c79fb99a1d4fb749cf0fb8b4dbb",
+      "nativeSha256": "362a5e31516c4afd68ac1cd85495d932a7f303da6fa1cf83604e3d86f1a0cb3b"
+    },
+    {
+      "file": "19-table-confirmation.png",
+      "referenceSha256": "fc3e6b159ea96fe4ae13a8702891a516308be8334ceca15d8743ca77a99870d0",
+      "nativeSha256": "1e321fba91803c9e702eb84452fa6a955a9650481c151469e324039f98a9beb6"
+    },
+    {
+      "file": "20-beverages.png",
+      "referenceSha256": "0297317210b12d87f53aa826abdaa898c5fb95bd7a43b0254d93d0ed4db8c717",
+      "nativeSha256": "af318e7e4cb11b96f4292f3267bf4881f589c220bac231747e17b8e817dcc536"
+    },
+    {
+      "file": "21-simple-product.png",
+      "referenceSha256": "d736b61d7e2a73d6bb9bf98ea43f41a625f2b9f934ee5235e310104273643bd2",
+      "nativeSha256": "c74babad8c7f76cc7d5bdecabe50990e8289e6d5be8a1e0d4126da97f61affac"
+    },
+    {
+      "file": "22-qr-cart.png",
+      "referenceSha256": "9d46afd7d7fe3acffe31b3eb208214a39aed97ebbd51fe0e603f88e1012dfd09",
+      "nativeSha256": "d618aa21c69b9a92e68580b4ccd33f6977c49a775f85572f3bc01513ddc4d468"
+    },
+    {
+      "file": "23-qr-confirmation.png",
+      "referenceSha256": "01d60e0cefab0d5ba4466fd438dc9206080f8702318fc26ca7de3e48a4eae33c",
+      "nativeSha256": "0c7be2e330bc887a31790f306d35363a896a56a9e5f1cab015ed1abab2bc2231"
+    },
+    {
+      "file": "24-qr-standby.png",
+      "referenceSha256": "cae8f2a306d16af7f4799f664596777ed7a417192b39398627fec3451c8c30ef",
+      "nativeSha256": "213461e6dc26a78114515b01f81a0d9fef0b85ce9f6aeb2f6d110e5a2613066b"
+    },
+    {
+      "file": "25-remove-open.png",
+      "referenceSha256": "9a6f1898175147eb52b2935419000b7ce97c1a26291733e681677bbd5842264f",
+      "nativeSha256": "d885902fd31842e54fa1530f9cf73903f431677ba0b922c634de50592f3a932f"
+    },
+    {
+      "file": "26-remove-selected.png",
+      "referenceSha256": "815cc34d28ada67eac69b74f86ed66c1002ad3719dbb32ed39a3d21e072b82bd",
+      "nativeSha256": "eab1193f685e51cc6940b211e64c572533dd2d25a29c11fa0b19865b69da48ed"
+    },
+    {
+      "file": "27-extras-open.png",
+      "referenceSha256": "dbfa34f7008235c43e80428d615a80ca9886d1113d0f031330f3b7967ebcefc8",
+      "nativeSha256": "9a80796bd83894e870b9714ecb50f6b8456e2dca720fc62fa4f16426b737e909"
+    },
+    {
+      "file": "28-extras-selected.png",
+      "referenceSha256": "e8035f40011d5cf2d979d3613f962f2d9c66cd182b0e119598aca18c25a6d799",
+      "nativeSha256": "010f76e3e02c523003a5e557aaf3cfc85aa810ba83f836eb406cfacbadbcb89c"
+    },
+    {
+      "file": "29-pairing-open.png",
+      "referenceSha256": "61b2dc1b350e60934ef5d40e7ffd04286d32040843c09e3a6f3fe5ad084ae2a7",
+      "nativeSha256": "1f7fa54cbb4ceabb5a6e5ddf419658cd58368911e0c2d8c0977b90ce715684e1"
+    },
+    {
+      "file": "30-pairing-selected.png",
+      "referenceSha256": "f56e4193ea33a914efe260be4f0ad1c60edd1a3ba9e314cc110b562f27dfffa7",
+      "nativeSha256": "7e995e739f0ab081bd7efa09d76a1511c91ad8569cc3c630f0053e6119f92ed6"
+    },
+    {
+      "file": "31-custom-cart.png",
+      "referenceSha256": "62bbbc12ee36a5c593f67508bc948c6737bc42ae6ee49fdfb4f7d79525958b15",
+      "nativeSha256": "6c9b187c785dc6b44d03626c0f561f0a3291e56517fc646c795e675a21757461"
+    },
+    {
+      "file": "32-edit-product.png",
+      "referenceSha256": "9390f3a1adc6a87097e34091ce6e8de27927b7cebb92a0c1b711bfcd99389791",
+      "nativeSha256": "5a175551e93c25006f305a42dfb72112ca1819679bbc2a1dc4f1c4d0ff236193"
+    },
+    {
+      "file": "33-edited-cart.png",
+      "referenceSha256": "747aaf2283905d73ee1c210b7b9a52c5c9a3c695d2fa70e04e8cbe858ad38f40",
+      "nativeSha256": "feb7db2fa635ff97191faf215d60e8283b23ab9f9ac625e436d8aa97ee26fdb5"
+    },
+    {
+      "file": "34-quantity-cart.png",
+      "referenceSha256": "b2191a9274ea58a69c91da2b7d0c1262fb36703b312329d7a4630977a93228f0",
+      "nativeSha256": "472cccaeae5a80944845cdae1c7857946de763c79db3a751bf5c51bce4a32cde"
+    },
+    {
+      "file": "35-removal-after-idle.png",
+      "referenceSha256": "153ccf3cfbfbc76de79932d7205434f3d3f66d7db50eb29bfa84749037095d30",
+      "nativeSha256": "f8166e12c5d635aae18207084bfc8d0069a07f990aed40fa330e5b238fc74495"
+    },
+    {
+      "file": "36-cart-after-dialog.png",
+      "referenceSha256": "77ada008da968c487858556036dc90d0f3543e9549429f6db9d7f081ce4adad3",
+      "nativeSha256": "1a21909b0c50a881362db991decd255cc9cde2c44bb5263ce7d2fa879f08c832"
+    },
+    {
+      "file": "37-idle-standby.png",
+      "referenceSha256": "b862827c0a60dfe84f59c8a860498cc470f4e80b2541c494c4c3ab345a61bff5",
+      "nativeSha256": "daf5ca7f64bde30a63f0177caff1b19519f0e9d41c2e6a7ad746138ef2030883"
+    },
+    {
+      "file": "38-resumed-cart.png",
+      "referenceSha256": "b2191a9274ea58a69c91da2b7d0c1262fb36703b312329d7a4630977a93228f0",
+      "nativeSha256": "08800927aa9675a69aded3574bacfee20837c421b4dd30ffc4324e993c071c95"
+    },
+    {
+      "file": "39-smash-product.png",
+      "referenceSha256": "cd3091bc72e6fc20ba4a9b658666f79fb8cd57ad27ef0b7f80d32fab866347ea",
+      "nativeSha256": "6efa05cb3f8ddd7c54563061642caeb97926ee1dfdd7284b1bf81b2f45d7ea2c"
+    },
+    {
+      "file": "40-chicken-product.png",
+      "referenceSha256": "27d193849d63196f373be811913101682cf29fa24b24291172812cfd6438c3de",
+      "nativeSha256": "9b9e6dd0f8cf6e26409b80e0f5047a296ff2c6942487e3a4c7a6ffe0bab66122"
+    },
+    {
+      "file": "41-double-product.png",
+      "referenceSha256": "63740839c55471f7f5081dd89633e4dfbb95bee6cd9a685354a95c6fe365c467",
+      "nativeSha256": "a4cf481c57bdd6f478459b9973a596953292e1925837ac88735d8b905b3b9b09"
+    },
+    {
+      "file": "42-combo-smash-product.png",
+      "referenceSha256": "4e5fad0ef123bd7b7c8922a738a408f56c3df4ea7382deec06a4ff6279009db0",
+      "nativeSha256": "15893b68eb2a88b469e2fe5ddda1fd3890b6081186ed7bbc0c61f6d4dcd24b19"
+    },
+    {
+      "file": "43-combo-chicken-product.png",
+      "referenceSha256": "98e6ac0edbb398f6d4b7a59584ef4ebae2e7f789c6df8c22da4a3d41b401fa7c",
+      "nativeSha256": "e706240c8fc53a8995ea5caf0698597dcb65378692eb5bdad42c234707e4e44c"
+    },
+    {
+      "file": "44-portions.png",
+      "referenceSha256": "bae5ad73ddce4554c3fc61904a062f11ab52d1277e8e943592fc1b46ba0f3251",
+      "nativeSha256": "0f6f20ca817fd1846ead4cc18b8eefaccb9c7d9b8a16a34f7ed473ca4c23d5da"
+    },
+    {
+      "file": "45-potato-product.png",
+      "referenceSha256": "f2792278fcf301598d1a2fb66ac7c072ad21fcafd80843a3df0023d50e9f69a7",
+      "nativeSha256": "3b01f76cdfc942a7d91681ad8dadee7896c637bf26dc400864e148e91c145001"
+    },
+    {
+      "file": "46-onion-product.png",
+      "referenceSha256": "e4490e64f3ef317c39f827ae22616e80147f8bac2cee19ad9d04f45b8b653257",
+      "nativeSha256": "a9dff9722834a45d1ad5b945a6ff2a188af65a088d9a44b2202ccc26222b71dd"
+    },
+    {
+      "file": "49-mixed-cart-before-restart.png",
+      "referenceSha256": "324f40729e01c6f9798fd3e4524304ff422b6dbaad09383ed285abf927f974f6",
+      "nativeSha256": "aad0d2372533b4e21a87bcbf5d92078e3f4214f53809aa3f31ee8dc4fe6e882d"
+    },
+    {
+      "file": "50-mixed-cart-after-restart.png",
+      "referenceSha256": "324f40729e01c6f9798fd3e4524304ff422b6dbaad09383ed285abf927f974f6",
+      "nativeSha256": "b4488e4ece986f84ab4930080b0bde2f4562c0a6cb78d3012e4e8e06c9e9d6ff"
+    },
+    {
+      "file": "51-mixed-cart-after-undo.png",
+      "referenceSha256": "324f40729e01c6f9798fd3e4524304ff422b6dbaad09383ed285abf927f974f6",
+      "nativeSha256": "b4488e4ece986f84ab4930080b0bde2f4562c0a6cb78d3012e4e8e06c9e9d6ff"
+    },
+    {
+      "file": "52-mixed-cart-after-removal.png",
+      "referenceSha256": "05d0adf36a0b1dcf282be96f7d012a3ef3a72626a63ac1c88ab8c5dc4df20be1",
+      "nativeSha256": "db33a76e37f2d696878d9c5f3a330b7ddc49c084e3a132c93b92333e4a0d1303"
+    }
+  ],
+  "missingNative": []
+}

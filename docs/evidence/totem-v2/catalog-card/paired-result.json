@@ -1,0 +1,13 @@
+{
+  "paymentIntegrationAvailable": false,
+  "negocioId": "ae72652c-b912-4180-9adb-41e65c134e5c",
+  "paymentsStarted": 0,
+  "editedTotal": 67.8,
+  "checkedAt": "2026-10-29T16:35:35.3083563Z",
+  "actualOrdersCreated": 0,
+  "configuredTotal": 89.6,
+  "restoredTotal": 101.7,
+  "additionalId": "1c9ee709-e939-4f6c-8323-cf315ea5bf1b",
+  "result": "PASS",
+  "productId": "49cffcd2-887e-4a65-b2fd-1026c5d238be"
+}
