@@ -20,4 +20,16 @@ Os testes novos falharam antes das correções de variação, adicionais e tenan
 
 Migrações executadas em schema PostgreSQL temporário e isolado: pedido com duas unidades Duplo e dois adicionais por unidade totalizou R$ 48,00, permaneceu aguardando pagamento sem senha, e a repetição da chave retornou o mesmo pedido, com um único registro no banco. O schema de auditoria foi removido ao terminar. Sem cobrança ou alteração do catálogo operacional.
 
-A validação física deste novo fluxo no A54 e a revisão visual da tela de pedido pendente ainda precisam ser realizadas. O aparelho permanece com a demonstração Brioche aprovada.
+## Validação no Galaxy A54
+
+[Capturas e resultado](evidence/totem-pedido-real/README.md). O APK de auditoria usa a mesma interface e um bundle Hermes atualizado no contêiner nativo existente, com assinatura debug do projeto. Isso não substitui um novo build Gradle/EAS de produção. As chaves de carrinho e tentativa receberam um prefixo exclusivo somente durante o empacotamento de auditoria; o código operacional e os dados existentes no aparelho foram preservados.
+
+O backend de teste utilizou um schema PostgreSQL isolado com cópia do catálogo e do registro do dispositivo pareado. No A54, a seleção inicial de duas unidades Duplo com dois adicionais por unidade totalizou R$ 99,60. A API foi parada antes do envio: a tentativa permaneceu salva e a revisão do carrinho ficou bloqueada. Após reiniciar o backend e o app, a tentativa foi recuperada.
+
+Uma mudança de limite exclusivamente no schema de auditoria provocou HTTP 400. O app liberou a revisão e preservou os itens. Reduzir o adicional para uma unidade por produto permitiu registrar o pedido por R$ 89,60. A tela mostrou o total da API, a referência e o estado aguardando pagamento. O botão de identificação do fluxo conectado agora diz “Registrar pedido”; a demonstração mantém “Escolher pagamento”.
+
+O banco confirmou um único pedido, variação com snapshot R$ 39,80, adicional R$ 5,00, duas unidades, senha nula e zero pagamentos. Repetir a chave retornou o mesmo pedido. O app também recuperou a referência e o total após outro reinício e manteve a navegação bloqueada enquanto o pedido está pendente.
+
+A perda da resposta depois do commit continua coberta pelos testes unitários; a tentativa de montar um proxy para essa simulação física foi bloqueada pela revisão automática, sem justificativa detalhada. O teste físico de indisponibilidade foi feito parando o próprio backend de auditoria antes do envio.
+
+Totem: 134 testes em 30 suítes, lint e TypeScript aprovados. Backend: 86 testes, lint e build aprovados. A demonstração Brioche aprovada foi reinstalada ao terminar.

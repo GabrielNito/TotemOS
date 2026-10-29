@@ -67,6 +67,31 @@ const items = [
 ];
 const emptyIdentity: CheckoutIdentity = { name: "", cpf: "", wantsCpf: false };
 
+test("the connected order step can name its action without implying payment is available", async () => {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <CheckoutScreen
+        stage="identification"
+        simulation={false}
+        identificationActionLabel="Registrar pedido"
+        items={items}
+        total={39.8}
+        identity={emptyIdentity}
+        onIdentityChange={jest.fn()}
+        onComplete={jest.fn()}
+        onBack={jest.fn()}
+        onRestart={jest.fn()}
+      />,
+    );
+  });
+  try {
+    expect(button(tree, "Registrar pedido")).toBeDefined();
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
 test.each(["identification", "payment"] as const)(
   "the %s summary opens the selected item for editing without submitting payment",
   async (stage) => {

@@ -414,6 +414,7 @@ function BusinessKiosk({
                   simulation={false}
                   onEditItem={editItem}
                   identificationMode={identificationMode}
+                  identificationActionLabel="Registrar pedido"
                   stage={screen}
                   total={total}
                   items={items}

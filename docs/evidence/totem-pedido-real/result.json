@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "checkedAt": "2026-10-29T17:23:12.368Z",
+  "isolatedSchema": true,
+  "migrationAppliedInOperationalSchema": false,
+  "orderId": "6018cd3b-e73a-48f4-813d-1556ac2dc963",
+  "orders": 1,
+  "total": 89.6,
+  "status": "AGUARDANDO_PAGAMENTO",
+  "senha": null,
+  "payments": 0,
+  "customerCodeGenerated": true,
+  "snapshot": {
+    "variation": "Duplo",
+    "base": 39.8,
+    "quantity": 2,
+    "additional": 5,
+    "additionalQuantity": 1
+  },
+  "sameIdOnReplay": true
+}

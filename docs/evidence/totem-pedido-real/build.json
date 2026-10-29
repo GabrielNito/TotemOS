@@ -1,0 +1,96 @@
+{
+  "method": "Hermes export:embed em APK nativo existente, zipalign 16 KiB e assinatura debug do projeto; não é novo build Gradle/EAS.",
+  "apkSha256": "c204ed4a0774438eb20f88003917c7cad0bf61c30573f7cefa8aa79f5a2024f3",
+  "restoredApkSha256": "f860dd1cd3cdd792724854ed3cb2285a7c638face6fb3fe0f3552c0ac0fdf920",
+  "apiUrl": "http://127.0.0.1:3039",
+  "storageIsolation": "Bundle de auditoria usa totemos.audit26.cart.<negocioId> e totemos.audit26.order-attempt.<negocioId>; fonte operacional preservada.",
+  "device": "Galaxy A54",
+  "unavailableApi": "Servidor de auditoria parado antes do envio e reiniciado antes do retry",
+  "lostResponseAfterCommit": "Coberto em teste unitário, sem simulação física via proxy",
+  "source": [
+    {
+      "file": "api.test.ts",
+      "sha256": "3a619e124eb595fef0b72f83730a9e8413a33ea04a68ba484d50f8c3669d5727"
+    },
+    {
+      "file": "api.ts",
+      "sha256": "7cffdb740f99f0548a56ae454539cc9407a193915fad1ea1af88435504c5671f"
+    },
+    {
+      "file": "business-kiosk.test.tsx",
+      "sha256": "44c1ddcaa610df49d1c8f5dbebdb9b529afdc67217249dec24e61f88a99d8c7f"
+    },
+    {
+      "file": "business-kiosk.tsx",
+      "sha256": "16c1c88776b10ef180a5f6187eeea4fb2fc5cfc38a688fbf2cac4221bd3390fc"
+    },
+    {
+      "file": "business-product.test.tsx",
+      "sha256": "9a7396da69019415e95f6117a4d726a3f34ceea5b715cf77f38f174295eb0ef7"
+    },
+    {
+      "file": "business-product.tsx",
+      "sha256": "aeb0f2fc881cb18408e89ffad1764163520c15529ee94c02ce3ce93c4dea441e"
+    },
+    {
+      "file": "cart-state.test.ts",
+      "sha256": "4cefce84ccb80d96101fc7fd1354fa4b2aaf0ff161cdb8cc1906249ce2d499f8"
+    },
+    {
+      "file": "cart-state.ts",
+      "sha256": "eb514645a0efbfe78467a0c86edd81f53714b9071ef70421524cfd7e1affa2c5"
+    },
+    {
+      "file": "cart-storage.test.ts",
+      "sha256": "59f787ca7bc684483d708b6095fb98fc72f173e4d2122f50fcb7f739728994fd"
+    },
+    {
+      "file": "cart-storage.ts",
+      "sha256": "f74fa2c682dae620970d7e89b176358350d8691356452f2e0dd7b172ad7c400a"
+    },
+    {
+      "file": "catalogo-screen.test.tsx",
+      "sha256": "83642a732a4621fa6e31e96645c5806f386774644e8351730300503b62c489c3"
+    },
+    {
+      "file": "catalogo-screen.tsx",
+      "sha256": "f74ac09f632f73095eafcdbd61f1cc770ab93d1a23ed0ce30b68cb42c9f33dea"
+    },
+    {
+      "file": "menu-model.test.ts",
+      "sha256": "8393e6533b80ac6120e18d0e6891e44ac247fb99a558186533fee5c03ed675ce"
+    },
+    {
+      "file": "menu-model.ts",
+      "sha256": "bd114abb57bf2b7a724798e49dbc1aa4d379d8d8fe6185e0e49907bdcf8a9fb1"
+    },
+    {
+      "file": "model.test.ts",
+      "sha256": "d90c944cdde0ae64da476bcc013008101f87a8b71730bffc29f798d63cf891c3"
+    },
+    {
+      "file": "model.ts",
+      "sha256": "fac62469b392b64ca296ac2a7d6c6d41716a1f612ef4504209c3be2404f76045"
+    },
+    {
+      "file": "order-api.test.ts",
+      "sha256": "3374014af67d9f7de114fefddbf0751b165c052dcaa1eb32e463a3cdc2b5f1b0"
+    },
+    {
+      "file": "order-api.ts",
+      "sha256": "4db4f04449f50de11e6d7255b16cadecc39c075b1e18636726c06a2986e3d3b0"
+    },
+    {
+      "file": "order-status.tsx",
+      "sha256": "abdacdb35b70fd7828fcb13837f79756f89b82526ae24e50e928f7bea077d6bb"
+    },
+    {
+      "file": "order-submission.test.ts",
+      "sha256": "6e78b0a6f7e5dc09cb2d2c32184971c15c92ac966717aa3458d59244ee994e5c"
+    },
+    {
+      "file": "order-submission.ts",
+      "sha256": "8b419c26424a790201efe6fc8371092facd6880b1feaa3b19abd54128d3faab9"
+    }
+  ]
+}
