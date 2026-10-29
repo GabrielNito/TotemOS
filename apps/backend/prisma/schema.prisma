@@ -223,7 +223,7 @@ model Pedido {
   negocio        Negocio      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
   dispositivoId  String?
   idempotencyKey String?      @unique
-  senha          Int
+  senha          Int?
   dataSequencial String
   status         StatusPedido @default(AGUARDANDO_PAGAMENTO)
   nomeCliente    String?
