@@ -17,7 +17,7 @@ function setup() {
     id: 'pedido',
     ...data,
   }));
-  const adicionais = mock(() => [
+  const adicionaisDisponiveis = [
     {
       id: 'extra',
       produtoId: 'produto',
@@ -26,7 +26,10 @@ function setup() {
       maximo: 2,
       esgotado: false,
     },
-  ]);
+  ];
+  const adicionais = mock<(_query: unknown) => typeof adicionaisDisponiveis>(
+    () => adicionaisDisponiveis,
+  );
   const tx = {
     produto: { findMany: mock(() => [produto]) },
     adicional: { findMany: adicionais },

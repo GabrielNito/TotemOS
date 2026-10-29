@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { StatusPedido, Prisma } from '@prisma/client';
+import { demoEnvironmentFor } from './demo-policy';
 
 export interface CriarPedidoOptions {
   dispositivoId?: string;
@@ -230,6 +231,7 @@ export class PedidosService {
 
       // A senha diária será atribuída pelo KDS ao receber o pedido elegível.
       const dataSequencial = new Date().toISOString().slice(0, 10);
+      const demoAmbiente = demoEnvironmentFor(negocioId);
 
       // 7. Persistência do Pedido com snapshots imutáveis
       return tx.pedido.create({
@@ -246,6 +248,8 @@ export class PedidosService {
           observacoes: dto.observacoes,
           origemOffline: false,
           preparoZero: todosComPreparoZero,
+          demo: demoAmbiente !== null,
+          demoAmbiente,
           itens: {
             create: itensParaCriar,
           },
