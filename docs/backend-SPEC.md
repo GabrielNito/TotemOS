@@ -2,6 +2,16 @@
 
 Especificação técnica completa e modelo de dados do motor backend da plataforma TotemOS.
 
+## Estado auditado em 29/10/2026
+
+Base `ef20663` de develop. Esta SPEC contém contratos existentes e planejamento;
+as seções abaixo distinguem ambos. O contrato operacional P0 está na
+[ADR 0001, PROPOSTA](adr/0001-contrato-operacional-p0.md), com
+[divergências verificadas](contrato-operacional-divergencias.md) e
+[HTTP proposto](contrato-operacional-http-p0.md). Decisões críticas exigem revisão
+do Caio antes da implementação. Point, LAN e offline não estão implementados no
+fluxo de pedidos; o P0 do roadmap é cloud-online.
+
 ---
 
 ## 1. Stack e Tecnologias
@@ -250,6 +260,7 @@ model Pedido {
   valorTotal     Decimal      @db.Decimal(10, 2)
   observacoes    String?
   origemOffline  Boolean      @default(false)
+  preparoZero    Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -323,40 +334,72 @@ WHERE "status" = 'ATIVO';
 ## 3. Grupo de Endpoints da API HTTP
 
 ### 3.1 Autenticação e Pareamento
+
+Rotas implementadas, exceto a associação Point explicitamente futura abaixo:
+
+- `POST /auth/registrar`: Onboarding de negócio e DONO.
 - `POST /auth/login`: Autenticação do dono da Dashboard (JWT).
+- `GET /auth/me`: Perfil do usuário humano autenticado.
 - `POST /auth/validar-pin`: Validação de PIN de segurança do dono.
 - `POST /dispositivos/parear/codigo`: Gera código temporário de pareamento (6 dígitos), somente para `DONO`.
 - `POST /dispositivos/parear/ativar`: Valida e consome o código, retornando o `deviceToken` opaco uma única vez.
 - `GET /dispositivos`: Lista dispositivos do tenant para `DONO` ou `GERENTE`, sem segredos.
 - `DELETE /dispositivos/:id`: Revoga dispositivo, somente para `DONO`.
 - `GET /dispositivos/me`: Retorna a identidade do dispositivo autenticado por `deviceToken`.
-- `POST /dispositivos/:id/maquininha-point`: Associa uma maquininha Mercado Pago Point ao Totem.
+- **Futuro, não implementado**: `POST /dispositivos/:id/maquininha-point`, sugestão histórica de associação Point.
 
 ### 3.2 Configurações & Negócio
+
+**Planejamento, rotas não implementadas:**
+
 - `GET /negocios/:id/config`: Obtém parâmetros do negócio.
 - `PUT /negocios/:id/config`: Atualiza parâmetros (exige PIN do dono).
 
 ### 3.3 Catálogo
+
 - `GET /catalogo/publico/:negocioId`: Rota pública destinada ao Totem. Retorna apenas categorias e conteúdo disponível para venda.
 - `GET /catalogo/admin`: Rota autenticada para usuários humanos `DONO` ou `GERENTE`. Deriva o `negocioId` da identidade autenticada e retorna a visão administrativa completa, incluindo categorias vazias ou inativas, produtos ativos, inativos ou esgotados e adicionais.
 - `POST /catalogo/categorias`: Cria categoria para administração do catálogo por `DONO` ou `GERENTE`.
 - `PUT /catalogo/categorias/:id`: Edita ou ativa/desativa categoria com isolamento por tenant.
 - `POST /catalogo/produtos`, `PUT /catalogo/produtos/:id`: Criação e edição administrativas de produtos por `DONO` ou `GERENTE`.
-- `DELETE /catalogo/produtos/:id`: Desativação lógica (*soft delete*) administrativa de produto por `DONO` ou `GERENTE`.
+- `DELETE /catalogo/produtos/:id`: Desativação lógica (_soft delete_) administrativa de produto por `DONO` ou `GERENTE`.
 - Adicional de Produto possui `nome`, `preco`, `maximo` e `esgotado`. `GrupoDeEscolha` pertence exclusivamente a Combo.
 
 ### 3.4 Pedidos & Ciclo de Vida
+
+**Implementado:**
+
 - `POST /pedidos`: Criação de pedido com snapshot completo, aceita usuário humano ou `TOTEM`.
-- `GET /pedidos`, `GET /pedidos/:id`: Consulta da fila, aceita usuário humano ou `PAINEL`; `TOTEM` é rejeitado.
+- `GET /pedidos`, `GET /pedidos/:id`: Consulta geral, aceita usuário humano ou `PAINEL`; `TOTEM` é rejeitado. A listagem atual não impõe elegibilidade financeira e não deve ser tomada como fila operacional pronta.
+
+Pedidos novos nascem `AGUARDANDO_PAGAMENTO` e `senha: null`, inclusive
+`preparoZero`. A flag é persistida, mas seu avanço automático não está
+implementado. Data sequencial atual é UTC na criação, sem emissão de senha.
+Replay sequencial existe; garantias concorrentes e validação de conteúdo ainda
+exigem validação/correção, conforme ADR.
+
+**Sugestões históricas não implementadas**, sem contrato aprovado neste card:
+
 - `POST /pedidos/reconciliar`: Envio em lote de pedidos criados offline durante queda de internet.
 - `GET /pedidos/fila/:negocioId`: Fila de pedidos para o Painel (KDS).
 - `PATCH /pedidos/:id/status`: Transição de status.
 - `POST /pedidos/:id/cancelar`: Solicitação de cancelamento/estorno (exige PIN do dono).
 
+Para P0, consultar a [tabela HTTP proposta](contrato-operacional-http-p0.md),
+incluindo fila com tenant derivado da sessão, liberação DEMO, senha e
+acompanhamento restrito ao Totem criador. Nenhuma dessas propostas cria endpoint.
+
 ### 3.5 Pagamentos & Webhooks
+
+**Futuro, não implementado.** Point física está no pós-MVP do roadmap;
+liberação operacional DEMO P0 não equivale a pagamento aprovado.
+
 - `POST /pagamentos/intent`: Solicita cobrança na maquininha Point física vinculada ao Totem.
 - `POST /pagamentos/webhook/mercadopago`: Recebimento de atualizações assíncronas do Mercado Pago.
 
 ### 3.6 Relatórios
+
+**Planejamento, rotas não implementadas:**
+
 - `GET /relatorios/faturamento/:negocioId`: Faturamento por período, ticket médio e volume de vendas.
 - `GET /relatorios/mais-vendidos/:negocioId`: Ranking de produtos e adicionais mais vendidos.

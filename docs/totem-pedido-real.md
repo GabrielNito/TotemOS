@@ -14,6 +14,11 @@ O backend consulta variações e usa o preço selecionado no snapshot. Também r
 
 A migração `20261029170000_pedido_sem_senha_antes_kds` permite senha nula. Pedidos novos aguardam atribuição pelo KDS; senhas históricas são preservadas. A migração precisa ser aplicada no ambiente de destino antes de publicar o backend atualizado. Não foi aplicada ao schema operacional durante o desenvolvimento.
 
+Atualização posterior ao relato acima: o [card #26](https://trello.com/c/tC5WqYRu)
+registra aplicação operacional da migração em 29/10/2026 às 15:29 BRT, sem
+publicação de nova versão do backend. A auditoria documental do #28 consultou
+esse registro e o código; não reexecutou migrações nem inspecionou o Neon.
+
 ## Validação inicial
 
 Os testes novos falharam antes das correções de variação, adicionais e tenant. Os testes de envio cobrem persistência anterior à rede, recuperação após reinício, exclusão mútua, erros definitivos/incertos e rejeição de resposta de outro negócio. A integração React cobre recuperação de tentativa e bloqueio de navegação sem sobrescrever o carrinho quando o armazenamento falha.
