@@ -50,7 +50,9 @@ describe("device pairing API", () => {
   });
 
   it("consulta a identidade com o deviceToken em Authorization", async () => {
-    const response = { dispositivo: { tipo: "PAINEL", negocioId: "negocio-1" } };
+    const response = {
+      dispositivo: { tipo: "PAINEL", negocioId: "negocio-1" },
+    };
     fetchMock.mockResolvedValue(createResponse(response));
 
     await expect(getCurrentDevice("token-sensivel")).resolves.toEqual(response);

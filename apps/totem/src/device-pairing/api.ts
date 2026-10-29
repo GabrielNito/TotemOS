@@ -1,7 +1,4 @@
-import type {
-  DeviceActivationResponse,
-  DeviceMeResponse,
-} from "./types";
+import type { DeviceActivationResponse, DeviceMeResponse } from "./types";
 
 interface ApiErrorPayload {
   code?: unknown;
@@ -36,7 +33,9 @@ function getErrorPayload(value: unknown): ApiErrorPayload {
 function getErrorMessage(payload: ApiErrorPayload, statusCode: number): string {
   if (typeof payload.message === "string") return payload.message;
   if (Array.isArray(payload.message)) {
-    return payload.message.filter((item) => typeof item === "string").join(", ");
+    return payload.message
+      .filter((item) => typeof item === "string")
+      .join(", ");
   }
   if (typeof payload.error === "string") return payload.error;
   return `Erro ${statusCode} ao comunicar com o servidor.`;
@@ -49,7 +48,9 @@ async function request<T>(
   const { headers, ...requestOptions } = options;
   const requestHeaders: Record<string, string> = {
     Accept: "application/json",
-    ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(options.body !== undefined
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...(headers as Record<string, string> | undefined),
   };
 

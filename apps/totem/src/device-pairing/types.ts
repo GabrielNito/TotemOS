@@ -18,4 +18,13 @@ export interface DeviceActivationResponse {
 
 export interface DeviceMeResponse {
   dispositivo: DeviceIdentity;
+  negocio?: NegocioIdentity;
+}
+
+export interface NegocioIdentity {
+  id: string;
+  nome: string;
+  modoIdentificacao: "NOME" | "CODIGO" | "OPCIONAL";
+  mensagemBoasVindas: string | null;
+  pagamentoPointConfigurado: boolean;
 }

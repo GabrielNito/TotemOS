@@ -2,11 +2,37 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
+  totem-test:
+    name: Totem Lint, Jest, Typecheck & Android Export
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/totem
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/totem/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - name: Exportar catálogo conectado para Android
+        run: npx expo export --platform android --output-dir dist/ci-paired --clear --max-workers 2
+        env:
+          EXPO_PUBLIC_KIOSK_PREVIEW: "0"
+      - name: Exportar demonstração para Android
+        run: npx expo export --platform android --output-dir dist/ci-preview --clear --max-workers 2
+        env:
+          EXPO_PUBLIC_KIOSK_PREVIEW: "1"
+
   backend-test:
     name: Backend Lint, Testes & Build
     runs-on: ubuntu-latest
