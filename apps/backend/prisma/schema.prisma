@@ -69,6 +69,7 @@ model Negocio {
   produtos          Produto[]
   combos            Combo[]
   pedidos           Pedido[]
+  liberacoesDemo    LiberacaoDemo[]
 }
 
 model NegocioConfig {
@@ -92,6 +93,7 @@ model Usuario {
   createdAt DateTime @default(now())
 
   codigosPareamento CodigoPareamento[] @relation("CodigoPareamentoCriadoPor")
+  liberacoesDemo    LiberacaoDemo[]
 }
 
 model Dispositivo {
@@ -232,11 +234,15 @@ model Pedido {
   observacoes    String?
   origemOffline  Boolean      @default(false)
   preparoZero    Boolean      @default(false)
+  demo           Boolean      @default(false)
+  demoAmbiente   String?
+  versao         Int          @default(1)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  itens      PedidoItem[]
-  pagamentos Pagamento[]
+  itens         PedidoItem[]
+  pagamentos    Pagamento[]
+  liberacaoDemo LiberacaoDemo?
 
   @@unique([negocioId, dataSequencial, senha])
 }
@@ -288,4 +294,25 @@ model Pagamento {
   valor       Decimal         @db.Decimal(10, 2)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+model LiberacaoDemo {
+  id             String         @id @default(uuid())
+  negocioId      String
+  negocio        Negocio        @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  pedidoId       String         @unique
+  pedido         Pedido         @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  usuarioId      String
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  idempotencyKey String
+  payloadHash    String
+  motivo         String
+  ambiente       String
+  versaoAnterior Int
+  versaoLiberada Int
+  transicoes     StatusPedido[]
+  createdAt      DateTime       @default(now())
+
+  @@unique([negocioId, usuarioId, idempotencyKey])
+  @@index([negocioId, createdAt])
 }

@@ -2,9 +2,14 @@
 
 Parte da [ADR 0001](adr/0001-contrato-operacional-p0.md), card
 [#28](https://trello.com/c/T6hZ5Npz). Aguardam revisão do Caio.
-Nenhuma rota desta proposta foi criada. Os únicos endpoints atuais de pedidos
+Na entrega documental #28, nenhuma rota desta proposta foi criada. Os endpoints então existentes de pedidos
 são `POST /pedidos`, `GET /pedidos`, `GET /pedidos/:id`, conforme o
 [controller auditado](../apps/backend/src/pedidos/pedidos.controller.ts).
+
+Atualização #29: `POST /pedidos/:id/liberacao-demo` foi implementado nesta branch,
+conforme [contrato efetivo e configuração](liberacao-demo.md). As demais rotas
+abaixo continuam propostas; acompanhar a evolução por card sem tratar exemplos
+históricos como API entregue.
 
 ## Convenções propostas
 

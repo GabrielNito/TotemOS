@@ -217,6 +217,7 @@ describe('Catálogo administrativo', () => {
       nome: 'X-Bacon',
       precoBase: 25,
       tempoEstimadoPreparo: 12,
+      esgotado: false,
       ativo: false,
       adicionais: [{ nome: 'Bacon', preco: 4, maximo: 2 }],
     });

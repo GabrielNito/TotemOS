@@ -12,6 +12,14 @@ as seções abaixo distinguem ambos. O contrato operacional P0 está na
 do Caio antes da implementação. Point, LAN e offline não estão implementados no
 fluxo de pedidos; o P0 do roadmap é cloud-online.
 
+### Atualização incremental, card #29
+
+Esta branch implementa [liberação operacional DEMO](liberacao-demo.md), marcação
+na criação, versão e auditoria persistida. A fotografia de auditoria acima e a
+ADR continuam registrando a base anterior; numeração, fila segura e transições
+gerais permanecem futuras. A exceção não produtiva à regra global 3 está explícita
+no diff para revisão, sem alterar a regra de senha.
+
 ---
 
 ## 1. Stack e Tecnologias
@@ -99,6 +107,7 @@ model Negocio {
   produtos     Produto[]
   combos       Combo[]
   pedidos      Pedido[]
+  liberacoesDemo LiberacaoDemo[]
 }
 
 model NegocioConfig {
@@ -122,6 +131,7 @@ model Usuario {
   createdAt DateTime @default(now())
 
   codigosPareamento CodigoPareamento[] @relation("CodigoPareamentoCriadoPor")
+  liberacoesDemo LiberacaoDemo[]
 }
 
 model Dispositivo {
@@ -261,11 +271,15 @@ model Pedido {
   observacoes    String?
   origemOffline  Boolean      @default(false)
   preparoZero    Boolean      @default(false)
+  demo           Boolean      @default(false)
+  demoAmbiente   String?
+  versao         Int          @default(1)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   itens      PedidoItem[]
   pagamentos Pagamento[]
+  liberacaoDemo LiberacaoDemo?
 
   @@unique([negocioId, dataSequencial, senha])
 }
@@ -317,6 +331,27 @@ model Pagamento {
   valor       Decimal         @db.Decimal(10, 2)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+model LiberacaoDemo {
+  id             String         @id @default(uuid())
+  negocioId      String
+  negocio        Negocio        @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  pedidoId       String         @unique
+  pedido         Pedido         @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  usuarioId      String
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  idempotencyKey String
+  payloadHash    String
+  motivo         String
+  ambiente       String
+  versaoAnterior Int
+  versaoLiberada Int
+  transicoes     StatusPedido[]
+  createdAt      DateTime       @default(now())
+
+  @@unique([negocioId, usuarioId, idempotencyKey])
+  @@index([negocioId, createdAt])
 }
 ```
 
@@ -370,11 +405,13 @@ Rotas implementadas, exceto a associação Point explicitamente futura abaixo:
 **Implementado:**
 
 - `POST /pedidos`: Criação de pedido com snapshot completo, aceita usuário humano ou `TOTEM`.
+- `POST /pedidos/:id/liberacao-demo`: Liberação operacional não financeira, exclusiva para DONO/PIN e ambiente/tenant DEMO configurados. Contrato em [liberacao-demo.md](liberacao-demo.md).
 - `GET /pedidos`, `GET /pedidos/:id`: Consulta geral, aceita usuário humano ou `PAINEL`; `TOTEM` é rejeitado. A listagem atual não impõe elegibilidade financeira e não deve ser tomada como fila operacional pronta.
 
 Pedidos novos nascem `AGUARDANDO_PAGAMENTO` e `senha: null`, inclusive
-`preparoZero`. A flag é persistida, mas seu avanço automático não está
-implementado. Data sequencial atual é UTC na criação, sem emissão de senha.
+`preparoZero`. No #29, liberação DEMO avança automaticamente até PRONTO quando
+a flag persistida for verdadeira. Confirmação financeira continua futura.
+Data sequencial atual é UTC na criação, sem emissão de senha.
 Replay sequencial existe; garantias concorrentes e validação de conteúdo ainda
 exigem validação/correção, conforme ADR.
 

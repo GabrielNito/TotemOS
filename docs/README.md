@@ -24,6 +24,8 @@ Point física, impressão e operação offline são pós-MVP.
 
 ## Entregas e experimentos documentados
 
+- [Liberação operacional DEMO, implementação do card #29](liberacao-demo.md).
+
 - [Contrato de pareamento backend](device-pairing-contract.md).
 - [Pareamento mobile](mobile-pairing.md).
 - [Catálogo conectado do Totem](totem-catalogo-card.md).

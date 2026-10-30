@@ -36,6 +36,20 @@ jobs:
   backend-test:
     name: Backend Lint, Testes & Build
     runs-on: ubuntu-latest
+    services:
+      postgres-demo:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: demo-ci-only
+          POSTGRES_DB: totemos_demo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d totemos_demo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout do código
@@ -62,14 +76,26 @@ jobs:
           bun run lint
 
       - name: Executar Testes (bun test)
+        # Mantém fixtures e testes E2E também cobertos pela tipagem.
         run: |
           cd apps/backend
+          bunx tsc --noEmit
           bun test
 
       - name: Validar Build (bun run build)
         run: |
           cd apps/backend
           bun run build
+
+      - name: Validar migrações e contrato DEMO em PostgreSQL isolado
+        env:
+          DATABASE_URL: postgresql://postgres:demo-ci-only@127.0.0.1:5432/totemos_demo_test?schema=public
+          DIRECT_URL: postgresql://postgres:demo-ci-only@127.0.0.1:5432/totemos_demo_test?schema=public
+          DEMO_TEST_DATABASE_URL: postgresql://postgres:demo-ci-only@127.0.0.1:5432/totemos_demo_test?schema=public
+        run: |
+          cd apps/backend
+          bunx prisma migrate deploy
+          bun run test:demo:e2e
 
   dashboard-test:
     name: Dashboard Lint, Typecheck & Build

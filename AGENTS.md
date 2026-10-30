@@ -16,7 +16,8 @@ Este arquivo estabelece os princípios invioláveis e as regras de arquitetura q
 
 3. **Confirmação de Pagamento**:
    - Pedidos iniciados no Totem nascem com o status `AGUARDANDO_PAGAMENTO`.
-   - O pedido SÓ entra na fila da cozinha (`PENDENTE`) após a confirmação assíncrona do webhook do Mercado Pago ou aceitação de pagamento offline.
+   - Em produção, o pedido SÓ entra na fila da cozinha (`PENDENTE`) após a confirmação assíncrona do webhook do Mercado Pago ou aceitação de pagamento offline conforme contrato específico.
+   - Exceção DEMO: exclusivamente em ambiente não produtivo explicitamente configurado e banco isolado, um usuário humano `DONO` com PIN pode liberar pedido previamente marcado como demonstração pelo servidor. Exige tenant autorizado, auditoria e idempotência; nunca gravar `Pagamento APROVADO` fictício. A configuração ausente ou qualquer indicação de produção veta a liberação. Contrato e limites em [`docs/liberacao-demo.md`](docs/liberacao-demo.md).
 
 4. **Autoridade de Senha no Painel (KDS)**:
    - A senha sequencial diária do pedido é atribuída pelo **Painel de Pedidos (KDS)** no momento em que o pedido é recebido.

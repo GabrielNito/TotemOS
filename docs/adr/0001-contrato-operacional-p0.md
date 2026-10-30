@@ -3,6 +3,12 @@
 Status: **PROPOSTA**, aguardando revisão do Caio. Data: 29/10/2026.
 Responsável pela redação: Gabriel. Card [#28](https://trello.com/c/T6hZ5Npz).
 
+Atualização incremental #29: implementação da liberação DEMO autorizada pelo
+usuário após o merge documental #14 e submetida a PR próprio. Ver
+[comportamento efetivo, configuração e limites](../liberacao-demo.md).
+A auditoria abaixo permanece a fotografia da base ef20663; a implementação
+incremental não representa aprovação do Caio das demais decisões desta ADR.
+
 Esta ADR não autoriza implementar exceções às regras globais. As alterações
 recomendadas para aprovação estão na [matriz de divergências](../contrato-operacional-divergencias.md).
 Contratos HTTP detalhados: [propostas P0](../contrato-operacional-http-p0.md).
