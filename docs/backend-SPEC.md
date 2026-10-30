@@ -406,7 +406,14 @@ Rotas implementadas, exceto a associação Point explicitamente futura abaixo:
 
 - `POST /pedidos`: Criação de pedido com snapshot completo, aceita usuário humano ou `TOTEM`.
 - `POST /pedidos/:id/liberacao-demo`: Liberação operacional não financeira, exclusiva para DONO/PIN e ambiente/tenant DEMO configurados. Contrato em [liberacao-demo.md](liberacao-demo.md).
-- `GET /pedidos`, `GET /pedidos/:id`: Consulta geral, aceita usuário humano ou `PAINEL`; `TOTEM` é rejeitado. A listagem atual não impõe elegibilidade financeira e não deve ser tomada como fila operacional pronta.
+- `PATCH /pedidos/:id/status`: PAINEL ou humano DONO/GERENTE, com versão, senha, autorização operacional, idempotência e auditoria transacional.
+- `GET /pedidos/fila`: PAINEL ou humano DONO/GERENTE, somente pedidos autorizados PENDENTE/EM_PREPARO/PRONTO, com paginação.
+- `GET /pedidos/:id/acompanhamento`: Somente TOTEM criador, projeção mínima do próprio pedido.
+- `GET /pedidos`, `GET /pedidos/:id`: Consulta administrativa para humanos; PAINEL recebe apenas pedidos elegíveis e projeção sem pagamentos. TOTEM é rejeitado.
+
+Contrato efetivo, matriz, autorização DEMO P0, respostas e evidências do #30
+em [transicoes-pedidos.md](transicoes-pedidos.md). Senha e data operacional
+dependem do #31; nenhuma destas leituras emite números.
 
 Pedidos novos nascem `AGUARDANDO_PAGAMENTO` e `senha: null`, inclusive
 `preparoZero`. No #29, liberação DEMO avança automaticamente até PRONTO quando

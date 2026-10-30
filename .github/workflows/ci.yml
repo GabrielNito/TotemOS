@@ -96,6 +96,7 @@ jobs:
           cd apps/backend
           bunx prisma migrate deploy
           bun run test:demo:e2e
+          bun run test:operacao:e2e
 
   dashboard-test:
     name: Dashboard Lint, Typecheck & Build

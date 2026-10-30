@@ -19,7 +19,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:demo:e2e": "jest --config ./test/jest-e2e.json --runInBand liberacao-demo.e2e-spec.ts"
+    "test:demo:e2e": "jest --config ./test/jest-e2e.json --runInBand liberacao-demo.e2e-spec.ts",
+    "test:operacao:e2e": "jest --config ./test/jest-e2e.json --runInBand transicoes.e2e-spec.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.1.1",

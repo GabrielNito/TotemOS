@@ -2,7 +2,9 @@
 
 App React Native usado pela equipe. A tela de fila ainda é placeholder na base
 auditada `ef20663` (29/10/2026). Pareamento existe; fila, transições e solicitação
-de senha são entregas futuras dos cards #23/#30/#31/#32.
+de senha na interface são entregas futuras dos cards #23/#31/#32.
+O backend #30 já fornece [fila elegível e transições com versão/idempotência](transicoes-pedidos.md).
+O PATCH exige senha atribuída, cuja implementação pertence ao #31.
 
 O P0 do roadmap usa backend cloud e PostgreSQL. A
 [ADR 0001, PROPOSTA](adr/0001-contrato-operacional-p0.md) detalha elegibilidade,
