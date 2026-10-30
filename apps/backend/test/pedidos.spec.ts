@@ -1,3 +1,4 @@
+import { OperacaoPedidosService } from '../src/pedidos/operacao-pedidos.service';
 import { test, expect, describe } from 'bun:test';
 import {
   CriarPedidoSchema,
@@ -655,7 +656,10 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
 
     test('POST /pedidos extrai negocioId do token e repassa opções de idempotência', async () => {
       const mockService = criarMockService();
-      const controller = new PedidosController(mockService);
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+      );
 
       const dto: CriarPedidoDto = {
         itens: [
@@ -678,13 +682,16 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
 
     test('GET /pedidos extrai negocioId do token e repassa filtros', async () => {
       const mockService = criarMockService();
-      const controller = new PedidosController(mockService);
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+      );
 
       const resultado = (await controller.listar(
         userPayload,
         StatusPedido.PENDENTE,
         '2026-09-14',
-      )) as Array<{ id: string; negocioId: string }>;
+      )) as unknown as Array<{ id: string; negocioId: string }>;
 
       expect(resultado).toHaveLength(1);
       expect(resultado[0].negocioId).toBe('negocio-uuid-teste');
@@ -692,12 +699,15 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
 
     test('GET /pedidos/:id busca o pedido filtrado pelo negocioId do token', async () => {
       const mockService = criarMockService();
-      const controller = new PedidosController(mockService);
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+      );
 
       const resultado = (await controller.buscarPorId(
         userPayload,
         'ped-uuid-123',
-      )) as { id: string; negocioId: string };
+      )) as unknown as { id: string; negocioId: string };
 
       expect(resultado.id).toBe('ped-uuid-123');
       expect(resultado.negocioId).toBe('negocio-uuid-teste');

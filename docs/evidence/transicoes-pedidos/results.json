@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-30",
+  "card": "https://trello.com/c/2InAb3Ob",
+  "base": "008a0a3",
+  "branch": "feature/backend-transicoes-painel",
+  "database": "PostgreSQL 18 local dedicado, totemos_demo_test",
+  "red": {
+    "operationalE2E": "8 cenários falharam pela ausência das rotas",
+    "unavailableQueue": "falhou por não traduzir P1001 para HTTP 503"
+  },
+  "green": {
+    "bunTests": 98,
+    "pairingE2E": 19,
+    "demoE2E": 16,
+    "operationalE2E": 11,
+    "lint": "0 erros e 0 warnings",
+    "typecheck": "pass",
+    "build": "pass",
+    "prettier": "pass",
+    "prismaMigrationDiff": "No difference detected"
+  },
+  "notes": [
+    "Migration aplicada apenas no banco local de teste.",
+    "Rollback de auditoria injeta constraint e espera HTTP 500; log de erro intencional.",
+    "Numeração #31 é fixture nos testes, não endpoint implementado.",
+    "Autorização operacional P0 suporta DEMO auditada; financeiro/offline/mesa continuam futuros.",
+    "Revisão humana, merge e deploy não foram executados."
+  ]
+}

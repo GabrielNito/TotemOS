@@ -243,6 +243,7 @@ model Pedido {
   itens         PedidoItem[]
   pagamentos    Pagamento[]
   liberacaoDemo LiberacaoDemo?
+  transicoes    TransicaoPedido[]
 
   @@unique([negocioId, dataSequencial, senha])
 }
@@ -315,4 +316,23 @@ model LiberacaoDemo {
 
   @@unique([negocioId, usuarioId, idempotencyKey])
   @@index([negocioId, createdAt])
+}
+
+model TransicaoPedido {
+  id             String       @id @default(uuid())
+  negocioId      String
+  pedidoId       String
+  pedido         Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  atorId         String
+  identidade     String
+  idempotencyKey String
+  payloadHash    String
+  statusAnterior StatusPedido
+  statusNovo     StatusPedido
+  versaoAnterior Int
+  versaoNova     Int
+  createdAt      DateTime     @default(now())
+
+  @@unique([negocioId, identidade, atorId, idempotencyKey])
+  @@index([negocioId, pedidoId, createdAt])
 }

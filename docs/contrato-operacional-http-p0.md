@@ -11,6 +11,11 @@ conforme [contrato efetivo e configuração](liberacao-demo.md). As demais rotas
 abaixo continuam propostas; acompanhar a evolução por card sem tratar exemplos
 históricos como API entregue.
 
+Atualização #30: PATCH de status, GET de fila e acompanhamento foram
+implementados. O [contrato efetivo](transicoes-pedidos.md) prevalece sobre os
+exemplos propostos abaixo: nova chave para estado já atingido retorna 409;
+data operacional/numeração dependem do #31; autorização P0 é DEMO auditada.
+
 ## Convenções propostas
 
 - HTTPS, JSON e `Authorization: Bearer <credencial>`. USER = JWT humano;

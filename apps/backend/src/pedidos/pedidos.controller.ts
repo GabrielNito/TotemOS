@@ -9,6 +9,9 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Patch,
+  ParseUUIDPipe,
+  Header,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,11 +32,22 @@ import { PedidosService } from './pedidos.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { ErrorResponseDto } from '../auth/dto/auth-response.dto';
 import { StatusPedido, TipoDispositivo } from '@prisma/client';
+import { OperacaoPedidosService } from './operacao-pedidos.service';
+import {
+  AcompanhamentoResponseDto,
+  FilaQueryDto,
+  FilaResponseDto,
+  TransicaoPedidoDto,
+  TransicaoResponseDto,
+} from './dto/operacao-pedido.dto';
 
 @ApiTags('Pedidos')
 @Controller('pedidos')
 export class PedidosController {
-  constructor(private pedidosService: PedidosService) {}
+  constructor(
+    private pedidosService: PedidosService,
+    private operacao: OperacaoPedidosService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -118,10 +132,105 @@ export class PedidosController {
     @Query('status') status?: StatusPedido,
     @Query('dataSequencial') dataSequencial?: string,
   ) {
+    if (user.identity === 'DEVICE')
+      return this.operacao.listarLegado(user, { status, dataSequencial });
     return this.pedidosService.listar(user.negocioId, {
       status,
       dataSequencial,
     });
+  }
+
+  @Get('fila')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(AnyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Fila elegível para PAINEL, DONO e GERENTE',
+    description:
+      'Somente pedidos autorizados PENDENTE, EM_PREPARO e PRONTO. Paginação estável por criação/ID. Parâmetros desconhecidos são rejeitados.',
+  })
+  @ApiQuery({
+    name: 'limite',
+    required: false,
+    type: Number,
+    minimum: 1,
+    maximum: 100,
+  })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiResponse({ status: 200, type: FilaResponseDto })
+  @ApiResponse({ status: 400, description: 'Query ou cursor inválido.' })
+  @ApiResponse({ status: 401, description: 'Credencial ausente ou inválida.' })
+  @ApiResponse({ status: 403, description: 'Ator não permitido.' })
+  @ApiResponse({ status: 429, description: 'Limite global excedido.' })
+  @ApiResponse({ status: 503, description: 'Persistência indisponível.' })
+  fila(@CurrentUser() user: UserPayload, @Query() query: FilaQueryDto) {
+    return this.operacao.fila(user, query);
+  }
+
+  @Patch(':id/status')
+  @HttpCode(200)
+  @UseGuards(AnyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Avança preparo ou entrega com versão e auditoria',
+    description:
+      'PAINEL, DONO ou GERENTE. Exige autorização operacional, senha e versão atual. Replay pela chave original retorna estado atual sem repetir efeito. Nova chave para estado já atingido recebe 409.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'UUID persistido pelo cliente antes de enviar.',
+  })
+  @ApiBody({ type: TransicaoPedidoDto })
+  @ApiResponse({ status: 200, type: TransicaoResponseDto })
+  @ApiResponse({ status: 400, description: 'DTO, ID ou chave inválida.' })
+  @ApiResponse({ status: 401, description: 'Credencial inválida ou revogada.' })
+  @ApiResponse({ status: 403, description: 'Ator ou vínculo não permitido.' })
+  @ApiResponse({ status: 404, description: 'Pedido inexistente neste tenant.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Versão, transição, autorização, senha ou chave incompatível.',
+  })
+  @ApiResponse({ status: 429, description: 'Limite global excedido.' })
+  @ApiResponse({
+    status: 503,
+    description: 'Resultado incerto. Repetir a mesma chave.',
+  })
+  transicionar(
+    @CurrentUser() user: UserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: TransicaoPedidoDto,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.operacao.transicionar(user, id, dto, key);
+  }
+
+  @Get(':id/acompanhamento')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(AnyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Snapshot mínimo para TOTEM criador',
+    description:
+      'Filtra negócio e dispositivo criador. Não expõe itens, dados pessoais, pagamentos ou auditoria.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiResponse({ status: 200, type: AcompanhamentoResponseDto })
+  @ApiResponse({ status: 400, description: 'ID inválido.' })
+  @ApiResponse({ status: 401, description: 'Credencial ausente ou revogada.' })
+  @ApiResponse({ status: 403, description: 'Somente TOTEM.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Pedido fora do tenant/dispositivo ou inexistente.',
+  })
+  @ApiResponse({ status: 429, description: 'Limite global excedido.' })
+  @ApiResponse({ status: 503, description: 'Persistência indisponível.' })
+  acompanhamento(
+    @CurrentUser() user: UserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.operacao.acompanhamento(user, id);
   }
 
   @Get(':id')
@@ -154,6 +263,8 @@ export class PedidosController {
       'Pedido não encontrado ou não pertence a este estabelecimento.',
   })
   async buscarPorId(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    if (user.identity === 'DEVICE')
+      return this.operacao.detalharLegado(user, id);
     return this.pedidosService.buscarPorId(user.negocioId, id);
   }
 }
