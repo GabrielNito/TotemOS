@@ -3,7 +3,9 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { createHmac } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { DeviceUserPayload } from '../decorators/current-user.decorator';
@@ -29,18 +31,30 @@ export class DeviceTokenGuard implements CanActivate {
     }
 
     const tokenHash = createHmac('sha256', pepper).update(token).digest('hex');
-    const dispositivo = await this.prisma.dispositivo.findFirst({
-      where: {
-        tokenHash,
-        ativo: true,
-        revogadoEm: null,
-      },
-      select: {
-        id: true,
-        negocioId: true,
-        tipo: true,
-      },
-    });
+    const dispositivo = await this.prisma.dispositivo
+      .findFirst({
+        where: {
+          tokenHash,
+          ativo: true,
+          revogadoEm: null,
+        },
+        select: {
+          id: true,
+          negocioId: true,
+          tipo: true,
+        },
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof Prisma.PrismaClientInitializationError ||
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            ['P1001', 'P1002', 'P1017', 'P2024', 'P2028'].includes(error.code))
+        )
+          throw new ServiceUnavailableException(
+            'Persistência temporariamente indisponível.',
+          );
+        throw error;
+      });
 
     if (!dispositivo) {
       throw new UnauthorizedException(

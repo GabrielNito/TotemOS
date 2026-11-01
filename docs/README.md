@@ -26,6 +26,7 @@ Point física, impressão e operação offline são pós-MVP.
 
 - [Liberação operacional DEMO, implementação do card #29](liberacao-demo.md).
 - [Transições, fila elegível e acompanhamento, implementação do card #30](transicoes-pedidos.md).
+- [Senha diária única entre KDS, implementação do card #31](senha-diaria-kds.md).
 
 - [Contrato de pareamento backend](device-pairing-contract.md).
 - [Pareamento mobile](mobile-pairing.md).

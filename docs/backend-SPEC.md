@@ -406,32 +406,45 @@ Rotas implementadas, exceto a associação Point explicitamente futura abaixo:
 
 - `POST /pedidos`: Criação de pedido com snapshot completo, aceita usuário humano ou `TOTEM`.
 - `POST /pedidos/:id/liberacao-demo`: Liberação operacional não financeira, exclusiva para DONO/PIN e ambiente/tenant DEMO configurados. Contrato em [liberacao-demo.md](liberacao-demo.md).
+- `POST /pedidos/:id/senha`: somente DEVICE/PAINEL, body `{}` e chave UUID. Atribuição diária atômica por tenant, conforme [senha-diaria-kds.md](senha-diaria-kds.md).
 - `PATCH /pedidos/:id/status`: PAINEL ou humano DONO/GERENTE, com versão, senha, autorização operacional, idempotência e auditoria transacional.
 - `GET /pedidos/fila`: PAINEL ou humano DONO/GERENTE, somente pedidos autorizados PENDENTE/EM_PREPARO/PRONTO, com paginação.
 - `GET /pedidos/:id/acompanhamento`: Somente TOTEM criador, projeção mínima do próprio pedido.
 - `GET /pedidos`, `GET /pedidos/:id`: Consulta administrativa para humanos; PAINEL recebe apenas pedidos elegíveis e projeção sem pagamentos. TOTEM é rejeitado.
 
 Contrato efetivo, matriz, autorização DEMO P0, respostas e evidências do #30
-em [transicoes-pedidos.md](transicoes-pedidos.md). Senha e data operacional
-dependem do #31; nenhuma destas leituras emite números.
+em [transicoes-pedidos.md](transicoes-pedidos.md). O #31 fornece senha e data
+operacional em [senha-diaria-kds.md](senha-diaria-kds.md); GETs não emitem números.
 
 Pedidos novos nascem `AGUARDANDO_PAGAMENTO` e `senha: null`, inclusive
 `preparoZero`. No #29, liberação DEMO avança automaticamente até PRONTO quando
 a flag persistida for verdadeira. Confirmação financeira continua futura.
-Data sequencial atual é UTC na criação, sem emissão de senha.
-Replay sequencial existe; garantias concorrentes e validação de conteúdo ainda
+Data sequencial é provisoriamente UTC na criação. Na primeira emissão, passa
+a representar o dia operacional America/Sao_Paulo, definido pelo PostgreSQL.
+Pedidos já numerados preservam a data histórica; filtros por dataSequencial
+consultam esse valor persistido, não a data de criação.
+Na criação, replay sequencial existe; garantias concorrentes e validação de conteúdo ainda
 exigem validação/correção, conforme ADR.
 
 **Sugestões históricas não implementadas**, sem contrato aprovado neste card:
 
 - `POST /pedidos/reconciliar`: Envio em lote de pedidos criados offline durante queda de internet.
 - `GET /pedidos/fila/:negocioId`: Fila de pedidos para o Painel (KDS).
-- `PATCH /pedidos/:id/status`: Transição de status.
 - `POST /pedidos/:id/cancelar`: Solicitação de cancelamento/estorno (exige PIN do dono).
 
 Para P0, consultar a [tabela HTTP proposta](contrato-operacional-http-p0.md),
 incluindo fila com tenant derivado da sessão, liberação DEMO, senha e
-acompanhamento restrito ao Totem criador. Nenhuma dessas propostas cria endpoint.
+acompanhamento restrito ao Totem criador. As implementações #29/#30/#31 estão
+identificadas acima; exemplos de contratos futuros não criam endpoints.
+
+### Persistência incremental do #31
+
+O schema executável em apps/backend/prisma/schema.prisma é a referência.
+Pedido acrescenta senhaAtribuidaEm (timestamptz nullable, sem backfill histórico).
+ContadorSenha tem PK (negocioId, dataOperacional) e ultimoNumero. AtribuicaoSenha
+registra pedido, tenant, ator PAINEL, UUID idempotente, número/data, versões,
+primeiraAtribuicao e instante. Mantém-se o índice único original do Pedido.
+Detalhes de locks, bootstrap histórico e migração em [senha-diaria-kds.md](senha-diaria-kds.md).
 
 ### 3.5 Pagamentos & Webhooks
 

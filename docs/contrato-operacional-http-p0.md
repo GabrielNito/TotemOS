@@ -14,7 +14,11 @@ históricos como API entregue.
 Atualização #30: PATCH de status, GET de fila e acompanhamento foram
 implementados. O [contrato efetivo](transicoes-pedidos.md) prevalece sobre os
 exemplos propostos abaixo: nova chave para estado já atingido retorna 409;
-data operacional/numeração dependem do #31; autorização P0 é DEMO auditada.
+autorização P0 é DEMO auditada.
+
+Atualização #31: POST de senha e dataOperacional foram implementados conforme
+[contrato efetivo](senha-diaria-kds.md). A seção 3 abaixo descreve a API entregue;
+a ADR ampla continua aguardando revisão humana.
 
 ## Convenções propostas
 
@@ -157,7 +161,7 @@ fora do escopo; 409 versão/origem inválida, sem autorização operacional, sen
 ausente ou chave divergente; 429 limite global; 503 indisponibilidade transitória.
 Receber 409 exige refetch; não mudar versão e reenviar ação cegamente.
 
-## 3. Solicitação de senha pelo KDS
+## 3. Solicitação de senha pelo KDS, implementada no #31
 
 ```http
 POST /pedidos/11111111-1111-4111-8111-111111111111/senha
@@ -183,7 +187,7 @@ Content-Type: application/json
 ```
 
 Não recebe número, relógio/data, negócio ou versão esperada. Autoridade de
-iniciar emissão pertence ao PAINEL; USER é 403 nesta proposta, mesmo DONO.
+iniciar emissão pertence ao PAINEL; USER é 403, mesmo DONO.
 Backend valida `(negocioId,id)` e elegibilidade. Ainda sem senha e retido/cancelado: 409. Já numerado: devolver senha/data históricas sem incremento, inclusive
 após entrega/cancelamento, para recuperar ação incerta. Isso não reativa pedido.
 
@@ -191,6 +195,16 @@ HTTP: 200 primeira emissão/replay/mesmo pedido numerado por outro KDS;
 400 ID/chave/body inválidos ou campos extras; 401 token inválido/revogado;
 403 TOTEM/USER; 404 outro tenant/inexistente; 409 inelegível sem senha ou chave
 com outro pedido/conteúdo; 429 limite global; 503 retry transacional esgotado.
+
+Contrato efetivo e testes em [senha-diaria-kds.md](senha-diaria-kds.md).
+Body estrito obrigatório; UUIDs de chave são normalizados para minúsculas.
+Replay retorna número/data originais e estado/versão atuais do pedido.
+Novas chaves para pedido numerado também retornam repetida:true, sem alterar
+pedido/contador; registra-se apenas a recuperação auditada da nova chave.
+Configuração DEMO, marca, liberação auditada e ausência de financeiro continuam
+exigidas inclusive em replay, como no #30. Desabilitar DEMO bloqueia a recuperação
+sem apagar número/histórico. As leituras e transições expõem dataOperacional
+nullable, derivada de dataSequencial somente quando senha não é NULL.
 
 Consistência: algoritmo da ADR §5, índice composto existente preservado.
 Dois KDS com chaves distintas para o mesmo pedido recebem a mesma senha.

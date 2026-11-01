@@ -22,6 +22,7 @@ const resumo = z.object({
   id: z.string().uuid(),
   status: z.nativeEnum(StatusPedido),
   senha: z.number().int().nullable(),
+  dataOperacional: z.string().nullable(),
   versao: z.number().int(),
   demo: z.boolean(),
   demoAmbiente: z.string().nullable(),

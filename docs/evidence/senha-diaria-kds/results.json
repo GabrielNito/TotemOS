@@ -1,0 +1,69 @@
+{
+  "card": "https://trello.com/c/oIgJMdHX",
+  "base": "38417de84e7ce416a9aa0309fbf76d774ff65fc9",
+  "database": {
+    "engine": "PostgreSQL 18.6",
+    "host": "127.0.0.1",
+    "port": 25431,
+    "name": "totemos_demo_test",
+    "isolated": true,
+    "operationalDatabaseTouched": false
+  },
+  "tdd": {
+    "red": [
+      "Bun: SenhaPedidoService ausente",
+      "E2E: dataOperacional ausente na fila/acompanhamento",
+      "E2E: falha real de conexão no guard retornava 500"
+    ],
+    "green": true
+  },
+  "validation": {
+    "bun": {
+      "passed": 101,
+      "failed": 0
+    },
+    "e2e": {
+      "suites": 4,
+      "passed": 59,
+      "failed": 0,
+      "senha": 13,
+      "liberacaoDemo": 16,
+      "transicoes": 11,
+      "pareamento": 19
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "typescript": "passed",
+    "build": "passed",
+    "prismaValidate": "passed",
+    "prismaDatabaseDiff": "No difference detected."
+  },
+  "recovery": [
+    "Constraint PostgreSQL rejeita auditoria; contador e pedido revertidos",
+    "Nova conexão recupera mesma senha e data",
+    "Porta PostgreSQL indisponível retorna 503 no guard e transação",
+    "Retry com mesma chave após falha retorna sucesso",
+    "Revogação após guard é revalidada sob lock"
+  ],
+  "concurrency": [
+    "Dois PAINEIS mesmo pedido/chaves distintas",
+    "Pedidos distintos mesmo tenant/dia",
+    "Criação concorrente de contador com bootstrap do histórico",
+    "Mesma chave/pedido",
+    "Mesma chave/ator para pedidos distintos: um 200 e um 409"
+  ],
+  "clock": [
+    "2026-10-31T02:59:00Z criação; emissão 03:01Z: período 2026-10-31",
+    "2026-11-01T02:59:00Z ainda 2026-10-31",
+    "2026-11-01T03:01:00Z período 2026-11-01; reinicia em 1",
+    "Replay mantém período da primeira atribuição"
+  ],
+  "limits": [
+    "Sem deploy ou migração operacional",
+    "Revisão normativa do Caio pendente",
+    "Reinício completo de processo não simulado; reconexão real testada",
+    "Locks reais exercitados; deadlock/serialização e limite de retries com injeção de erro em testes Bun"
+  ]
+}

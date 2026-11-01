@@ -1,3 +1,4 @@
+import { SenhaPedidoService } from './senha-pedido.service';
 import { Module } from '@nestjs/common';
 import { PedidosController } from './pedidos.controller';
 import { PedidosService } from './pedidos.service';
@@ -9,7 +10,12 @@ import { OperacaoPedidosService } from './operacao-pedidos.service';
 @Module({
   imports: [AuthModule],
   controllers: [PedidosController, PedidosDemoController],
-  providers: [PedidosService, LiberacaoDemoService, OperacaoPedidosService],
+  providers: [
+    SenhaPedidoService,
+    PedidosService,
+    LiberacaoDemoService,
+    OperacaoPedidosService,
+  ],
   exports: [PedidosService],
 })
 export class PedidosModule {}

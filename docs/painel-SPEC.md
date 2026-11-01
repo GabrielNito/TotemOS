@@ -2,9 +2,14 @@
 
 App React Native usado pela equipe. A tela de fila ainda é placeholder na base
 auditada `ef20663` (29/10/2026). Pareamento existe; fila, transições e solicitação
-de senha na interface são entregas futuras dos cards #23/#31/#32.
+de senha na interface são entregas futuras dos cards #23/#32.
 O backend #30 já fornece [fila elegível e transições com versão/idempotência](transicoes-pedidos.md).
-O PATCH exige senha atribuída, cuja implementação pertence ao #31.
+O backend #31 implementa [atribuição de senha diária](senha-diaria-kds.md).
+O PAINEL persiste uma chave UUID, chama POST /pedidos/:id/senha com body {},
+e usa a versão retornada nas transições seguintes. Fila pode conter senha NULL;
+GET não numera. Preparo Zero recebe senha mesmo em PRONTO. Em falha incerta,
+preservar chave/pedido para retry. Exibir data junto ao número quando houver
+pedidos de dias distintos. Implementação da interface permanece futura.
 
 O P0 do roadmap usa backend cloud e PostgreSQL. A
 [ADR 0001, PROPOSTA](adr/0001-contrato-operacional-p0.md) detalha elegibilidade,
@@ -19,9 +24,9 @@ DEMO e senha concorrente, aguardando revisão do Caio. Os documentos históricos
 
 ## Proposta P0 online e hipótese local futura
 
-No P0 proposto, KDS solicita a senha e backend garante atribuição atômica por
+No P0 implementado pelo #31, KDS solicita a senha e backend garante atribuição atômica por
 tenant/dia, incluindo dois KDS concorrentes. O KDS não mantém contador local.
-Isso exige revisão da regra global 4, registrada na ADR, sem alteração implícita.
+A regra global 4 recebeu ressalva explícita; revisão do Caio permanece pendente.
 
 As duas responsabilidades locais abaixo são uma **hipótese histórica pós-MVP,
 não implementada nem validada como arquitetura produtiva**:
@@ -44,8 +49,8 @@ resolve, por si, dois KDS independentes, partições ou reconciliação de senha
 
 - "Em preparo" é condicional — pedidos com todos os itens de `tempoEstimadoPreparo = 0` pulam direto pra "Pronto".
 - P0: tenant vem do deviceToken PAINEL verificado; comparar um `negocio_id` enviado pelo cliente não autentica uma conexão LAN.
-- P0 proposto: senha por dia civil em `America/Sao_Paulo`, definida na primeira atribuição pelo backend. Reset por sessão e emissão offline não estão validados.
-- Backend deve limitar a fila a pedidos elegíveis. O GET /pedidos atual é consulta geral e ainda não implementa essa garantia. DEMO deve aparecer identificado, sem mensagem de pagamento aprovado.
+- P0: senha por dia civil em `America/Sao_Paulo`, definida na primeira atribuição pelo backend. Reset por sessão e emissão offline não estão validados.
+- Backend deve limitar a fila a pedidos elegíveis. GET /pedidos para PAINEL já restringe a elegibilidade desde o #30. DEMO deve aparecer identificado, sem mensagem de pagamento aprovado.
 
 ## Pareamento (substitui login)
 

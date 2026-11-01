@@ -41,6 +41,7 @@ export const filaSelect = {
   id: true,
   status: true,
   senha: true,
+  dataSequencial: true,
   versao: true,
   demo: true,
   demoAmbiente: true,
@@ -57,6 +58,13 @@ export const filaSelect = {
     },
   },
 } satisfies Prisma.PedidoSelect;
+
+function periodo<T extends { senha: number | null; dataSequencial: string }>(
+  p: T,
+) {
+  const { dataSequencial, ...rest } = p;
+  return { ...rest, dataOperacional: p.senha === null ? null : dataSequencial };
+}
 
 @Injectable()
 export class OperacaoPedidosService {
@@ -79,7 +87,7 @@ export class OperacaoPedidosService {
   }
   async listarLegado(user: UserPayload, filtro: ListarPedidosFiltro) {
     this.permitir(user);
-    return this.ler(
+    const rows = await this.ler(
       this.prisma.pedido.findMany({
         where: {
           AND: [
@@ -97,6 +105,7 @@ export class OperacaoPedidosService {
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       }),
     );
+    return rows.map(periodo);
   }
   async detalharLegado(user: UserPayload, id: string) {
     this.permitir(user);
@@ -109,7 +118,7 @@ export class OperacaoPedidosService {
       }),
     );
     if (!p) throw new NotFoundException('Pedido não encontrado.');
-    return p;
+    return periodo(p);
   }
 
   private permitir(user: UserPayload) {
@@ -278,6 +287,7 @@ export class OperacaoPedidosService {
       versao: number;
       demo: boolean;
       demoAmbiente: string | null;
+      dataSequencial: string;
     },
     repetida: boolean,
   ) {
@@ -287,6 +297,7 @@ export class OperacaoPedidosService {
         id: p.id,
         status: p.status,
         senha: p.senha,
+        dataOperacional: p.senha === null ? null : p.dataSequencial,
         versao: p.versao,
         demo: p.demo,
         demoAmbiente: p.demoAmbiente,
@@ -337,7 +348,7 @@ export class OperacaoPedidosService {
     );
     const more = rows.length > query.limite;
     const pedidos = rows.slice(0, query.limite).map((p) => ({
-      ...p,
+      ...periodo(p),
       createdAt: p.createdAt.toISOString(),
       elegivelCozinha: true as const,
       autorizacaoOperacional: {
@@ -373,6 +384,7 @@ export class OperacaoPedidosService {
           id: true,
           status: true,
           senha: true,
+          dataSequencial: true,
           versao: true,
           demo: true,
           demoAmbiente: true,
@@ -387,7 +399,7 @@ export class OperacaoPedidosService {
     if (!p) throw new NotFoundException('Pedido não encontrado.');
     const { liberacaoDemo, valorTotal, ...resumo } = p;
     return {
-      ...resumo,
+      ...periodo(resumo),
       valorTotal: valorTotal.toFixed(2),
       autorizacaoOperacional: liberacaoDemo
         ? { tipo: 'DEMO' as const, financeira: false as const }
