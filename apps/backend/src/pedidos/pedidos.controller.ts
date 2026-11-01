@@ -1,3 +1,5 @@
+import { SenhaPedidoService } from './senha-pedido.service';
+import { SenhaPedidoDto, SenhaResponseDto } from './dto/senha-pedido.dto';
 import {
   Controller,
   Post,
@@ -47,6 +49,7 @@ export class PedidosController {
   constructor(
     private pedidosService: PedidosService,
     private operacao: OperacaoPedidosService,
+    private senhas: SenhaPedidoService,
   ) {}
 
   @Post()
@@ -165,6 +168,45 @@ export class PedidosController {
   @ApiResponse({ status: 503, description: 'Persistência indisponível.' })
   fila(@CurrentUser() user: UserPayload, @Query() query: FilaQueryDto) {
     return this.operacao.fila(user, query);
+  }
+
+  @Post(':id/senha')
+  @HttpCode(200)
+  @UseGuards(AnyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Atribui senha diária por solicitação de PAINEL',
+    description:
+      'Somente PAINEL. Idempotente por pedido; backend calcula dia America/Sao_Paulo e número atomicamente. Replay retorna estado atual.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'UUID persistido antes da requisição.',
+  })
+  @ApiBody({ type: SenhaPedidoDto })
+  @ApiResponse({ status: 200, type: SenhaResponseDto })
+  @ApiResponse({ status: 400, description: 'ID, chave ou body inválido.' })
+  @ApiResponse({ status: 401, description: 'Token inválido ou revogado.' })
+  @ApiResponse({ status: 403, description: 'Somente DEVICE PAINEL.' })
+  @ApiResponse({ status: 404, description: 'Pedido inexistente neste tenant.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Pedido inelegível ou chave divergente.',
+  })
+  @ApiResponse({ status: 429, description: 'Limite global excedido.' })
+  @ApiResponse({
+    status: 503,
+    description: 'Persistência indisponível; repetir a mesma chave.',
+  })
+  atribuirSenha(
+    @CurrentUser() user: UserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() _dto: SenhaPedidoDto,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.senhas.atribuir(user, id, key);
   }
 
   @Patch(':id/status')

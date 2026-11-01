@@ -13,6 +13,12 @@ Esta ADR não autoriza implementar exceções às regras globais. As alteraçõe
 recomendadas para aprovação estão na [matriz de divergências](../contrato-operacional-divergencias.md).
 Contratos HTTP detalhados: [propostas P0](../contrato-operacional-http-p0.md).
 
+Atualização incremental #31: [senha diária cloud-online](../senha-diaria-kds.md)
+implementada por solicitação explícita do usuário, sobre o merge #16. O KDS
+inicia a atribuição; o backend calcula e persiste número/data atomicamente.
+A regra 4 recebeu ressalva explícita para revisão do Caio. As demais decisões
+desta ADR continuam PROPOSTAS; esta entrega não valida numeração offline.
+
 ## 1. Contexto, fontes e grau de certeza
 
 Auditoria sobre `origin/develop` no commit

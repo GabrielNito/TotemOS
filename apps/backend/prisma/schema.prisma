@@ -70,6 +70,7 @@ model Negocio {
   combos            Combo[]
   pedidos           Pedido[]
   liberacoesDemo    LiberacaoDemo[]
+  contadoresSenha   ContadorSenha[]
 }
 
 model NegocioConfig {
@@ -220,30 +221,32 @@ model ItemDoGrupo {
 }
 
 model Pedido {
-  id             String       @id @default(uuid())
-  negocioId      String
-  negocio        Negocio      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  dispositivoId  String?
-  idempotencyKey String?      @unique
-  senha          Int?
-  dataSequencial String
-  status         StatusPedido @default(AGUARDANDO_PAGAMENTO)
-  nomeCliente    String?
-  codigoCliente  String?
-  valorTotal     Decimal      @db.Decimal(10, 2)
-  observacoes    String?
-  origemOffline  Boolean      @default(false)
-  preparoZero    Boolean      @default(false)
-  demo           Boolean      @default(false)
-  demoAmbiente   String?
-  versao         Int          @default(1)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id               String       @id @default(uuid())
+  negocioId        String
+  negocio          Negocio      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  dispositivoId    String?
+  idempotencyKey   String?      @unique
+  senhaAtribuidaEm DateTime?    @db.Timestamptz(3)
+  senha            Int?
+  dataSequencial   String
+  status           StatusPedido @default(AGUARDANDO_PAGAMENTO)
+  nomeCliente      String?
+  codigoCliente    String?
+  valorTotal       Decimal      @db.Decimal(10, 2)
+  observacoes      String?
+  origemOffline    Boolean      @default(false)
+  preparoZero      Boolean      @default(false)
+  demo             Boolean      @default(false)
+  demoAmbiente     String?
+  versao           Int          @default(1)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  itens         PedidoItem[]
-  pagamentos    Pagamento[]
-  liberacaoDemo LiberacaoDemo?
-  transicoes    TransicaoPedido[]
+  itens            PedidoItem[]
+  pagamentos       Pagamento[]
+  liberacaoDemo    LiberacaoDemo?
+  transicoes       TransicaoPedido[]
+  atribuicoesSenha AtribuicaoSenha[]
 
   @@unique([negocioId, dataSequencial, senha])
 }
@@ -334,5 +337,32 @@ model TransicaoPedido {
   createdAt      DateTime     @default(now())
 
   @@unique([negocioId, identidade, atorId, idempotencyKey])
+  @@index([negocioId, pedidoId, createdAt])
+}
+
+model ContadorSenha {
+  negocioId       String
+  negocio         Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  dataOperacional String
+  ultimoNumero    Int
+
+  @@id([negocioId, dataOperacional])
+}
+
+model AtribuicaoSenha {
+  id                 String   @id @default(uuid())
+  negocioId          String
+  pedidoId           String
+  pedido             Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  atorId             String
+  idempotencyKey     String
+  senha              Int
+  dataOperacional    String
+  versaoAnterior     Int
+  versaoNova         Int
+  primeiraAtribuicao Boolean
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([negocioId, atorId, idempotencyKey])
   @@index([negocioId, pedidoId, createdAt])
 }

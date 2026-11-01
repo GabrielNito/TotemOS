@@ -97,6 +97,8 @@ jobs:
           bunx prisma migrate deploy
           bun run test:demo:e2e
           bun run test:operacao:e2e
+          bun run test:senha:e2e
+          bunx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
   dashboard-test:
     name: Dashboard Lint, Typecheck & Build

@@ -659,6 +659,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       const controller = new PedidosController(
         mockService,
         {} as OperacaoPedidosService,
+        {} as never,
       );
 
       const dto: CriarPedidoDto = {
@@ -685,6 +686,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       const controller = new PedidosController(
         mockService,
         {} as OperacaoPedidosService,
+        {} as never,
       );
 
       const resultado = (await controller.listar(
@@ -702,6 +704,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       const controller = new PedidosController(
         mockService,
         {} as OperacaoPedidosService,
+        {} as never,
       );
 
       const resultado = (await controller.buscarPorId(

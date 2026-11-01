@@ -23,6 +23,16 @@ Afirmações abaixo descrevem os documentos **antes** das correções desta entr
 | backend-SPEC.md / código de criação                                                                     | Idempotência disponível, sem ressalvas de corrida/payload.                                                           | SELECT antes de INSERT, chave global opcional, sem hash/P2002/replay limitado ao dispositivo; testes de service usam mocks.                                                                                                                                            | Replay sequencial não é prova de idempotência concorrente ou equivalência de conteúdo.                    | Registrar lacunas na ADR e exigir validação/correções no #39; não alterar aplicação/testes.                                     |
 | [.agents/rules/backend.md](../.agents/rules/backend.md)                                                 | CORS configurado via `CORS_ALLOWED_ORIGINS`.                                                                         | [main.ts](../apps/backend/src/main.ts) lê `ALLOWED_ORIGINS`, contém defaults e não permite Idempotency-Key na lista de headers.                                                                                                                                        | Norma e implementação divergem; futura ação DEMO web precisa do header.                                   | Norma preservada; registrar lacuna para #29/#30, sem confundir verificação CORS com autorização de dispositivo.                 |
 
+## Incremento #31 para revisão humana
+
+O [card #31](https://trello.com/c/oIgJMdHX), implementado sobre o merge #16,
+autoriza o backend cloud a calcular e persistir senhas solicitadas pelo KDS no
+P0 online. A regra 4 de AGENTS.md recebeu uma ressalva explícita, preservando
+o texto histórico de offline como direção futura. Isto altera o estado
+histórico “não alterado” da linha §1.4 da auditoria acima. A revisão do Caio
+sobre a redação normativa e a ADR ampla continua necessária; não há aprovação
+implícita de reconciliação offline. Ver [contrato efetivo](senha-diaria-kds.md).
+
 ## Textos recomendados para AGENTS.md, sujeitos à aprovação
 
 Não são substituições aplicadas. São propostas que alteram regras invioláveis

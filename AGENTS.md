@@ -22,6 +22,7 @@ Este arquivo estabelece os princípios invioláveis e as regras de arquitetura q
 4. **Autoridade de Senha no Painel (KDS)**:
    - A senha sequencial diária do pedido é atribuída pelo **Painel de Pedidos (KDS)** no momento em que o pedido é recebido.
    - O backend cloud DEVE aceitar e persistir a senha atribuída pelo Painel durante sincronizações e reconciliações offline.
+   - **Incremento explícito do card #31, sujeito à revisão humana do Caio**: no P0 cloud-online, o KDS inicia a solicitação autenticada. O backend calcula e atribui a senha atomicamente no PostgreSQL, por negócio e dia civil America/Sao_Paulo. A regra histórica de aceitar numeração local na reconciliação permanece uma direção offline futura, sem implementação ou validação no P0. Ver [contrato efetivo e divergência](docs/senha-diaria-kds.md).
 
 5. **Segurança e PIN do Dono**:
    - Operações sensíveis (alteração de configurações do negócio, cancelamentos e confirmação de estornos) exigem validação prévia do PIN do dono (verificado via hash bcrypt e isolamento de tenant).
