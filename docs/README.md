@@ -18,7 +18,7 @@ Point física, impressão e operação offline são pós-MVP.
 
 - [Backend](backend-SPEC.md): NestJS, Bun, Prisma, PostgreSQL; rotas existentes e futuras identificadas.
 - [Totem](totem-SPEC.md): app React Native, catálogo e pedido real; limites do checkout.
-- [Painel KDS](painel-SPEC.md): app React Native, fila planejada; hipótese LAN separada do P0.
+- [Painel KDS](painel-SPEC.md): app React Native, fila online/preparo/entrega (#23); hipótese LAN separada do P0.
 - [Dashboard](dashboard-SPEC.md): gestão web; especificação não comprova entrega de todos os recursos.
 - [Arquitetura histórica v1 e delimitação do roadmap](arquitetura-tecnica-v1.md).
 
@@ -27,6 +27,8 @@ Point física, impressão e operação offline são pós-MVP.
 - [Liberação operacional DEMO, implementação do card #29](liberacao-demo.md).
 - [Transições, fila elegível e acompanhamento, implementação do card #30](transicoes-pedidos.md).
 - [Senha diária única entre KDS, implementação do card #31](senha-diaria-kds.md).
+- [KDS operacional, uso e arquitetura do card #23](../apps/kds/README.md).
+- [Validação e limites do KDS #23](evidence/kds-fila-operacional/README.md).
 
 - [Contrato de pareamento backend](device-pairing-contract.md).
 - [Pareamento mobile](mobile-pairing.md).
