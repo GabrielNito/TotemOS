@@ -1,15 +1,12 @@
 # Painel de Pedidos — SPEC
 
-App React Native usado pela equipe. A tela de fila ainda é placeholder na base
-auditada `ef20663` (29/10/2026). Pareamento existe; fila, transições e solicitação
-de senha na interface são entregas futuras dos cards #23/#32.
-O backend #30 já fornece [fila elegível e transições com versão/idempotência](transicoes-pedidos.md).
-O backend #31 implementa [atribuição de senha diária](senha-diaria-kds.md).
-O PAINEL persiste uma chave UUID, chama POST /pedidos/:id/senha com body {},
-e usa a versão retornada nas transições seguintes. Fila pode conter senha NULL;
-GET não numera. Preparo Zero recebe senha mesmo em PRONTO. Em falha incerta,
-preservar chave/pedido para retry. Exibir data junto ao número quando houver
-pedidos de dias distintos. Implementação da interface permanece futura.
+App React Native usado pela equipe. O card [#23](https://trello.com/c/hZNzXBfQ)
+implementa a fila online em landscape, solicitação de senha e preparo até entrega.
+O backend #30 fornece [fila elegível e transições com versão/idempotência](transicoes-pedidos.md).
+O backend #31 fornece [senha diária](senha-diaria-kds.md).
+Detalhes de uso, arquitetura, erros, recuperação e roteiro Android no
+[README do KDS](../apps/kds/README.md). Validação física/API real depende do ambiente
+isolado #41; export Android e Jest não substituem essa evidência.
 
 O P0 do roadmap usa backend cloud e PostgreSQL. A
 [ADR 0001, PROPOSTA](adr/0001-contrato-operacional-p0.md) detalha elegibilidade,
@@ -37,13 +34,22 @@ não implementada nem validada como arquitetura produtiva**:
 A hipótese dependia de um painel local disponível para todos os totens. Ela não
 resolve, por si, dois KDS independentes, partições ou reconciliação de senhas.
 
-## Fluxos planejados, não implementados
+## Fluxo online implementado no #23
 
-1. Fila de pedidos por status (Pendente / Em preparo / Pronto), agregando todos os totens do negócio
-2. Toque no card muda status
-3. Escala de cor por tempo de espera (verde/amarelo/vermelho)
-4. Alerta sonoro **+** destaque visual forte pra pedido novo (ambiente de evento é barulhento — som sozinho não basta)
-5. Futuro financeiro: cancelar/estornar com PIN do dono e confirmação em duas etapas. Fora dos cards P0 de fila/preparo.
+1. Validar DEVICE/PAINEL em /dispositivos/me, com token seguro; 401 volta ao pareamento.
+2. Carregar /pedidos/fila com paginação/deduplicação, sem reconstruir elegibilidade.
+3. Persistir UUID e solicitar /pedidos/:id/senha automaticamente quando NULL.
+4. Usar versão confirmada para PATCH /pedidos/:id/status: iniciar preparo,
+   marcar pronto e confirmar entrega. Preparo Zero já chega PRONTO.
+5. Reconciliar após comando, sem mudança definitiva otimista. Timeout/503 mantém
+   UUID e payload persistidos; 409 reconsulta e exige nova decisão do operador.
+6. Polling de 5 s (configurável), sem sobreposição; pausa em background/fora de foco.
+   Desconexão mantém dados desatualizados e bloqueia ações até recuperar.
+7. Cards exibem senha/data, duração decorrida, itens completos e DEMO. Novos IDs
+   posteriores à carga inicial recebem destaque e contador reconhecível. Som opcional
+   não incluído. Faixas de espera são configuração visual, sem SLA.
+
+Cancelamento/estorno com PIN, operação offline e LAN permanecem fora desta entrega.
 
 ## Regras que não podem ser esquecidas ao implementar
 

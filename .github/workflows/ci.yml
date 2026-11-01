@@ -33,6 +33,26 @@ jobs:
         env:
           EXPO_PUBLIC_KIOSK_PREVIEW: "1"
 
+  kds-test:
+    name: KDS Lint, Jest, Typecheck & Android Export
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/kds
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/kds/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - name: Exportar fila operacional para Android
+        run: npx expo export --platform android --output-dir dist/ci --clear --max-workers 2
+
   backend-test:
     name: Backend Lint, Testes & Build
     runs-on: ubuntu-latest

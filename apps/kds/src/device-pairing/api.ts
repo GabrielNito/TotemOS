@@ -1,7 +1,4 @@
-import type {
-  DeviceActivationResponse,
-  DeviceMeResponse,
-} from "./types";
+import type { DeviceActivationResponse, DeviceMeResponse } from "./types";
 
 interface ApiErrorPayload {
   code?: unknown;
@@ -14,6 +11,7 @@ export class PairingApiError extends Error {
     public readonly statusCode: number,
     public readonly code: string | undefined,
     message: string,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "PairingApiError";
@@ -36,47 +34,63 @@ function getErrorPayload(value: unknown): ApiErrorPayload {
 function getErrorMessage(payload: ApiErrorPayload, statusCode: number): string {
   if (typeof payload.message === "string") return payload.message;
   if (Array.isArray(payload.message)) {
-    return payload.message.filter((item) => typeof item === "string").join(", ");
+    return payload.message
+      .filter((item) => typeof item === "string")
+      .join(", ");
   }
   if (typeof payload.error === "string") return payload.error;
   return `Erro ${statusCode} ao comunicar com o servidor.`;
 }
 
-async function request<T>(
+export async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
   const { headers, ...requestOptions } = options;
   const requestHeaders: Record<string, string> = {
     Accept: "application/json",
-    ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(options.body !== undefined
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...(headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-    ...requestOptions,
-    headers: requestHeaders,
-  });
-
-  let payload: unknown;
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  options.signal?.addEventListener("abort", cancel);
+  if (options.signal?.aborted) controller.abort();
+  const timeout = setTimeout(cancel, 15000);
   try {
-    payload = await response.json();
-  } catch {
-    payload = undefined;
-  }
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      ...requestOptions,
+      headers: requestHeaders,
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const errorPayload = getErrorPayload(payload);
-    const code =
-      typeof errorPayload.code === "string" ? errorPayload.code : undefined;
-    throw new PairingApiError(
-      response.status,
-      code,
-      getErrorMessage(errorPayload, response.status),
-    );
-  }
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = undefined;
+    }
 
-  return payload as T;
+    if (!response.ok) {
+      const errorPayload = getErrorPayload(payload);
+      const code =
+        typeof errorPayload.code === "string" ? errorPayload.code : undefined;
+      throw new PairingApiError(
+        response.status,
+        code,
+        getErrorMessage(errorPayload, response.status),
+        parseRetryAfter(response.headers?.get("Retry-After")),
+      );
+    }
+
+    return payload as T;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", cancel);
+  }
 }
 
 export function activateDevice(
@@ -95,4 +109,15 @@ export function getCurrentDevice(
     headers: { Authorization: `Bearer ${deviceToken}` },
     method: "GET",
   });
+}
+
+export function parseRetryAfter(
+  value: string | null | undefined,
+): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  const delay = Number.isFinite(seconds)
+    ? seconds * 1000
+    : Date.parse(value) - Date.now();
+  return Number.isFinite(delay) ? Math.max(0, delay) : undefined;
 }
