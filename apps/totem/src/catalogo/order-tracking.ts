@@ -140,6 +140,7 @@ export class OrderTracking {
   private retryAt = 0;
   private timer?: ReturnType<typeof setTimeout>;
   private controller?: AbortController;
+  private persisted?: { snapshot: TrackingSnapshot; syncedAt: number };
   constructor(
     private get: (signal: AbortSignal) => Promise<TrackingSnapshot>,
     private save: (
@@ -169,13 +170,22 @@ export class OrderTracking {
     } else this.refresh();
   }
   refresh = () => {
+    if (this.disposed || !this.active || this.running) return;
+    // A valid GET can finish persisting after its foreground generation pauses.
+    // Reconcile that durable confirmation before accepting another response.
     if (
-      this.disposed ||
-      !this.active ||
-      this.running ||
-      this.state.snapshot?.status === "ENTREGUE"
-    )
-      return;
+      this.persisted &&
+      (!this.state.snapshot ||
+        this.persisted.snapshot.versao > this.state.snapshot.versao)
+    ) {
+      this.emit({
+        ...this.persisted,
+        stale: this.persisted.snapshot.status !== "ENTREGUE",
+        error: undefined,
+        busy: false,
+      });
+    }
+    if (this.state.snapshot?.status === "ENTREGUE") return;
     clearTimeout(this.timer);
     const delay = this.retryAt - Date.now();
     if (delay > 0) {
@@ -200,6 +210,7 @@ export class OrderTracking {
       if (!this.state.snapshot || next.versao > this.state.snapshot.versao) {
         const syncedAt = Date.now();
         await this.save(next, syncedAt);
+        this.persisted = { snapshot: next, syncedAt };
         if (!current()) return;
         this.emit({ snapshot: next, syncedAt, stale: false, error: undefined });
       } else if (

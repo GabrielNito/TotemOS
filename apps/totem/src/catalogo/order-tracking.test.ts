@@ -4,6 +4,7 @@ import {
   type TrackingSnapshot,
 } from "./order-tracking";
 import { TrackingError } from "./order-tracking-api";
+import { OrderSubmission } from "./order-submission";
 
 export const snapshot: TrackingSnapshot = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -21,6 +22,90 @@ const tick = async () => {
 };
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
+
+test.each([
+  ["PRONTO", 4, false],
+  ["PRONTO", 4, true],
+  ["ENTREGUE", 5, false],
+  ["ENTREGUE", 5, true],
+] as const)(
+  "preserva %s durável quando foreground antes da gravação terminar: %s/%s",
+  async (status, versao, resumeBeforeWrite) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let saved: string | null = null;
+    const submission = new OrderSubmission(
+      "tenant",
+      {
+        get: async () => saved,
+        set: async (value) => {
+          if (value && JSON.parse(value).tracking?.snapshot.versao === versao)
+            await gate;
+          saved = value;
+        },
+      },
+      async () => ({
+        id: snapshot.id,
+        negocioId: "tenant",
+        status: snapshot.status,
+        valorTotal: snapshot.valorTotal,
+      }),
+      () => snapshot.id,
+    );
+    await submission.prepare({
+      itens: [{ produtoId: snapshot.id, quantidade: 1, adicionais: [] }],
+    });
+    await submission.submit();
+    await submission.saveTracking(snapshot, 100);
+    const next = { ...snapshot, status, versao };
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce(next)
+      .mockResolvedValue({ ...snapshot, status: "PENDENTE", versao: 2 });
+    const tracking = new OrderTracking(
+      get,
+      (s, t) => submission.saveTracking(s, t),
+      submission.attempt!.tracking,
+    );
+    const publish = jest.fn();
+    tracking.subscribe(publish);
+    tracking.setActive(true);
+    await tick();
+    tracking.setActive(false);
+    const beforeWrite = publish.mock.calls.length;
+    if (resumeBeforeWrite) tracking.setActive(true);
+    release();
+    await tick();
+    expect(submission.attempt?.tracking?.snapshot).toEqual(next);
+    if (!resumeBeforeWrite) {
+      expect(publish).toHaveBeenCalledTimes(beforeWrite);
+      tracking.setActive(true);
+      await tick();
+    }
+    expect(tracking.state.snapshot).toEqual(next);
+    if (status === "ENTREGUE") expect(get).toHaveBeenCalledTimes(1);
+    tracking.dispose();
+  },
+);
+
+test("gravação rejeitada não publica confirmação e mantém erro de armazenamento distinto de rede", async () => {
+  const next = { ...snapshot, status: "ENTREGUE" as const, versao: 5 };
+  const tracking = new OrderTracking(
+    async () => next,
+    async () => {
+      throw new Error("disco");
+    },
+    { snapshot, syncedAt: 100 },
+  );
+  tracking.setActive(true);
+  await tick();
+  expect(tracking.state.snapshot).toEqual(snapshot);
+  expect(tracking.state.error?.kind).toBe("storage");
+  expect(tracking.state.stale).toBe(true);
+  tracking.dispose();
+});
 
 test("valida identidade, campos nullable e projeção sem dados pessoais", () => {
   expect(

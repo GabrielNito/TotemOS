@@ -66,7 +66,7 @@ RED observado antes das respectivas correções:
 
 GREEN e regressões registrados nos logs de validação deste diretório.
 
-Resultado local final em 02/11/2026: **193 testes em 34 suítes aprovados**.
+Resultado da implementação inicial em 02/11/2026: **193 testes em 34 suítes aprovados**.
 `npm ci`, `npm run lint`, `bun run lint` e `npm run typecheck` com exit 0.
 Lint sem erros ou warnings. Exportações Android conectado e prévia com exit 0.
 Logs: [Jest](jest.txt), [lint](lint.txt), [TypeScript](typecheck.txt),
@@ -109,6 +109,30 @@ Exportar bundle não comprova homologação física nem build nativo de produç�
 - Revisão humana e merge. Sem deploy, alteração de Neon ou merge automático.
 
 ## Reprodução
+
+### Revisão final antes do merge
+
+Revisão sobre HEAD inicial `d58378ce7f812ce752efde0a64bb48d116ecdc56`.
+Encontrada uma corrida entre pausa/retomada e persistência de acompanhamento:
+o GET era aceito em foreground, a gravação terminava após a troca de geração,
+mas OrderTracking descartava também a confirmação já persistida. Um GET antigo
+na retomada podia ser apresentado como PENDENTE, mesmo com PRONTO ou ENTREGUE
+duráveis em OrderSubmission/SecureStore.
+
+RED: quatro cenários com OrderSubmission real, armazenamento em memória e promise
+controlada falharam, apresentando PENDENTE/versão 2 em vez de PRONTO/4 ou ENTREGUE/5.
+Cobrem retomada antes e depois da conclusão da gravação. A correção retém a
+confirmação após sucesso da persistência e a reconcilia no foreground antes de
+outro GET. Não publica enquanto em background, ignora GETs de gerações antigas
+e evita nova consulta após ENTREGUE durável. Outro teste confirma que gravação
+rejeitada preserva o snapshot anterior e produz erro `storage`, sem confirmação
+falsa nem confusão com rede. GREEN focado: 44 testes em três suítes aprovados.
+
+Regressão final e exportações desta revisão constam nos arquivos `review-*.txt`.
+Nenhuma dependência ou alteração de contrato, backend, KDS e prévia foi necessária.
+Resultado desta revisão: **198 testes em 34 suítes aprovados**, npm ci, npm/bun
+lint sem erros/warnings, TypeScript e exportações Android conectado/prévia com
+exit 0. Lockfile intacto. Não houve teste físico ou homologação integrada do #41.
 
 Em apps/totem:
 

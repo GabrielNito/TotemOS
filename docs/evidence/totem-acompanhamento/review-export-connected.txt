@@ -1,0 +1,48 @@
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:15984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:15984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Android Bundled 39308ms node_modules\expo-router\entry.js (3713 modules)
+
+› Assets (40):
+assets\products\featured-6.png (2MB)
+assets\products\product-1.png (2.3MB)
+assets\products\product-2.png (2.6MB)
+assets\products\product-3.png (3MB)
+assets\products\product-4.png (2.5MB)
+assets\products\product-5.png (2.2MB)
+assets\products\product-6.png (2MB)
+node_modules\@expo-google-fonts\barlow-condensed\600SemiBold\BarlowCondensed_600SemiBold.ttf (104KB)
+node_modules\@expo-google-fonts\barlow-condensed\700Bold\BarlowCondensed_700Bold.ttf (104KB)
+node_modules\@expo-google-fonts\inter\400Regular\Inter_400Regular.ttf (342KB)
+node_modules\@expo-google-fonts\inter\500Medium\Inter_500Medium.ttf (343KB)
+node_modules\@expo-google-fonts\inter\600SemiBold\Inter_600SemiBold.ttf (344KB)
+node_modules\@expo-google-fonts\inter\700Bold\Inter_700Bold.ttf (344KB)
+node_modules\@expo-google-fonts\material-symbols\400Regular\MaterialSymbols_400Regular.ttf (967KB)
+node_modules\expo-router\assets\arrow_down.png (9.5KB)
+node_modules\expo-router\assets\arrow_right.xml (307B)
+node_modules\expo-router\assets\checkmark.xml (312B)
+node_modules\expo-router\assets\error.png (469B)
+node_modules\expo-router\assets\file.png (138B)
+node_modules\expo-router\assets\forward.png (188B)
+node_modules\expo-router\assets\pkg.png (364B)
+node_modules\expo-router\assets\react-navigation\elements\back-icon-mask.png (653B)
+node_modules\expo-router\assets\react-navigation\elements\back-icon.png (4 variations | 152B)
+node_modules\expo-router\assets\react-navigation\elements\clear-icon.png (4 variations | 425B)
+node_modules\expo-router\assets\react-navigation\elements\close-icon.png (4 variations | 235B)
+node_modules\expo-router\assets\react-navigation\elements\search-icon.png (4 variations | 599B)
+node_modules\expo-router\assets\sitemap.png (465B)
+node_modules\expo-router\assets\unmatched.png (4.8KB)
+
+› android bundles (1):
+_expo/static/js/android/entry-971bf2986e4d2c48f51d1004bffe2a2e.hbc (6.4MB)
+
+› Files (1):
+metadata.json (2.7KB)
+
+Exported: dist/ci
