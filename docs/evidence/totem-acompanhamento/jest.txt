@@ -1,0 +1,44 @@
+
+> totem@1.0.0 test
+> jest --runInBand
+
+PASS src/catalogo/order-api.test.ts
+PASS src/catalogo/business-kiosk.test.tsx
+PASS src/catalogo/order-submission.test.ts
+PASS src/kiosk/entry-screen.test.tsx
+PASS src/kiosk/category-rail.test.js
+PASS src/catalogo/use-order-tracking.test.tsx
+PASS src/kiosk/kiosk-screen.test.tsx
+PASS src/kiosk/checkout.test.tsx
+PASS src/kiosk/ui.test.js
+PASS src/catalogo/order-status.test.tsx
+PASS src/kiosk/notice.test.js
+PASS src/kiosk/context-dialog.test.tsx
+PASS src/catalogo/order-tracking.test.ts
+PASS src/catalogo/catalogo-screen.test.tsx
+PASS src/catalogo/business-product.test.tsx
+PASS src/device-pairing/api.test.ts
+PASS src/catalogo/api.test.ts
+PASS src/device-pairing/session.test.ts
+PASS src/catalogo/cart-storage.test.ts
+PASS src/kiosk/product-motion.test.tsx
+PASS src/kiosk/preview-session.test.ts
+PASS src/storage/device-token.test.ts
+PASS src/lan-spike/client.test.ts
+PASS src/catalogo/model.test.ts
+PASS src/catalogo/order-tracking-api.test.ts
+PASS src/components/pairing-screen.test.ts
+PASS src/lan-spike/protocol.test.ts
+PASS src/lan-spike/discovery-client.test.ts
+PASS src/catalogo/cart-state.test.ts
+PASS src/catalogo/menu-model.test.ts
+PASS src/lan-spike/runtime.test.ts
+PASS src/lan-spike/discovery.test.ts
+PASS src/kiosk/reference-model.test.ts
+PASS src/lan-spike/connection.test.ts
+
+Test Suites: 34 passed, 34 total
+Tests:       193 passed, 193 total
+Snapshots:   0 total
+Time:        19.67 s, estimated 22 s
+Ran all test suites.

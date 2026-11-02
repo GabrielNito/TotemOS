@@ -142,19 +142,169 @@ test("the real service dialog suspends standby until it is closed", async () => 
   }
 });
 
+test("novo atendimento aguarda limpeza durável, apaga nome/CPF/carrinho e bloqueia duplo toque", async () => {
+  let complete!: () => void;
+  const finish = jest.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const submission = {
+    attempt: {
+      result: { id: "order", status: "ENTREGUE", valorTotal: "45.00" },
+    },
+    restore: jest.fn(async () => {}),
+    finish,
+  };
+  jest
+    .mocked(createOrderSubmission)
+    .mockReturnValue(
+      submission as unknown as ReturnType<typeof createOrderSubmission>,
+    );
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  try {
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = tree.root.findByType(OrderStatus).props.onNew();
+    });
+    await act(async () => tree.root.findByType(OrderStatus).props.onNew());
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(tree.root.findAllByType(MenuScreen)).toHaveLength(0);
+    submission.attempt = null as never;
+    await act(async () => {
+      complete();
+      await pending;
+    });
+    expect(tree.root.findByType(MenuScreen).props.count).toBe(0);
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test("standby não descarta pedido aberto nem permite navegar ao catálogo", async () => {
+  jest.useFakeTimers();
+  const attempt = {
+    result: { id: "order", status: "PRONTO", valorTotal: "45.00" },
+  };
+  jest.mocked(createOrderSubmission).mockReturnValue({
+    attempt,
+    restore: jest.fn(async () => {}),
+  } as unknown as ReturnType<typeof createOrderSubmission>);
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  try {
+    await act(async () => jest.advanceTimersByTime(60000));
+    expect(tree.root.findAllByType(KioskStandby)).toHaveLength(0);
+    await act(async () =>
+      tree.root.findByType(ContextDialog).props.onStandby(),
+    );
+    await act(async () =>
+      tree.root.findByType(KioskStandby).props.onContinue(),
+    );
+    expect(tree.root.findByType(OrderStatus).props.result.id).toBe("order");
+    expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
+    expect(tree.root.findAllByType(MenuScreen)).toHaveLength(0);
+  } finally {
+    await act(async () => tree.unmount());
+    jest.useRealTimers();
+  }
+});
+
+test("próximo cliente recebe identificação vazia e não reutiliza carrinho ou pedido anterior", async () => {
+  const submission = {
+    attempt: null as unknown,
+    restore: jest.fn(async () => {}),
+    prepare: jest.fn(async () => {
+      submission.attempt = {};
+    }),
+    submit: jest.fn(async () => ({
+      id: "order",
+      negocioId: "tenant-a",
+      status: "ENTREGUE",
+      valorTotal: "80.00",
+    })),
+    finish: jest.fn(async () => {
+      submission.attempt = null;
+    }),
+  };
+  jest
+    .mocked(createOrderSubmission)
+    .mockReturnValue(
+      submission as unknown as ReturnType<typeof createOrderSubmission>,
+    );
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  const addAndCheckout = async () => {
+    const menu = tree.root.findByType(MenuScreen);
+    await act(async () =>
+      menu.props.onProduct(menu.props.sections[0].products[0]),
+    );
+    await act(async () =>
+      tree.root
+        .findByType(BusinessProductScreen)
+        .props.onSave({ variacaoId: "large-real", adicionais: {} }, 1),
+    );
+    await act(async () => tree.root.findByType(MenuScreen).props.onCart());
+    await act(async () => tree.root.findByType(CartScreen).props.onCheckout());
+  };
+  try {
+    await act(async () =>
+      tree.root.findByType(KioskStandby).props.onContinue(),
+    );
+    await addAndCheckout();
+    await act(async () =>
+      tree.root.findByType(CheckoutScreen).props.onIdentityChange({
+        name: "Ana",
+        cpf: "12345678909",
+        wantsCpf: true,
+      }),
+    );
+    await act(async () =>
+      tree.root.findByType(CheckoutScreen).props.onComplete(),
+    );
+    expect(submission.prepare.mock.calls).toHaveLength(1);
+    await act(async () => tree.root.findByType(OrderStatus).props.onNew());
+    expect(tree.root.findByType(MenuScreen).props.count).toBe(0);
+    await act(async () =>
+      tree.root.findByType(KioskStandby).props.onContinue(),
+    );
+    await addAndCheckout();
+    expect(tree.root.findByType(CheckoutScreen).props.identity).toEqual({
+      name: "",
+      cpf: "",
+      wantsCpf: false,
+    });
+    expect(submission.attempt).toBeNull();
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
 test("recovers a pending attempt on restart and keeps navigation locked while checking its result", async () => {
   const submit = jest
     .fn()
     .mockRejectedValueOnce(new Error("rede"))
     .mockResolvedValue({ id: "recovered", valorTotal: "45.00" });
   const attempt = { request: { itens: [] }, key: "saved" };
-  jest
-    .mocked(createOrderSubmission)
-    .mockReturnValue({
-      attempt,
-      restore: jest.fn(async () => {}),
-      submit,
-    } as unknown as ReturnType<typeof createOrderSubmission>);
+  jest.mocked(createOrderSubmission).mockReturnValue({
+    attempt,
+    restore: jest.fn(async () => {}),
+    submit,
+  } as unknown as ReturnType<typeof createOrderSubmission>);
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(
@@ -227,7 +377,7 @@ test("restores before writing and remounts the cart when the authenticated tenan
         <BusinessKioskScreen negocioId="tenant-b" categories={categories} />,
       ),
     );
-    expect(loadBusinessCart).toHaveBeenLastCalledWith("tenant-b");
+    expect(loadBusinessCart).toHaveBeenLastCalledWith("tenant-b", true);
     expect(tree.root.findByType(MenuScreen).props.count).toBe(0);
     expect(saveBusinessCart).toHaveBeenLastCalledWith("tenant-b", []);
   } finally {

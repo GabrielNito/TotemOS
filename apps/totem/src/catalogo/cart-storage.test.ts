@@ -1,5 +1,9 @@
 import * as SecureStore from "expo-secure-store";
-import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
+import {
+  loadBusinessCart,
+  saveBusinessCart,
+  clearBusinessCart,
+} from "./cart-storage";
 import { createCartLine, type CatalogProduct } from "./model";
 
 jest.mock("expo-secure-store", () => ({
@@ -90,4 +94,29 @@ test("serializes updates per tenant and continues after storage failures", async
   await expect(saveBusinessCart("tenant-a", [])).resolves.toBeUndefined();
   read.mockRejectedValueOnce(new Error("unavailable"));
   expect(await loadBusinessCart("tenant-a")).toEqual([]);
+});
+
+test("limpeza aguarda gravações antigas e propaga falha para bloquear novo cliente", async () => {
+  let release!: () => void;
+  write.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  const saving = saveBusinessCart("tenant-a", [line]);
+  const clearing = clearBusinessCart("tenant-a");
+  await Promise.resolve();
+  expect(write).toHaveBeenCalledTimes(1);
+  release();
+  await Promise.all([saving, clearing]);
+  expect(JSON.parse(write.mock.calls.at(-1)![1]).cart).toEqual([]);
+  write.mockRejectedValueOnce(new Error("disco"));
+  await expect(clearBusinessCart("tenant-a")).rejects.toThrow("disco");
+});
+test("modo estrito bloqueia recuperação com dados inválidos ou SecureStore indisponível", async () => {
+  read.mockResolvedValueOnce("invalido");
+  await expect(loadBusinessCart("tenant-a", true)).rejects.toThrow();
+  read.mockRejectedValueOnce(new Error("disco"));
+  await expect(loadBusinessCart("tenant-a", true)).rejects.toThrow();
 });

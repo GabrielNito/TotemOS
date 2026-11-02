@@ -45,6 +45,8 @@ import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
 import { createOrderSubmission } from "./order-api";
 import { buildOrderRequest, type PendingOrder } from "./order-submission";
 import { OrderStatus } from "./order-status";
+import { TrackingError } from "./order-tracking-api";
+import { useRouter } from "expo-router";
 
 type Screen = "catalog" | "product" | "cart" | "identification" | "order";
 const allCategory = "__all__";
@@ -113,15 +115,20 @@ function BusinessKiosk({
   const orderSending = useRef(false);
   const [orderError, setOrderError] = useState("");
   const [restoreFailed, setRestoreFailed] = useState(false);
+  const [standby, setStandby] = useState(true);
+  const router = useRouter();
   useEffect(() => {
     let mounted = true;
-    void Promise.all([loadBusinessCart(negocioId), submission.restore()])
-      .then(([stored]) => {
+    void submission
+      .restore()
+      .then(() => loadBusinessCart(negocioId, true))
+      .then((stored) => {
         if (!mounted) return;
         setCart(stored);
         if (submission.attempt) {
           setCurrentScreen("order");
           setOrderResult(submission.attempt.result);
+          setStandby(false);
         }
         setCartReady(true);
       })
@@ -132,6 +139,7 @@ function BusinessKiosk({
           "Não foi possível recuperar o pedido salvo. Consulte novamente antes de continuar.",
         );
         setCurrentScreen("order");
+        setStandby(false);
         setCartReady(true);
       });
     return () => {
@@ -139,8 +147,14 @@ function BusinessKiosk({
     };
   }, [negocioId, submission]);
   useEffect(() => {
-    if (cartReady && !restoreFailed) void saveBusinessCart(negocioId, cart);
-  }, [negocioId, cart, cartReady, restoreFailed]);
+    if (
+      cartReady &&
+      !restoreFailed &&
+      !submission.attempt &&
+      screen !== "order"
+    )
+      void saveBusinessCart(negocioId, cart);
+  }, [negocioId, cart, cartReady, restoreFailed, submission, screen]);
   const [identity, setIdentity] = useState<CheckoutIdentity>({
     name: "",
     cpf: "",
@@ -148,7 +162,6 @@ function BusinessKiosk({
   });
   const [notice, setNotice] = useState({ message: "", version: 0 });
   const [removed, setRemoved] = useState<CartLine | null>(null);
-  const [standby, setStandby] = useState(true);
   const [removalOpen, setRemovalOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -181,11 +194,15 @@ function BusinessKiosk({
     [screen, editing, go],
   );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterStandby = useCallback(() => {
+    setIdentity({ name: "", cpf: "", wantsCpf: false });
+    setStandby(true);
+  }, []);
   const resetIdle = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (!standby && !removalOpen && !contextOpen)
-      timer.current = setTimeout(() => setStandby(true), 60000);
-  }, [standby, removalOpen, contextOpen]);
+    if (!standby && !removalOpen && !contextOpen && screen !== "order")
+      timer.current = setTimeout(enterStandby, 60000);
+  }, [standby, removalOpen, contextOpen, screen, enterStandby]);
   useEffect(() => {
     resetIdle();
     return () => {
@@ -216,10 +233,12 @@ function BusinessKiosk({
     setOrderBusy(true);
     setOrderError("");
     setCurrentScreen("order");
+    setRemoved(null);
+    setNotice({ message: "", version: 0 });
     try {
       if (restoreFailed) {
         await submission.restore();
-        setCart(await loadBusinessCart(negocioId));
+        setCart(await loadBusinessCart(negocioId, true));
         setRestoreFailed(false);
         if (!submission.attempt) {
           setCurrentScreen("cart");
@@ -231,11 +250,41 @@ function BusinessKiosk({
           buildOrderRequest(cart, identity.name, identificationMode),
         );
       setOrderResult(await submission.submit());
+      setIdentity({ name: "", cpf: "", wantsCpf: false });
     } catch (error) {
+      if (error instanceof TrackingError && error.status === 401)
+        router.replace("/parear");
       setOrderError(
         error instanceof Error
           ? error.message
           : "Não foi possível confirmar o pedido. Consulte novamente.",
+      );
+    } finally {
+      orderSending.current = false;
+      setOrderBusy(false);
+    }
+  };
+  const newService = async () => {
+    if (orderSending.current || restoreFailed) return;
+    orderSending.current = true;
+    setOrderBusy(true);
+    setOrderError("");
+    try {
+      await submission.finish();
+      setCart([]);
+      setIdentity({ name: "", cpf: "", wantsCpf: false });
+      setEditing(undefined);
+      setRemoved(null);
+      setNotice({ message: "", version: 0 });
+      setOrderResult(undefined);
+      setCategory(allCategory);
+      setScrollOffset(0);
+      setContextOpen(false);
+      setCurrentScreen("catalog");
+      setStandby(true);
+    } catch {
+      setOrderError(
+        "Não foi possível concluir a limpeza. O atendimento permanece bloqueado. Tente novamente ou solicite assistência.",
       );
     } finally {
       orderSending.current = false;
@@ -431,6 +480,9 @@ function BusinessKiosk({
             {screen === "order" && (
               <MotionScene key="order" style={s.root}>
                 <OrderStatus
+                  negocioId={negocioId}
+                  submission={submission}
+                  onNew={newService}
                   result={orderResult}
                   busy={orderBusy}
                   error={orderError}
@@ -462,6 +514,13 @@ function BusinessKiosk({
             }}
             actionLabel={removed ? "Desfazer" : "Ver pedido"}
             onAction={() => {
+              if (
+                submission.attempt ||
+                orderBusy ||
+                restoreFailed ||
+                screen === "order"
+              )
+                return;
               if (removed) {
                 setCart((current) => saveCartLine(current, removed));
                 setRemoved(null);
@@ -509,7 +568,7 @@ function BusinessKiosk({
           onClose={() => setContextOpen(false)}
           onStandby={() => {
             setContextOpen(false);
-            setStandby(true);
+            enterStandby();
           }}
         />
       </SafeAreaView>

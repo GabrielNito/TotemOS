@@ -2,6 +2,8 @@ import * as SecureStore from "expo-secure-store";
 import { restoreDeviceSession } from "../device-pairing/session";
 import { getApiBaseUrl } from "./api";
 import { OrderSubmission, OrderRejectedError } from "./order-submission";
+import { clearBusinessCart } from "./cart-storage";
+import { TrackingError } from "./order-tracking-api";
 
 // This is an idempotency identifier, never an authentication credential.
 function requestId() {
@@ -24,9 +26,11 @@ export function createOrderSubmission(negocioId: string) {
       const session = await restoreDeviceSession({
         expectedDeviceType: "TOTEM",
       });
+      if (session.kind === "pairing") throw new TrackingError("http", 401);
       if (
         session.kind !== "authenticated" ||
-        session.dispositivo.negocioId !== negocioId
+        session.dispositivo.negocioId !== negocioId ||
+        session.dispositivo.tipo !== "TOTEM"
       )
         throw new Error(
           "Não foi possível validar a sessão. Verifique o pareamento e tente novamente.",
@@ -46,6 +50,7 @@ export function createOrderSubmission(negocioId: string) {
           body: JSON.stringify(request),
         });
         if (!response.ok) {
+          if (response.status === 401) throw new TrackingError("http", 401);
           // Only validation/not-found guarantee that this attempt did not create an order.
           if ([400, 404].includes(response.status))
             throw new OrderRejectedError(
@@ -55,11 +60,17 @@ export function createOrderSubmission(negocioId: string) {
             "Não foi possível confirmar o envio. Consulte novamente para evitar duplicar o pedido.",
           );
         }
-        return await response.json();
+        const result = await response.json();
+        if (!result || result.dispositivoId !== session.dispositivo.id)
+          throw new Error(
+            "Não foi possível validar o vínculo do pedido. Solicite assistência.",
+          );
+        return result;
       } finally {
         clearTimeout(timeout);
       }
     },
     requestId,
+    () => clearBusinessCart(negocioId),
   );
 }
