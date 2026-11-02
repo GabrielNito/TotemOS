@@ -7,7 +7,7 @@ Aplicação web (Next.js 16, App Router, Turbopack) utilizada pelo dono e gerent
 ## 1. Stack Tecnológica & Padrões
 
 - **Framework**: Next.js 16 (App Router com Turbopack)
-- **Design System**: Shadcn UI + Tailwind CSS v4 (Diretrizes completas em [`apps/dashboard/DESIGN.md`](file:///c:/Users/Nito/www/TotemOS/apps/dashboard/DESIGN.md))
+- **Design System**: Shadcn UI + Tailwind CSS v4 (Diretrizes completas em [`apps/dashboard/DESIGN.md`](../apps/dashboard/DESIGN.md))
 - **Layout Arquitetural**: Bento Grid modular fluido com cantos arredondados (`rounded-3xl`) e bordas sutis translúcidas (`border-border/40`)
 - **Autenticação**: **JWT próprio via NestJS** com validação de schemas Zod, cookies HTTP (`totemos_token`), interceptor `proxy.ts` (Next.js 16) e controle de permissões por perfil (`DONO` vs `GERENTE`).
 - **Validação de Ambiente**: Schema Zod em `lib/env.ts` com validação de `NEXT_PUBLIC_API_URL`.
