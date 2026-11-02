@@ -83,18 +83,39 @@ function parseCart(value: unknown): CartLine[] | null {
   return cart;
 }
 
-export async function loadBusinessCart(negocioId: string): Promise<CartLine[]> {
+export async function loadBusinessCart(
+  negocioId: string,
+  strict = false,
+): Promise<CartLine[]> {
   const key = storageKey(negocioId);
   await writes.get(key);
   try {
-    const stored = record(
-      JSON.parse((await SecureStore.getItemAsync(key)) ?? "null"),
-    );
+    const raw = await SecureStore.getItemAsync(key);
+    if (raw === null) return [];
+    const stored = record(JSON.parse(raw));
+    if (strict && (stored?.negocioId !== negocioId || !parseCart(stored.cart)))
+      throw new Error("Carrinho salvo inválido. Solicite assistência.");
     if (stored?.negocioId !== negocioId) return [];
     return parseCart(stored.cart) ?? [];
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
+}
+
+/** Serialized after old cart writes; a failed clear must never unlock a sale. */
+export function clearBusinessCart(negocioId: string): Promise<void> {
+  const key = storageKey(negocioId);
+  const task = (writes.get(key) ?? Promise.resolve())
+    .catch(() => {})
+    .then(() =>
+      SecureStore.setItemAsync(key, JSON.stringify({ negocioId, cart: [] })),
+    )
+    .finally(() => {
+      if (writes.get(key) === task) writes.delete(key);
+    });
+  writes.set(key, task);
+  return task;
 }
 
 export function saveBusinessCart(

@@ -35,6 +35,7 @@ Point física, impressão e operação offline são pós-MVP.
 - [Catálogo conectado do Totem](totem-catalogo-card.md).
 - [Criação de pedido real e limites do PR #13](totem-pedido-real.md).
 - [Evidências do pedido real](evidence/totem-pedido-real/README.md).
+- [Acompanhamento, recuperação e novo atendimento do Totem (#33)](evidence/totem-acompanhamento/README.md).
 - [Spike LAN #19, resultado INCONCLUSIVO](spikes/kds-local-network.md).
 
 Os documentos históricos `regras-de-negocio-totem.md`, `stack-detalhada-v1.md`,

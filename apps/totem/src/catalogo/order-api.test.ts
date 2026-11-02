@@ -13,24 +13,39 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
   jest.mocked(SecureStore.setItemAsync).mockResolvedValue();
-  jest
-    .mocked(restoreDeviceSession)
-    .mockResolvedValue({
-      kind: "authenticated",
-      deviceToken: "test-token",
-      dispositivo: { negocioId: "tenant", tipo: "TOTEM" },
-    } as Awaited<ReturnType<typeof restoreDeviceSession>>);
-  globalThis.fetch = jest
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "order",
-        negocioId: "tenant",
-        status: "AGUARDANDO_PAGAMENTO",
-        valorTotal: "25.00",
-      }),
-    });
+  jest.mocked(restoreDeviceSession).mockResolvedValue({
+    kind: "authenticated",
+    deviceToken: "test-token",
+    dispositivo: { id: "device", negocioId: "tenant", tipo: "TOTEM" },
+  } as Awaited<ReturnType<typeof restoreDeviceSession>>);
+  globalThis.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      id: "11111111-1111-4111-8111-111111111111",
+      negocioId: "tenant",
+      dispositivoId: "device",
+      status: "AGUARDANDO_PAGAMENTO",
+      valorTotal: "25.00",
+    }),
+  });
+});
+test("replay de outro dispositivo é rejeitado mesmo no mesmo negócio", async () => {
+  const state = createOrderSubmission("tenant");
+  await state.prepare({
+    itens: [{ produtoId: "p", quantidade: 1, adicionais: [] }],
+  });
+  jest.mocked(fetch).mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      id: "11111111-1111-4111-8111-111111111111",
+      negocioId: "tenant",
+      dispositivoId: "foreign",
+      status: "PRONTO",
+      valorTotal: "25.00",
+    }),
+  } as Response);
+  await expect(state.submit()).rejects.toThrow();
+  expect(state.attempt?.result).toBeUndefined();
 });
 test("autentica o envio e usa a mesma chave persistida em cada retentativa", async () => {
   const state = createOrderSubmission("tenant");
@@ -57,13 +72,11 @@ test("autentica o envio e usa a mesma chave persistida em cada retentativa", asy
   );
 });
 test("não envia com sessão de outro tenant", async () => {
-  jest
-    .mocked(restoreDeviceSession)
-    .mockResolvedValue({
-      kind: "authenticated",
-      deviceToken: "other",
-      dispositivo: { negocioId: "other", tipo: "TOTEM" },
-    } as Awaited<ReturnType<typeof restoreDeviceSession>>);
+  jest.mocked(restoreDeviceSession).mockResolvedValue({
+    kind: "authenticated",
+    deviceToken: "other",
+    dispositivo: { negocioId: "other", tipo: "TOTEM" },
+  } as Awaited<ReturnType<typeof restoreDeviceSession>>);
   const state = createOrderSubmission("tenant");
   await state.prepare({
     itens: [{ produtoId: "p", quantidade: 1, adicionais: [] }],

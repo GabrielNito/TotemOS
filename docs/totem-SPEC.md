@@ -2,9 +2,9 @@
 
 App React Native cliente-facing. Roda em tablet exposto ao público. Catálogo, carrinho, pagamento, identificação do pedido.
 
-Estado auditado em 29/10/2026, base `ef20663`: catálogo, carrinho, identificação
-e criação real estão conectados. O fluxo para em AGUARDANDO_PAGAMENTO, sem senha
-ou cobrança. Ver [entrega do pedido real](totem-pedido-real.md) e
+Atualização #33 em 02/11/2026, base `8dc522d`: catálogo, carrinho, identificação,
+criação real e acompanhamento estão conectados. Senha e status vêm do backend,
+sem cobrança implementada no Totem. Ver [entrega do pedido real](totem-pedido-real.md) e
 [ADR operacional P0, PROPOSTA](adr/0001-contrato-operacional-p0.md).
 Os documentos históricos `stack-detalhada-v1.md` e `regras-de-negocio-totem.md`
 não existem nesta base e não comprovam implementação.
@@ -22,7 +22,63 @@ não existem nesta base e não comprovam implementação.
 3. Combo: grupos/deltas são planejamento; não há fluxo conectado completo de combos entregue no PR #13.
 4. Observação em texto livre por item (sem lógica de preço)
 5. Carrinho → identificação → `POST /pedidos` com deviceToken TOTEM, referências/quantidades e chave idempotente persistida. Backend calcula snapshots e total.
-6. Estado atual conectado: AGUARDANDO_PAGAMENTO, senha NULL. Acompanhamento, senha e novo atendimento dependem do #33 e backend P0. Point física é pós-MVP; liberação DEMO é proposta restrita ao ambiente não produtivo, sem pagamento fictício.
+6. Acompanhamento conectado: status, total e senha/data operacional confirmados pelo backend. Somente ENTREGUE confirmado permite novo atendimento. Point física é pós-MVP; DEMO permanece sem pagamento fictício.
+
+## Acompanhamento e encerramento P0 (#33)
+
+O fluxo real (`src/catalogo/business-kiosk.tsx`) recupera replays do POST com
+estado corrente e valida negócio e dispositivo criador. Depois consulta somente
+`GET /pedidos/:id/acompanhamento` com deviceToken TOTEM revalidado por
+`restoreDeviceSession({ expectedDeviceType: "TOTEM" })`. Não envia negocioId como
+autorização. O backend filtra pedido, negócio e dispositivo.
+
+Projeção: id, status, senha nullable, dataOperacional nullable, versao, demo,
+demoAmbiente nullable, valorTotal decimal string e autorizacaoOperacional
+DEMO/financeira:false ou null. Não fornece itens, nome, previsão, cobrança Point
+ou confirmação financeira. A tela não usa o carrinho como resposta do acompanhamento.
+
+| Estado recebido              | Apresentação e política                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| AGUARDANDO_PAGAMENTO         | Registrado, aguardando autorização para preparo, sem afirmar cobrança ou entrada na cozinha |
+| PENDENTE                     | Autorizado para cozinha, aguardando início do preparo                                       |
+| EM_PREPARO                   | Em preparação, senha/data quando atribuídas                                                 |
+| PRONTO                       | Retirada no balcão, senha em destaque, sem inventar número se null                          |
+| ENTREGUE                     | Entrega confirmada, permite Novo atendimento                                                |
+| CANCELADO_AGUARDANDO_ESTORNO | Estorno não confirmado, assistência obrigatória                                             |
+| CANCELADO                    | Cancelamento confirmado, sem inferir devolução, assistência obrigatória                     |
+
+Preparo Zero pode saltar diretamente para PRONTO, sem estados intermediários
+fabricados. DEMO permanece explícita; liberação operacional não representa
+quitação financeira. O Totem não libera DEMO, não atribui senha nem altera status.
+
+Polling em foreground a cada 5 s após sucesso, sem sobreposição. Pausa e aborta
+no background, retoma ao voltar, ignora gerações antigas e versões inferiores.
+Timeout do transporte GET: 20 s. Rede/503 usam backoff 10/20/40/60 s;
+429 respeita Retry-After em segundos ou data HTTP, inclusive na atualização manual.
+400/403/404 interrompem repetição automática e permitem consulta manual/assistência.
+401 encaminha ao pareamento preservando a tentativa. Falhas preservam o último
+snapshot e o sinalizam como desatualizado. ENTREGUE persistido encerra o polling.
+
+SecureStore conserva UUID/payload antes do POST, referência e último snapshot
+validado. Falha de persistência bloqueia publicação de novo snapshot/encerramento.
+POST incerto permite repetição manual com a mesma chave e payload. Leitura
+inválida/indisponível de tentativa ou carrinho bloqueia nova venda.
+
+Encerramento exclusivo de ENTREGUE confirmado via GET e persistido. Marca
+`closing:true` durável antecede limpeza serializada do carrinho; só após sucesso
+remove-se a tentativa. Reinício com marca retoma a mesma rotina antes de carregar
+o carrinho. Duplo toque é bloqueado. Falha parcial não libera o catálogo. Novo
+atendimento limpa carrinho, nome/CPF em memória, edição e avisos, mantendo token.
+Cancelamentos não possuem descarte autônomo neste P0; não há ação administrativa
+ou endpoint de reset no Totem.
+
+Durante acompanhamento não há standby automático; o manual retorna ao mesmo
+pedido. Entrar em standby remove identificação em memória. A prévia Brioche
+(`src/kiosk/kiosk-screen.tsx`) permanece isolada.
+
+[Evidências e limites do #33](evidence/totem-acompanhamento/README.md).
+Homologação com backend DEMO isolado e dispositivo físico pertence ao #41;
+Jest e exportação não comprovam homologação operacional.
 
 ## Regras que não podem ser esquecidas ao implementar
 
