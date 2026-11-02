@@ -51,6 +51,53 @@ resolve, por si, dois KDS independentes, partições ou reconciliação de senha
 
 Cancelamento/estorno com PIN, operação offline e LAN permanecem fora desta entrega.
 
+## Resiliência online e dois painéis (#32)
+
+Entrega incremental sobre #23/PR #18. A API #30/#31 continua inalterada:
+DEVICE/PAINEL, tenant da credencial, versão esperada e chave idempotente.
+Dois painéis podem ler PENDENTE; somente o primeiro PATCH confirma preparo.
+O segundo recebe 409, reconsulta EM_PREPARO e exige nova decisão para PRONTO.
+Outro painel entrega com versão atual; ambos convergem por polling válido.
+Não há avanço otimista nem repetição automática com versão corrigida.
+
+- Memória das maiores versões observadas e confirmações impede regressão e
+  ressurreição de entrega confirmada por respostas antigas durante a sessão.
+- Omissão de card requer duas leituras completas. Divergência mantém união/maior
+  versão e stale; falha preserva a fila anterior. Ausência não inventa ENTREGUE.
+  Duplicata divergente entre páginas força uma releitura limitada. Sem snapshot
+  da API, isso detecta inconsistências observáveis, sem prometer atomicidade.
+- Background cancela a geração; foreground revalida sem esperar timer antigo,
+  mantendo um ciclo por controlador. Confirmação tardia resolve o diário.
+- Diário AsyncStorage por tenant/dispositivo conserva UUID, alvo/versão originais,
+  tentativas/agendamento e pausa de recuperação. Grava antes de transmitir;
+  remove após confirmação gravada ou rejeição definitiva da primeira tentativa.
+  Rejeição de replay incerto conserva a intenção em pausa, inclusive após reinício.
+  Corrupção não é apagada e operações de outro escopo não são lidas.
+- Rede/429/503: backoff exponencial com jitter, teto 60 s e respeito a Retry-After.
+  Cinco falhas pausam transmissão automática; retomada manual conserva chave e
+  payload. GET isolado não libera ações dependentes de operação ainda incerta.
+- Rejeição definitiva bloqueia numeração automática na versão rejeitada. Versão
+  remota maior ou decisão manual após leitura permitem nova solicitação segura.
+  409 de política DEMO não é tratado como sucesso ou como autorização de preparo.
+- Interface diferencia envio, recuperação, rejeição, dados desatualizados e
+  sincronização. Aviso global inclui operações fora da fila. 401 remove dados
+  visíveis e volta ao pareamento; falhas temporárias preservam a credencial.
+
+O polling mínimo de 5 s não garante convergência em 5 s; latência, paginação,
+backoff e pausas influenciam. Ações permanecem serializadas, com bloqueio global
+conservador enquanto há intenção incerta. A recuperação não sobrevive à limpeza
+ou desinstalação dos dados do aplicativo. Não há modo offline completo.
+
+**IMPLEMENTADO:** políticas acima e controles acessíveis, sem alteração de backend.
+**TESTADO COM MOCKS:** dois controladores/diários independentes e servidor comum
+com versão, transições, senha, data e replay; Jest/RNTL e export Android.
+**TESTADO COM API REAL:** não executado nesta entrega. Suítes PostgreSQL #30/#31
+continuam na CI e não são substituídas pelos mocks.
+**TESTADO EM ANDROID REAL:** não executado nesta entrega.
+**PENDENTE:** #41, banco DEMO isolado e dois Android, rede oscilante real,
+reinício/foreground e histórico com API real. Ver
+[evidências e matriz de auditoria](evidence/kds-resiliencia/README.md).
+
 ## Regras que não podem ser esquecidas ao implementar
 
 - "Em preparo" é condicional — pedidos com todos os itens de `tempoEstimadoPreparo = 0` pulam direto pra "Pronto".

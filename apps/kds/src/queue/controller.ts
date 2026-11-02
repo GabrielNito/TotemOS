@@ -6,6 +6,7 @@ import {
   type Order,
   type PendingOperation,
   type QueueApi,
+  type Summary,
 } from "./types";
 export interface QueueState {
   orders: Order[];
@@ -16,6 +17,8 @@ export interface QueueState {
   loaded: boolean;
   lastSync: number | null;
   message: string;
+  rejected: Record<string, string>;
+  recoveryPaused: boolean;
 }
 export class QueueController {
   state: QueueState = {
@@ -27,10 +30,17 @@ export class QueueController {
     loaded: false,
     lastSync: null,
     message: "",
+    rejected: {},
+    recoveryPaused: false,
   };
   private listeners = new Set<() => void>();
   private generation = 0;
-  private blocked = new Set<string>();
+  private blocked = new Map<string, number>();
+  private confirmed = new Map<string, Summary>();
+  private retryBaseline = new Map<string, number>();
+  private recovering = new Set<string>();
+  private resumeRequested = false;
+  private reconciliationIncomplete = false;
   private notice = "";
   private active = false;
   private running = false;
@@ -61,6 +71,7 @@ export class QueueController {
   acknowledge = () => this.update({ newIds: [] });
   start = async () => {
     this.active = true;
+    if (this.running) this.resumeRequested = true;
     await this.refresh();
   };
   stop = () => {
@@ -70,6 +81,59 @@ export class QueueController {
     this.abort?.abort();
     this.update({ stale: true });
   };
+  recover = async () => {
+    if (this.running || !this.active) return;
+    this.running = true;
+    this.update({ busy: true });
+    try {
+      if (this.state.pending.some((op) => op.halted))
+        await this.persist(
+          this.state.pending.map((op) => ({ ...op, halted: false })),
+        );
+      for (const op of this.state.pending)
+        this.retryBaseline.set(op.key, op.attempts);
+      this.update({ recoveryPaused: false });
+    } catch {
+      this.update({
+        stale: true,
+        message:
+          "Não foi possível gravar a recuperação. O diário foi preservado.",
+      });
+      return;
+    } finally {
+      this.running = false;
+      this.update({ busy: false });
+    }
+    await this.refresh();
+  };
+  private expire() {
+    this.active = false;
+    this.generation++;
+    clearTimeout(this.timer);
+    this.update({
+      orders: [],
+      pending: [],
+      newIds: [],
+      rejected: {},
+      stale: true,
+      loaded: false,
+    });
+    this.expired();
+  }
+  private paused(op: PendingOperation) {
+    return (
+      !!op.halted || op.attempts - (this.retryBaseline.get(op.key) ?? 0) >= 5
+    );
+  }
+  private delay(attempts: number, error: unknown) {
+    return Math.max(
+      Math.min(
+        60000,
+        2000 * 2 ** Math.min(attempts, 5) * (0.8 + Math.random() * 0.4),
+      ),
+      error instanceof PairingApiError ? (error.retryAfterMs ?? 0) : 0,
+    );
+  }
   private schedule() {
     clearTimeout(this.timer);
     if (this.active)
@@ -82,35 +146,46 @@ export class QueueController {
   }
   private async persist(ops: PendingOperation[]) {
     await this.storage.save(ops);
-    this.update({ pending: ops });
+    this.update({
+      pending: ops,
+      recoveryPaused: ops.some((op) => this.paused(op)),
+    });
   }
   private async send(op: PendingOperation) {
     const generation = this.generation;
     try {
       const result = await this.api.execute(op, this.abort?.signal);
+      const previous = this.confirmed.get(result.id);
+      if (!previous || result.versao >= previous.versao)
+        this.confirmed.set(result.id, result);
       // Persist acknowledgement even if focus was lost during the request.
       await this.persist(this.state.pending.filter((p) => p.key !== op.key));
+      this.recovering.delete(op.key);
+      const rejected = { ...this.state.rejected };
+      delete rejected[op.orderId];
+      this.update({ rejected });
       if (this.active && generation === this.generation)
         this.update({
           orders: this.state.orders.flatMap((order) =>
             order.id !== result.id
               ? [order]
-              : ["PENDENTE", "EM_PREPARO", "PRONTO"].includes(result.status)
-                ? [
-                    {
-                      ...order,
-                      ...result,
-                      status: result.status as Order["status"],
-                    },
-                  ]
-                : [],
+              : order.versao > result.versao
+                ? [order]
+                : ["PENDENTE", "EM_PREPARO", "PRONTO"].includes(result.status)
+                  ? [
+                      {
+                        ...order,
+                        ...result,
+                        status: result.status as Order["status"],
+                      },
+                    ]
+                  : [],
           ),
         });
       return true;
     } catch (error) {
       if (error instanceof PairingApiError && error.statusCode === 401) {
-        this.active = false;
-        this.expired();
+        this.expire();
         throw error;
       }
       const definitive =
@@ -118,14 +193,31 @@ export class QueueController {
         [400, 403, 404, 409, 422].includes(error.statusCode);
       if (definitive) {
         this.notice = safeQueueError(error);
-        this.blocked.add(op.orderId);
-        await this.persist(this.state.pending.filter((p) => p.key !== op.key));
-      } else {
-        const attempts = op.attempts + 1;
-        const delay = Math.max(
-          Math.min(60000, 2000 * 2 ** Math.min(attempts, 5)),
-          error instanceof PairingApiError ? (error.retryAfterMs ?? 0) : 0,
+        this.blocked.set(
+          op.orderId,
+          op.version ??
+            this.state.orders.find((o) => o.id === op.orderId)?.versao ??
+            0,
         );
+        this.update({
+          rejected: { ...this.state.rejected, [op.orderId]: this.notice },
+        });
+        if (this.recovering.has(op.key)) {
+          // A policy denial of a replay cannot establish whether an earlier
+          // request committed. Preserve identity, stop automatic transmission.
+          await this.persist(
+            this.state.pending.map((p) =>
+              p.key === op.key ? { ...p, halted: true } : p,
+            ),
+          );
+        } else
+          await this.persist(
+            this.state.pending.filter((p) => p.key !== op.key),
+          );
+      } else {
+        this.recovering.add(op.key);
+        const attempts = op.attempts + 1;
+        const delay = this.delay(attempts, error);
         this.retryAt = Math.max(this.retryAt, Date.now() + delay);
         await this.persist(
           this.state.pending.map((p) =>
@@ -142,21 +234,52 @@ export class QueueController {
     const confirmed = new Map(
       this.state.orders.map((order) => [order.id, order]),
     );
-    orders = orders.map((order) => {
+    orders = orders.flatMap((order) => {
+      const fact = this.confirmed.get(order.id);
+      if (fact && !["PENDENTE", "EM_PREPARO", "PRONTO"].includes(fact.status)) {
+        this.reconciliationIncomplete = true;
+        return [];
+      }
       const previous = confirmed.get(order.id);
-      return previous && previous.versao > order.versao ? previous : order;
+      if (
+        (fact && fact.versao > order.versao) ||
+        (previous && previous.versao > order.versao)
+      )
+        this.reconciliationIncomplete = true;
+      const merged =
+        previous && previous.versao > order.versao ? previous : order;
+      return [
+        fact && fact.versao > merged.versao
+          ? { ...merged, ...fact, status: fact.status as Order["status"] }
+          : merged,
+      ];
     });
+    const rejected = { ...this.state.rejected };
+    for (const order of orders) {
+      const version = this.blocked.get(order.id);
+      if (version !== undefined && order.versao > version) {
+        this.blocked.delete(order.id);
+        delete rejected[order.id];
+      }
+    }
     const newIds = this.initialized
       ? orders.filter((o) => !this.seen.has(o.id)).map((o) => o.id)
       : [];
-    orders.forEach((o) => this.seen.add(o.id));
+    orders.forEach((o) => {
+      this.seen.add(o.id);
+      this.confirmed.set(o.id, o);
+    });
     this.initialized = true;
     this.update({
       orders,
       newIds: [...new Set([...this.state.newIds, ...newIds])],
       loaded: true,
-      stale: false,
-      lastSync: Date.now(),
+      stale: this.state.pending.length > 0 || this.reconciliationIncomplete,
+      recoveryPaused: this.state.pending.some((op) => this.paused(op)),
+      rejected,
+      lastSync: this.reconciliationIncomplete
+        ? this.state.lastSync
+        : Date.now(),
       message: this.state.pending.length ? this.state.message : this.notice,
     });
   }
@@ -176,26 +299,28 @@ export class QueueController {
         const pending = await this.storage.load();
         if (!current()) return;
         this.update({ pending });
+        pending.forEach((op) => this.recovering.add(op.key));
         this.loadedJournal = true;
       }
       // Recover original operations even when the order is no longer in the open queue.
       for (const op of this.state.pending) {
         if (!current()) return;
-        if (op.nextAttempt <= Date.now()) {
+        if (!this.paused(op) && op.nextAttempt <= Date.now()) {
           await this.send(op);
           if (this.retryAt > Date.now()) return;
         }
       }
       if (!current()) return;
-      const orders = await this.api.list(this.abort.signal);
+      const orders = await this.readOrders(current);
       if (!current()) return;
       this.acceptOrders(orders);
       this.failures = 0;
       this.retryAt = 0;
-      let numbered = false;
+      let attemptedNumbering = false;
       // One mutation at a time, bounded to one pass through this snapshot.
       for (const order of this.state.orders) {
         if (!current()) return;
+        if (this.state.stale) break;
         if (
           order.senha === null &&
           !this.blocked.has(order.id) &&
@@ -207,37 +332,64 @@ export class QueueController {
             kind: "senha",
             attempts: 0,
             nextAttempt: 0,
+            version: order.versao,
           };
           await this.persist([...this.state.pending, op]);
-          if (current()) numbered = (await this.send(op)) || numbered;
+          if (current()) {
+            attemptedNumbering = true;
+            await this.send(op);
+          }
           if (this.state.stale) break;
         }
       }
-      if (numbered && current() && !this.state.stale) {
-        const reconciled = await this.api.list(this.abort.signal);
+      if (attemptedNumbering && current() && this.state.pending.length === 0) {
+        const reconciled = await this.readOrders(current);
         if (current()) this.acceptOrders(reconciled);
       }
     } catch (error) {
       if (current()) {
         this.failures++;
-        this.retryAt =
-          Date.now() +
-          Math.max(
-            Math.min(60000, 2000 * 2 ** Math.min(this.failures, 5)),
-            error instanceof PairingApiError ? (error.retryAfterMs ?? 0) : 0,
-          );
+        this.retryAt = Date.now() + this.delay(this.failures, error);
         this.update({ stale: true, message: safeQueueError(error) });
         if (error instanceof PairingApiError && error.statusCode === 401) {
-          this.active = false;
-          this.expired();
+          this.expire();
         }
       }
     } finally {
       this.running = false;
       this.update({ busy: false });
-      this.schedule();
+      if (this.resumeRequested && this.active) {
+        this.resumeRequested = false;
+        void this.refresh();
+      } else this.schedule();
     }
   };
+  // Cursor pages are not a transaction. Confirm missing cards in a second
+  // complete observation; absence never implies a particular final status.
+  private async readOrders(current: () => boolean): Promise<Order[]> {
+    this.reconciliationIncomplete = false;
+    const first = await this.api.list(this.abort?.signal);
+    if (!current()) return [];
+    if (!this.state.orders.some((o) => !first.some((n) => n.id === o.id)))
+      return first;
+    const second = await this.api.list(this.abort?.signal);
+    if (!current()) return [];
+    const merged = new Map(first.map((o) => [o.id, o]));
+    this.reconciliationIncomplete =
+      first.length !== second.length ||
+      first.some(
+        (o) => !second.some((n) => n.id === o.id && n.versao === o.versao),
+      );
+    for (const order of second) {
+      if ((merged.get(order.id)?.versao ?? 0) <= order.versao)
+        merged.set(order.id, order);
+    }
+    return [...merged.values()].sort(
+      (a, b) =>
+        Date.parse(a.createdAt) - Date.parse(b.createdAt) ||
+        a.id.localeCompare(b.id),
+    );
+  }
   act = async (order: Order) => {
     if (
       !this.active ||
@@ -249,6 +401,7 @@ export class QueueController {
     const current = this.state.orders.find((o) => o.id === order.id);
     if (!current || current.versao !== order.versao) return;
     this.running = true;
+    const generation = this.generation;
     this.abort = new AbortController();
     this.notice = "";
     this.update({ busy: true, message: "" });
@@ -258,14 +411,15 @@ export class QueueController {
         orderId: order.id,
         kind: order.senha === null ? "senha" : "status",
         ...(order.senha === null
-          ? {}
+          ? { version: order.versao }
           : { target: nextTarget(order.status), version: order.versao }),
         attempts: 0,
         nextAttempt: 0,
       };
       await this.persist([...this.state.pending, op]);
-      if (this.active) await this.send(op);
-    } catch {
+      if (this.active && generation === this.generation) await this.send(op);
+    } catch (error) {
+      if (error instanceof PairingApiError && error.statusCode === 401) return;
       this.update({
         stale: true,
         message:
@@ -274,6 +428,7 @@ export class QueueController {
     } finally {
       this.running = false;
       this.update({ busy: false });
+      this.resumeRequested = false;
       if (this.active) await this.refresh();
     }
   };

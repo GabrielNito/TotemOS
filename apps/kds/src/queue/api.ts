@@ -1,5 +1,6 @@
 import { PairingApiError, request } from "../device-pairing/api";
 import type { Order, PendingOperation, QueueApi, Summary } from "./types";
+import { QueueJournalError } from "./types";
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 const nullableString = (v: unknown) => v === null || typeof v === "string";
@@ -82,27 +83,46 @@ export function createQueueApi(token: string): QueueApi {
   const headers = { Authorization: `Bearer ${token}` };
   return {
     async list(signal) {
-      const orders = new Map<string, Order>();
-      const cursors = new Set<string>();
-      let cursor: string | null = null;
-      for (let page = 0; page < 100; page++) {
-        const result = parsePage(
-          await request<unknown>(
-            `/pedidos/fila?limite=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-            { headers, signal, method: "GET", cache: "no-store" },
-          ),
-        );
-        for (const order of result.pedidos) {
-          const previous = orders.get(order.id);
-          if (!previous || order.versao >= previous.versao)
-            orders.set(order.id, order);
+      const read = async () => {
+        let inconsistent = false;
+        const orders = new Map<string, Order>();
+        const cursors = new Set<string>();
+        let cursor: string | null = null;
+        for (let page = 0; page < 100; page++) {
+          const result = parsePage(
+            await request<unknown>(
+              `/pedidos/fila?limite=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+              { headers, signal, method: "GET", cache: "no-store" },
+            ),
+          );
+          for (const order of result.pedidos) {
+            const previous = orders.get(order.id);
+            if (previous && JSON.stringify(previous) !== JSON.stringify(order))
+              inconsistent = true;
+            if (!previous || order.versao >= previous.versao)
+              orders.set(order.id, order);
+          }
+          if (result.proximoCursor === null)
+            return { orders: [...orders.values()], inconsistent };
+          cursor = result.proximoCursor;
+          if (cursors.has(cursor)) throw new Error("Paginação repetida.");
+          cursors.add(cursor);
         }
-        if (result.proximoCursor === null) return [...orders.values()];
-        cursor = result.proximoCursor;
-        if (cursors.has(cursor)) throw new Error("Paginação repetida.");
-        cursors.add(cursor);
-      }
-      throw new Error("Fila excedeu limite de paginação. Tente atualizar.");
+        throw new Error("Fila excedeu limite de paginação. Tente atualizar.");
+      };
+      const first = await read();
+      if (!first.inconsistent) return first.orders;
+      const second = await read();
+      if (
+        second.inconsistent ||
+        second.orders.some((o) =>
+          first.orders.some((p) => p.id === o.id && p.versao > o.versao),
+        )
+      )
+        throw new Error(
+          "Fila mudou durante a paginação. Nova leitura necessária.",
+        );
+      return second.orders;
     },
     async execute(op: PendingOperation, signal) {
       const result = await request<unknown>(
@@ -138,14 +158,16 @@ export function createQueueApi(token: string): QueueApi {
   };
 }
 export function safeQueueError(error: unknown): string {
+  if (error instanceof QueueJournalError)
+    return "Diário inválido. Operações preservadas; solicite diagnóstico antes de limpar os dados do aplicativo.";
   const code = error instanceof PairingApiError ? error.statusCode : 0;
   return (
     (
       {
         401: "Sessão expirada. Faça o pareamento novamente.",
         403: "Painel sem permissão para esta operação.",
-        404: "Pedido não está mais disponível. Fila reconsultada.",
-        409: "Outro painel pode ter alterado o pedido. Confira a fila antes de tentar novamente.",
+        404: "Pedido não está mais disponível. A fila será reconsultada.",
+        409: "Outro painel pode ter alterado o pedido ou a política DEMO impede a operação. Confira a fila após atualizar e decida novamente.",
         429: "Muitas solicitações. Aguarde a próxima tentativa.",
         503: "Serviço indisponível. Operações pendentes serão recuperadas.",
       } as Record<number, string>

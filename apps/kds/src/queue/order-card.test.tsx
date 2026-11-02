@@ -67,3 +67,40 @@ it("formats elapsed duration without ETA or negative age", () => {
     "1 h 1 min",
   );
 });
+it("shows definitive rejection separately from pending recovery", async () => {
+  await render(
+    <OrderCard
+      order={order}
+      now={0}
+      isNew={false}
+      disabled={false}
+      onAction={jest.fn()}
+      rejection="Operação rejeitada. Confira o estado atual e decida novamente."
+    />,
+  );
+  expect(screen.getByText(/Operação rejeitada/)).toBeTruthy();
+  expect(screen.getByRole("button").props.accessibilityState.disabled).toBe(
+    false,
+  );
+});
+it("shows a restarted operation as recovery even after its scheduled time", async () => {
+  await render(
+    <OrderCard
+      order={order}
+      now={100}
+      isNew={false}
+      disabled={true}
+      onAction={jest.fn()}
+      pending={{
+        key: "key",
+        orderId: order.id,
+        kind: "status",
+        target: "ENTREGUE",
+        version: 4,
+        attempts: 1,
+        nextAttempt: 0,
+      }}
+    />,
+  );
+  expect(screen.getByText(/Recuperando operação/)).toBeTruthy();
+});
