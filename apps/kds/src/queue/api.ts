@@ -147,6 +147,8 @@ export function createQueueApi(token: string): QueueApi {
       )
         throw new Error("Operação sem confirmação válida.");
       const summary = parseSummary(result.pedido);
+      if (op.version !== undefined && summary.versao <= op.version)
+        throw new Error("Versão da operação não confirmada.");
       if (
         op.kind === "senha" &&
         (summary.senha === null || !summary.dataOperacional)

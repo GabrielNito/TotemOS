@@ -86,7 +86,7 @@ it("sends only implemented strict senha and status bodies with original key", as
   fetcher.mockResolvedValue(
     reply({
       resultadoOperacao: { tipo: "TRANSICAO", repetida: false },
-      pedido: { ...pedido, status: "ENTREGUE" },
+      pedido: { ...pedido, status: "ENTREGUE", versao: 4 },
     }) as Response,
   );
   await api.execute({
@@ -177,3 +177,33 @@ it("rejects persistently inconsistent pagination instead of presenting it as syn
 it("identifies journal corruption without suggesting that a network retry will repair it", () => {
   expect(safeQueueError(new QueueJournalError())).toContain("Diário inválido");
 });
+it.each(["senha", "status"] as const)(
+  "rejects a %s confirmation that did not advance the original version",
+  async (kind) => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      reply({
+        resultadoOperacao: {
+          tipo: kind === "senha" ? "ATRIBUICAO_SENHA" : "TRANSICAO",
+          repetida: true,
+        },
+        pedido: {
+          ...pedido,
+          versao: 3,
+          senha: 12,
+          dataOperacional: "2026-11-01",
+        },
+      }) as Response,
+    );
+    await expect(
+      createQueueApi("token").execute({
+        key: "original",
+        orderId: pedido.id,
+        kind,
+        ...(kind === "status" ? { target: "ENTREGUE" as const } : {}),
+        version: 3,
+        attempts: 1,
+        nextAttempt: 0,
+      }),
+    ).rejects.toThrow("Versão");
+  },
+);

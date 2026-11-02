@@ -20,6 +20,8 @@ resultado incerto; recuperação fora da fila sem aviso próprio.
 
 ## IMPLEMENTADO
 
+- Confirmação de mutação exige versão posterior à original quando disponível.
+  Resposta inválida permanece incerta, com a chave original.
 - Uma requisição/ciclo por controlador. Gerações antigas não publicam estado;
   confirmação tardia pode resolver o diário mesmo no background.
 - Maiores versões observadas são lembradas durante a sessão, inclusive após
@@ -68,9 +70,10 @@ timeout HTTP com fake timers, 429 Retry-After, 503/backoff, pausa/retomada manua
 reinício, escopo tenant/dispositivo, JSON/metadados corrompidos, revogação,
 gerações/foco, confirmação tardia, omissão instável e respostas antigas.
 RNTL cobre rejeição, loading/recuperação, controles touch acessíveis e recuperação
-de pedido ausente da fila. Testes anteriores foram mantidos. Dois fixtures antigos
+de pedido ausente da fila. Testes anteriores foram mantidos. Três fixtures antigos
 foram ajustados: foreground agora inicia uma leitura nova imediatamente; duplicata
-divergente exige uma terceira resposta HTTP para confirmar a releitura.
+divergente exige uma terceira resposta HTTP para confirmar a releitura; a resposta
+de transição agora usa versão posterior à versão esperada.
 
 ## Execução local
 
@@ -79,7 +82,7 @@ divergente exige uma terceira resposta HTTP para confirmar a releitura.
   [Log](red.txt). Os testes que falhavam antes de stop deixaram timers; o teardown
   foi fortalecido para sempre encerrar controladores. REDs adicionais focados
   foram executados para pausa de replay, validação do diário e ordenação.
-- Jest completo: **116 testes, 15 suítes aprovados**. [Log](jest.txt).
+- Jest completo: **119 testes, 15 suítes aprovados**. [Log](jest.txt).
 - npm run lint -- --no-cache: **0 erros, 0 warnings**. [Log](lint.txt).
   O cache foi desabilitado após o parser de imports conservar um erro já corrigido.
 - npm run typecheck: **aprovado**. [Log](typecheck.txt).

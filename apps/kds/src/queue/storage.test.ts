@@ -112,3 +112,9 @@ it("rejects duplicate operation UUIDs without dropping either record", async () 
   );
   await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
 });
+it("treats an empty stored record as corruption, not as a missing journal", async () => {
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValue("");
+  const before = (AsyncStorage.setItem as jest.Mock).mock.calls.length;
+  await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
+  expect(AsyncStorage.setItem).toHaveBeenCalledTimes(before);
+});

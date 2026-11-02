@@ -46,7 +46,7 @@ export function operationStorage(
   return {
     async load() {
       const raw = await AsyncStorage.getItem(key);
-      if (!raw) return [];
+      if (raw === null) return [];
       let value: unknown;
       try {
         value = JSON.parse(raw);

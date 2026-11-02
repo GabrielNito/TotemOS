@@ -77,7 +77,8 @@ leitura completa consistente, podendo ainda existir operação incerta sinalizad
 Senha NULL inicia solicitação automática serial, fora da renderização. UUID,
 pedido, tipo, alvo/versão original, tentativas e nextAttempt são gravados antes
 de transmitir. A versão de senha é metadado local; o POST continua enviando {}.
-Registros antigos de senha sem versão continuam recuperáveis. Não há contador
+Resposta de mutação exige versão posterior à original quando disponível, para
+não confirmar resultado inválido. Registros antigos de senha sem versão continuam recuperáveis. Não há contador
 local e a data operacional é sempre a persistida pelo servidor.
 
 O diário AsyncStorage v1 usa negócio/dispositivo da credencial. Não inclui itens
