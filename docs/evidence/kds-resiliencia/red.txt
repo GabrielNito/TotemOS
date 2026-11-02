@@ -1,0 +1,264 @@
+
+> kds@1.0.0 test
+> jest --runInBand src/queue/controller.test.ts src/queue/storage.test.ts src/queue/multipanel.test.ts
+
+FAIL src/queue/controller.test.ts
+  ● never resurrects a delivered order from an older GET
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 19
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "autorizacaoOperacional": Object {
+    +       "financeira": false,
+    +       "tipo": "DEMO",
+    +     },
+    +     "createdAt": "2026-11-01T12:00:00.000Z",
+    +     "dataOperacional": "2026-11-01",
+    +     "demo": true,
+    +     "demoAmbiente": "ensaio",
+    +     "elegivelCozinha": true,
+    +     "id": "11111111-1111-4111-8111-111111111111",
+    +     "itens": Array [],
+    +     "preparoZero": false,
+    +     "senha": 12,
+    +     "status": "PRONTO",
+    +     "versao": 5,
+    +   },
+    + ]
+
+      348 |   api.execute.mockResolvedValue(order(undefined, { status: "ENTREGUE" as Order["status"], versao: 6 }));
+      349 |   await controller.act(controller.state.orders[0]);
+    > 350 |   expect(controller.state.orders).toEqual([]);
+          |                                   ^
+      351 |   controller.stop();
+      352 | });
+      353 | it("keeps stale while persisted recovery is scheduled in the future", async () => {
+
+      at Object.toEqual (src/queue/controller.test.ts:350:35)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● keeps stale while persisted recovery is scheduled in the future
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      354 |   const { controller, api } = setup([{ kind: "status", key: "key", orderId: order().id, target: "EM_PREPARO", version: 3, attempts: 1, nextAttempt: Date.now() + 60000 }]);
+      355 |   await controller.start();
+    > 356 |   expect(controller.state.stale).toBe(true);
+          |                                  ^
+      357 |   await controller.act(order());
+      358 |   expect(api.execute).not.toHaveBeenCalled();
+      359 |   controller.stop();
+
+      at Object.toBe (src/queue/controller.test.ts:356:34)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● confirms omissions with another read and preserves cards if that read fails
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      364 |   api.list.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error("DNS"));
+      365 |   await controller.refresh();
+    > 366 |   expect(controller.state.orders).toHaveLength(1);
+          |                                   ^
+      367 |   expect(controller.state.stale).toBe(true);
+      368 |   controller.stop();
+      369 | });
+
+      at Object.toHaveLength (src/queue/controller.test.ts:366:35)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● reconciles immediately after a background generation finishes
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 2
+    Received number of calls: 1
+
+      380 |   // The resumed generation starts without waiting for a polling timer.
+      381 |   for (let i = 0; i < 10; i++) await Promise.resolve();
+    > 382 |   expect(api.list).toHaveBeenCalledTimes(2);
+          |                    ^
+      383 |   expect(controller.state.orders).toHaveLength(1);
+      384 |   controller.stop();
+      385 | });
+
+      at Object.toHaveBeenCalledTimes (src/queue/controller.test.ts:382:20)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● unblocks automatic numbering only on proven remote version change
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 2
+    Received number of calls: 1
+
+      421 |   api.execute.mockResolvedValue(order(undefined, { versao: 5 }));
+      422 |   await controller.refresh();
+    > 423 |   expect(api.execute).toHaveBeenCalledTimes(2);
+          |                       ^
+      424 |   controller.stop();
+      425 | });
+      426 | it("persists late confirmation in background without retransmission on resume", async () => {
+
+      at Object.toHaveBeenCalledTimes (src/queue/controller.test.ts:423:23)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● clears visible tenant data on revoked device
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 19
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "autorizacaoOperacional": Object {
+    +       "financeira": false,
+    +       "tipo": "DEMO",
+    +     },
+    +     "createdAt": "2026-11-01T12:00:00.000Z",
+    +     "dataOperacional": "2026-11-01",
+    +     "demo": true,
+    +     "demoAmbiente": "ensaio",
+    +     "elegivelCozinha": true,
+    +     "id": "11111111-1111-4111-8111-111111111111",
+    +     "itens": Array [],
+    +     "preparoZero": false,
+    +     "senha": 12,
+    +     "status": "PENDENTE",
+    +     "versao": 3,
+    +   },
+    + ]
+
+      457 |   await controller.refresh();
+      458 |   expect(expired).toHaveBeenCalledTimes(1);
+    > 459 |   expect(controller.state.orders).toEqual([]);
+          |                                   ^
+      460 |   controller.stop();
+      461 | });
+      462 |
+
+      at Object.toEqual (src/queue/controller.test.ts:459:35)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+PASS src/queue/multipanel.test.ts
+FAIL src/queue/storage.test.ts
+  ● rejects invalid journal metadata without overwriting it: {"kind":"senha","key":"","orderId":"order","attempts":0,"nextAttempt":0}
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"attempts": 0, "key": "", "kind": "senha", "nextAttempt": 0, "orderId": "order"}]
+
+      33 |   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify([op]));
+      34 |   const before = (AsyncStorage.setItem as jest.Mock).mock.calls.length;
+    > 35 |   await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
+         |         ^
+      36 |   expect(AsyncStorage.setItem).toHaveBeenCalledTimes(before);
+      37 | });
+      38 | it("never reads another tenant or device journal", async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at expect (src/queue/storage.test.ts:35:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/queue/storage.test.ts:37:2)
+
+  ● rejects invalid journal metadata without overwriting it: {"kind":"senha","key":"key","orderId":"order","attempts":-1,"nextAttempt":0}
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"attempts": -1, "key": "key", "kind": "senha", "nextAttempt": 0, "orderId": "order"}]
+
+      33 |   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify([op]));
+      34 |   const before = (AsyncStorage.setItem as jest.Mock).mock.calls.length;
+    > 35 |   await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
+         |         ^
+      36 |   expect(AsyncStorage.setItem).toHaveBeenCalledTimes(before);
+      37 | });
+      38 | it("never reads another tenant or device journal", async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at expect (src/queue/storage.test.ts:35:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/queue/storage.test.ts:37:2)
+
+  ● rejects invalid journal metadata without overwriting it: {"kind":"status","key":"key","orderId":"order","attempts":0,"nextAttempt":0,"target":"PRONTO","version":0}
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"attempts": 0, "key": "key", "kind": "status", "nextAttempt": 0, "orderId": "order", "target": "PRONTO", "version": 0}]
+
+      33 |   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify([op]));
+      34 |   const before = (AsyncStorage.setItem as jest.Mock).mock.calls.length;
+    > 35 |   await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
+         |         ^
+      36 |   expect(AsyncStorage.setItem).toHaveBeenCalledTimes(before);
+      37 | });
+      38 | it("never reads another tenant or device journal", async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at expect (src/queue/storage.test.ts:35:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/queue/storage.test.ts:37:2)
+
+  ● rejects invalid journal metadata without overwriting it: {"kind":"senha","key":"key","orderId":"order","attempts":0,"nextAttempt":-1}
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"attempts": 0, "key": "key", "kind": "senha", "nextAttempt": -1, "orderId": "order"}]
+
+      33 |   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify([op]));
+      34 |   const before = (AsyncStorage.setItem as jest.Mock).mock.calls.length;
+    > 35 |   await expect(operationStorage("panel", "tenant").load()).rejects.toThrow();
+         |         ^
+      36 |   expect(AsyncStorage.setItem).toHaveBeenCalledTimes(before);
+      37 | });
+      38 | it("never reads another tenant or device journal", async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at expect (src/queue/storage.test.ts:35:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/queue/storage.test.ts:37:2)
+
+Test Suites: 2 failed, 1 passed, 3 total
+Tests:       10 failed, 41 passed, 51 total
+Snapshots:   0 total
+Time:        9.956 s
+Ran all test suites matching /src\\queue\\controller.test.ts|src\\queue\\storage.test.ts|src\\queue\\multipanel.test.ts/i.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.

@@ -1,4 +1,5 @@
 export type OpenStatus = "PENDENTE" | "EM_PREPARO" | "PRONTO";
+export class QueueJournalError extends Error {}
 export type Target = "EM_PREPARO" | "PRONTO" | "ENTREGUE";
 export interface Summary {
   id: string;
@@ -32,6 +33,7 @@ export interface PendingOperation {
   version?: number;
   attempts: number;
   nextAttempt: number;
+  halted?: boolean;
 }
 export interface OperationStorage {
   load(): Promise<PendingOperation[]>;

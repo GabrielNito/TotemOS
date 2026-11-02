@@ -1,4 +1,5 @@
-import { createQueueApi, parsePage } from "./api";
+import { QueueJournalError } from "./types";
+import { safeQueueError, createQueueApi, parsePage } from "./api";
 import { parseRetryAfter } from "../device-pairing/api";
 const pedido = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -30,6 +31,12 @@ it("uses Bearer and paginates from first page with highest-version deduplication
     .spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(
       reply({ pedidos: [pedido], proximoCursor: "a/b" }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({
+        pedidos: [{ ...pedido, versao: 3, senha: 10 }],
+        proximoCursor: null,
+      }) as Response,
     )
     .mockResolvedValueOnce(
       reply({
@@ -79,7 +86,7 @@ it("sends only implemented strict senha and status bodies with original key", as
   fetcher.mockResolvedValue(
     reply({
       resultadoOperacao: { tipo: "TRANSICAO", repetida: false },
-      pedido: { ...pedido, status: "ENTREGUE" },
+      pedido: { ...pedido, status: "ENTREGUE", versao: 4 },
     }) as Response,
   );
   await api.execute({
@@ -120,3 +127,83 @@ it("times out HTTP calls without exposing credentials", async () => {
   expect(String(fetcher.mock.calls[0][0])).not.toContain("secret");
   jest.useRealTimers();
 });
+it("revalidates an inconsistent multi-page observation before accepting it", async () => {
+  const fetcher = jest
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(
+      reply({ pedidos: [pedido], proximoCursor: "cursor" }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({
+        pedidos: [{ ...pedido, versao: 3, senha: 10 }],
+        proximoCursor: null,
+      }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({
+        pedidos: [{ ...pedido, versao: 3, senha: 10 }],
+        proximoCursor: null,
+      }) as Response,
+    );
+  expect(await createQueueApi("token").list()).toMatchObject([
+    { versao: 3, senha: 10 },
+  ]);
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(fetcher.mock.calls[2][0]).not.toContain("cursor=");
+});
+it("rejects persistently inconsistent pagination instead of presenting it as synchronized", async () => {
+  jest
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(
+      reply({ pedidos: [pedido], proximoCursor: "a" }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({
+        pedidos: [{ ...pedido, versao: 3 }],
+        proximoCursor: null,
+      }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({ pedidos: [pedido], proximoCursor: "b" }) as Response,
+    )
+    .mockResolvedValueOnce(
+      reply({
+        pedidos: [{ ...pedido, versao: 4 }],
+        proximoCursor: null,
+      }) as Response,
+    );
+  await expect(createQueueApi("token").list()).rejects.toThrow("Fila mudou");
+});
+it("identifies journal corruption without suggesting that a network retry will repair it", () => {
+  expect(safeQueueError(new QueueJournalError())).toContain("Diário inválido");
+});
+it.each(["senha", "status"] as const)(
+  "rejects a %s confirmation that did not advance the original version",
+  async (kind) => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      reply({
+        resultadoOperacao: {
+          tipo: kind === "senha" ? "ATRIBUICAO_SENHA" : "TRANSICAO",
+          repetida: true,
+        },
+        pedido: {
+          ...pedido,
+          versao: 3,
+          senha: 12,
+          dataOperacional: "2026-11-01",
+        },
+      }) as Response,
+    );
+    await expect(
+      createQueueApi("token").execute({
+        key: "original",
+        orderId: pedido.id,
+        kind,
+        ...(kind === "status" ? { target: "ENTREGUE" as const } : {}),
+        version: 3,
+        attempts: 1,
+        nextAttempt: 0,
+      }),
+    ).rejects.toThrow("Versão");
+  },
+);

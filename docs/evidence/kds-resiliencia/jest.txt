@@ -1,0 +1,25 @@
+
+> kds@1.0.0 test
+> jest --runInBand
+
+PASS src/queue/api.test.ts
+PASS src/queue/storage.test.ts
+PASS src/queue/controller.test.ts
+PASS src/queue/kitchen-board.test.tsx
+PASS src/queue/use-kitchen-queue.test.tsx
+PASS src/queue/order-card.test.tsx
+PASS src/device-pairing/session.test.ts
+PASS src/device-pairing/api.test.ts
+PASS src/queue/multipanel.test.ts
+PASS src/lan-spike/transport.test.ts
+PASS src/lan-spike/publisher.test.ts
+PASS src/lan-spike/server.test.ts
+PASS src/lan-spike/protocol.test.ts
+PASS src/storage/device-token.test.ts
+PASS src/lan-spike/runtime.test.ts
+
+Test Suites: 15 passed, 15 total
+Tests:       119 passed, 119 total
+Snapshots:   0 total
+Time:        7.837 s, estimated 9 s
+Ran all test suites.

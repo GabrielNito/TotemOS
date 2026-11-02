@@ -62,14 +62,30 @@ export function KitchenBoard({
         <Pressable
           accessibilityRole="button"
           disabled={state.busy}
-          onPress={() => void controller.refresh()}
+          onPress={() => void controller.recover()}
           className="min-h-14 justify-center rounded-xl bg-[#254B69] px-6"
         >
           <Text className="text-lg font-bold text-foreground">
-            {state.busy ? "Atualizando…" : "Atualizar"}
+            {state.busy
+              ? "Atualizando…"
+              : state.recoveryPaused
+                ? "Retomar recuperação"
+                : "Atualizar"}
           </Text>
         </Pressable>
       </View>
+      {state.pending.length > 0 && (
+        <Text
+          accessibilityLiveRegion="polite"
+          className="bg-[#304B57] px-5 py-3 text-base text-[#FFE4A8]"
+        >
+          {state.pending.length} operação(ões) aguardando confirmação, inclusive
+          pedidos fora da fila.
+          {state.recoveryPaused
+            ? " Recuperação automática pausada por limite de tentativas ou rejeição do servidor. Toque em Retomar recuperação."
+            : " Recuperação preserva a chave original. Aguarde a reconciliação para agir."}
+        </Text>
+      )}
       {!!state.message && (
         <Text
           accessibilityRole="alert"
@@ -143,6 +159,7 @@ export function KitchenBoard({
                     now={now}
                     isNew={state.newIds.includes(item.id)}
                     pending={state.pending.find((p) => p.orderId === item.id)}
+                    rejection={state.rejected[item.id]}
                     disabled={state.stale || state.busy}
                     onAction={controller.act}
                   />

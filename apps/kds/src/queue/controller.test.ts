@@ -20,6 +20,7 @@ export const order = (
   itens: [],
   ...extra,
 });
+const controllers: QueueController[] = [];
 function setup(initial: PendingOperation[] = []) {
   let saved = initial;
   const api = {
@@ -44,9 +45,13 @@ function setup(initial: PendingOperation[] = []) {
     expired,
     5000,
   );
+  controllers.push(controller);
   return { controller, api, storage, expired };
 }
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  controllers.splice(0).forEach((c) => c.stop());
+  jest.useRealTimers();
+});
 it("loads empty queue without initial alerts", async () => {
   const { controller, api } = setup();
   api.list.mockResolvedValue([]);
@@ -211,6 +216,7 @@ it("keeps stale orders and disables actions on network failure", async () => {
 });
 it("ignores old cycle when returning from background before response", async () => {
   const { controller, api } = setup();
+  api.list.mockResolvedValue([]);
   let release!: (orders: Order[]) => void;
   api.list.mockImplementationOnce(
     () =>
@@ -339,5 +345,317 @@ it("preserves confirmed numbering when a concurrent page contains an older versi
   expect(controller.state.orders[0].senha).toBe(12);
   await controller.refresh();
   expect(api.execute).toHaveBeenCalledTimes(1);
+  controller.stop();
+});
+it("never resurrects a delivered order from an older GET", async () => {
+  const { controller, api } = setup();
+  api.list.mockResolvedValue([
+    order(undefined, { status: "PRONTO", versao: 5 }),
+  ]);
+  await controller.start();
+  api.execute.mockResolvedValue(
+    order(undefined, { status: "ENTREGUE" as Order["status"], versao: 6 }),
+  );
+  await controller.act(controller.state.orders[0]);
+  expect(controller.state.orders).toEqual([]);
+  controller.stop();
+});
+it("keeps stale while persisted recovery is scheduled in the future", async () => {
+  const { controller, api } = setup([
+    {
+      kind: "status",
+      key: "key",
+      orderId: order().id,
+      target: "EM_PREPARO",
+      version: 3,
+      attempts: 1,
+      nextAttempt: Date.now() + 60000,
+    },
+  ]);
+  await controller.start();
+  expect(controller.state.stale).toBe(true);
+  await controller.act(order());
+  expect(api.execute).not.toHaveBeenCalled();
+  controller.stop();
+});
+it("confirms omissions with another read and preserves cards if that read fails", async () => {
+  const { controller, api } = setup();
+  await controller.start();
+  api.list.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error("DNS"));
+  await controller.refresh();
+  expect(controller.state.orders).toHaveLength(1);
+  expect(controller.state.stale).toBe(true);
+  controller.stop();
+});
+it("reconciles immediately after a background generation finishes", async () => {
+  const { controller, api } = setup();
+  let resolve!: (orders: Order[]) => void;
+  api.list.mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const first = controller.start();
+  await Promise.resolve();
+  controller.stop();
+  await controller.start();
+  resolve([]);
+  await first;
+  // The resumed generation starts without waiting for a polling timer.
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  expect(api.list).toHaveBeenCalledTimes(2);
+  expect(controller.state.orders).toHaveLength(1);
+  controller.stop();
+});
+it("does not transmit an intent saved after losing focus until recovery", async () => {
+  const { controller, api, storage } = setup();
+  await controller.start();
+  api.list.mockResolvedValue([
+    order(undefined, { status: "EM_PREPARO", versao: 4 }),
+  ]);
+  let resolve!: () => void;
+  storage.save.mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const action = controller.act(order());
+  controller.stop();
+  await controller.start();
+  resolve();
+  await action;
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  expect(controller.state.stale).toBe(false);
+  controller.stop();
+});
+it.each([403, 404, 409])(
+  "allows explicit numbering decision after definitive %s, without automatic loop",
+  async (code) => {
+    const { controller, api } = setup();
+    api.list.mockResolvedValue([order(undefined, { senha: null })]);
+    api.execute.mockRejectedValue(
+      new PairingApiError(code, undefined, "policy"),
+    );
+    await controller.start();
+    await controller.refresh();
+    expect(api.execute).toHaveBeenCalledTimes(1);
+    api.execute.mockResolvedValue(order(undefined, { versao: 4 }));
+    await controller.act(controller.state.orders[0]);
+    expect(api.execute).toHaveBeenCalledTimes(2);
+    expect(controller.state.orders[0].senha).toBe(12);
+    controller.stop();
+  },
+);
+it("unblocks automatic numbering only on proven remote version change", async () => {
+  const { controller, api } = setup();
+  api.list.mockResolvedValue([order(undefined, { senha: null })]);
+  api.execute.mockRejectedValueOnce(
+    new PairingApiError(409, undefined, "policy"),
+  );
+  await controller.start();
+  await controller.refresh();
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  api.list.mockResolvedValue([order(undefined, { senha: null, versao: 4 })]);
+  api.execute.mockResolvedValue(order(undefined, { versao: 5 }));
+  await controller.refresh();
+  expect(api.execute).toHaveBeenCalledTimes(2);
+  controller.stop();
+});
+it("persists late confirmation in background without retransmission on resume", async () => {
+  const { controller, api } = setup();
+  await controller.start();
+  let resolve!: (o: Order) => void;
+  api.execute.mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const action = controller.act(order());
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  controller.stop();
+  resolve(order(undefined, { status: "EM_PREPARO", versao: 4 }));
+  await action;
+  expect(controller.state.pending).toEqual([]);
+  api.list.mockResolvedValue([
+    order(undefined, { status: "EM_PREPARO", versao: 4 }),
+  ]);
+  await controller.start();
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  expect(controller.state.orders[0].status).toBe("EM_PREPARO");
+  controller.stop();
+});
+it("keeps the original journal when acknowledgement cannot be persisted", async () => {
+  const { controller, api, storage } = setup();
+  await controller.start();
+  storage.save
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValue(new Error("disk"));
+  await controller.act(order());
+  expect(controller.state.pending).toHaveLength(1);
+  expect(controller.state.stale).toBe(true);
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  controller.stop();
+});
+it("clears visible tenant data on revoked device", async () => {
+  const { controller, api, expired } = setup();
+  await controller.start();
+  api.list.mockRejectedValue(new PairingApiError(401, undefined, "revoked"));
+  await controller.refresh();
+  expect(expired).toHaveBeenCalledTimes(1);
+  expect(controller.state.orders).toEqual([]);
+  controller.stop();
+});
+it("keeps stale during inconsistent omission reads until a stable cycle", async () => {
+  const { controller, api } = setup();
+  await controller.start();
+  api.list.mockResolvedValueOnce([]).mockResolvedValueOnce([order()]);
+  await controller.refresh();
+  expect(controller.state.orders).toHaveLength(1);
+  expect(controller.state.stale).toBe(true);
+  await controller.refresh();
+  expect(controller.state.stale).toBe(false);
+  controller.stop();
+});
+it("pauses automatic uncertain retries at five attempts and resumes with the same identity manually", async () => {
+  jest.useFakeTimers();
+  const { controller, api } = setup();
+  await controller.start();
+  api.execute.mockRejectedValue(new Error("network"));
+  await controller.act(order());
+  await jest.advanceTimersByTimeAsync(400000);
+  expect(api.execute).toHaveBeenCalledTimes(5);
+  expect(controller.state.recoveryPaused).toBe(true);
+  const original = controller.state.pending[0];
+  api.execute.mockResolvedValue(
+    order(undefined, { status: "EM_PREPARO", versao: 4 }),
+  );
+  await controller.recover();
+  expect(api.execute.mock.calls[5][0]).toEqual(original);
+  expect(controller.state.pending).toEqual([]);
+  controller.stop();
+});
+it("keeps stale when a GET regresses below a confirmed command", async () => {
+  const { controller } = setup();
+  await controller.start();
+  await controller.act(order());
+  expect(controller.state.orders[0].versao).toBe(4);
+  expect(controller.state.stale).toBe(true);
+  controller.stop();
+});
+it("refetches immediately after rejected automatic numbering", async () => {
+  const { controller, api } = setup();
+  api.list.mockResolvedValue([order(undefined, { senha: null })]);
+  api.execute.mockRejectedValue(
+    new PairingApiError(409, undefined, "DEMO disabled"),
+  );
+  await controller.start();
+  expect(api.list).toHaveBeenCalledTimes(2);
+  expect(controller.state.stale).toBe(false);
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  controller.stop();
+});
+it.each([403, 404, 409])(
+  "retains uncertain identity when recovery is denied with %s",
+  async (code) => {
+    const original: PendingOperation = {
+      key: "original",
+      orderId: order().id,
+      kind: "status",
+      target: "EM_PREPARO",
+      version: 3,
+      attempts: 1,
+      nextAttempt: 0,
+    };
+    const { controller, api } = setup([original]);
+    api.execute.mockRejectedValue(
+      new PairingApiError(code, undefined, "policy"),
+    );
+    await controller.start();
+    expect(controller.state.pending).toHaveLength(1);
+    expect(controller.state.pending[0]).toMatchObject(original);
+    expect(controller.state.recoveryPaused).toBe(true);
+    await controller.refresh();
+    expect(api.execute).toHaveBeenCalledTimes(1);
+    api.execute.mockResolvedValue(
+      order(undefined, { versao: 4, status: "EM_PREPARO" }),
+    );
+    api.list.mockResolvedValue([
+      order(undefined, { versao: 4, status: "EM_PREPARO" }),
+    ]);
+    await controller.recover();
+    expect(api.execute.mock.calls[1][0]).toMatchObject({
+      key: "original",
+      target: "EM_PREPARO",
+      version: 3,
+    });
+    expect(controller.state.pending).toEqual([]);
+    controller.stop();
+  },
+);
+it("recovers even attempt zero from a persisted journal without discarding an uncertain denial", async () => {
+  const original: PendingOperation = {
+    key: "original",
+    orderId: order().id,
+    kind: "status",
+    target: "EM_PREPARO",
+    version: 3,
+    attempts: 0,
+    nextAttempt: 0,
+  };
+  const { controller, api } = setup([original]);
+  api.execute.mockRejectedValue(new PairingApiError(409, undefined, "policy"));
+  await controller.start();
+  expect(controller.state.pending[0]).toMatchObject({
+    ...original,
+    halted: true,
+  });
+  controller.stop();
+});
+it("keeps a corrupt journal unreadable and never sends or overwrites it", async () => {
+  const { controller, api, storage } = setup();
+  storage.load.mockRejectedValue(new Error("invalid journal"));
+  await controller.start();
+  await controller.act(order());
+  expect(storage.save).not.toHaveBeenCalled();
+  expect(api.execute).not.toHaveBeenCalled();
+  expect(controller.state.stale).toBe(true);
+  controller.stop();
+});
+it("remembers the highest observed version across confirmed queue omissions", async () => {
+  const { controller, api } = setup();
+  api.list.mockResolvedValue([
+    order(undefined, { versao: 5, status: "PRONTO" }),
+  ]);
+  await controller.start();
+  api.list.mockResolvedValue([]);
+  await controller.refresh();
+  expect(controller.state.orders).toEqual([]);
+  api.list.mockResolvedValue([order()]);
+  await controller.refresh();
+  expect(controller.state.orders[0]).toMatchObject({
+    versao: 5,
+    status: "PRONTO",
+  });
+  expect(controller.state.stale).toBe(true);
+  controller.stop();
+});
+it("preserves chronological order when an omitted card reappears in the second read", async () => {
+  const { controller, api } = setup();
+  const older = order();
+  const newer = order("33333333-3333-4333-8333-333333333333", {
+    createdAt: "2026-11-02T12:00:00Z",
+  });
+  api.list.mockResolvedValue([older, newer]);
+  await controller.start();
+  api.list.mockResolvedValueOnce([newer]).mockResolvedValueOnce([older, newer]);
+  await controller.refresh();
+  expect(controller.state.orders.map((o) => o.id)).toEqual([
+    older.id,
+    newer.id,
+  ]);
+  expect(controller.state.stale).toBe(true);
   controller.stop();
 });

@@ -21,6 +21,7 @@ export const OrderCard = memo(function OrderCard({
   now,
   isNew,
   pending,
+  rejection,
   disabled,
   onAction,
 }: {
@@ -28,6 +29,7 @@ export const OrderCard = memo(function OrderCard({
   now: number;
   isNew: boolean;
   pending?: PendingOperation;
+  rejection?: string;
   disabled: boolean;
   onAction: (order: Order) => void;
 }) {
@@ -101,6 +103,14 @@ export const OrderCard = memo(function OrderCard({
           Sem preparo na cozinha
         </Text>
       )}
+      {!!rejection && !pending && (
+        <Text
+          accessibilityLiveRegion="polite"
+          className="mb-3 text-base text-[#FFE4A8]"
+        >
+          Operação rejeitada. {rejection}
+        </Text>
+      )}
       {pending && (
         <Text
           accessibilityLiveRegion="polite"
@@ -108,9 +118,11 @@ export const OrderCard = memo(function OrderCard({
         >
           {pending.nextAttempt > now
             ? "Resultado incerto. Recuperação agendada."
-            : pending.kind === "senha"
-              ? "Atribuindo senha…"
-              : "Confirmando operação…"}
+            : pending.attempts > 0
+              ? "Recuperando operação com a chave original…"
+              : pending.kind === "senha"
+                ? "Atribuindo senha…"
+                : "Confirmando operação…"}
         </Text>
       )}
       <Pressable
