@@ -5,6 +5,9 @@ Card: https://trello.com/c/kuhb9Ehh. Base conferida após `git fetch origin`:
 origin/develop: `feature/totem-acompanhamento-pedido`. Evidências locais
 preexistentes em docs/evidence/totem-v2 foram preservadas e não integram este PR.
 
+PR para develop: [#20](https://github.com/GabrielNito/TotemOS/pull/20).
+Resultado atualizado da CI: [checks do PR](https://github.com/GabrielNito/TotemOS/pull/20/checks).
+
 ## IMPLEMENTADO
 
 - HTTP: `POST /pedidos` com Bearer e Idempotency-Key existente; replay retorna o
