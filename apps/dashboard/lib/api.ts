@@ -5,7 +5,14 @@ import type { LoginFormValues, RegistrarFormValues } from "./schemas/auth"
 import type {
   Categoria,
   Dispositivo,
+  FilaPedidosResponse,
+  Pagamento,
+  Pedido,
+  PedidoItem,
+  PedidoItemAdicional,
+  PedidoItemEscolha,
   Produto,
+  StatusPedido,
   TipoDispositivo,
 } from "./types/models"
 
@@ -291,4 +298,125 @@ export function deactivateProduto(id: string) {
     `/catalogo/produtos/${id}`,
     { method: "DELETE" }
   )
+}
+
+interface PedidoItemAdicionalApi extends Omit<
+  PedidoItemAdicional,
+  "precoNoMomento"
+> {
+  precoNoMomento: PrecoSerializado
+}
+
+interface PedidoItemEscolhaApi extends Omit<
+  PedidoItemEscolha,
+  "deltaNoMomento"
+> {
+  deltaNoMomento: PrecoSerializado
+}
+
+interface PedidoItemApi extends Omit<
+  PedidoItem,
+  "precoNoMomento" | "adicionais" | "escolhas"
+> {
+  precoNoMomento: PrecoSerializado
+  adicionais?: PedidoItemAdicionalApi[]
+  escolhas?: PedidoItemEscolhaApi[]
+}
+
+interface PagamentoApi extends Omit<Pagamento, "valor"> {
+  valor: PrecoSerializado
+}
+
+interface PedidoApi extends Omit<
+  Pedido,
+  "valorTotal" | "itens" | "pagamentos"
+> {
+  valorTotal: PrecoSerializado
+  itens?: PedidoItemApi[]
+  pagamentos?: PagamentoApi[]
+}
+
+export interface ListarPedidosParams {
+  status?: StatusPedido
+  dataSequencial?: string
+  dataIniciadaEm?: string
+  dataFinalizadaEm?: string
+}
+
+function normalizarPedido(pedido: PedidoApi): Pedido {
+  return {
+    ...pedido,
+    senha: pedido.senha ?? null,
+    dataOperacional:
+      pedido.dataOperacional ??
+      (pedido.senha !== null && pedido.senha !== undefined
+        ? pedido.dataSequencial
+        : null),
+    valorTotal: normalizarPreco(pedido.valorTotal),
+    itens: (pedido.itens ?? []).map((item) => ({
+      ...item,
+      precoNoMomento: normalizarPreco(item.precoNoMomento),
+      adicionais: item.adicionais?.map((adicional) => ({
+        ...adicional,
+        precoNoMomento: normalizarPreco(adicional.precoNoMomento),
+      })),
+      escolhas: item.escolhas?.map((escolha) => ({
+        ...escolha,
+        deltaNoMomento: normalizarPreco(escolha.deltaNoMomento),
+      })),
+    })),
+    pagamentos: pedido.pagamentos?.map((pagamento) => ({
+      ...pagamento,
+      valor: normalizarPreco(pagamento.valor),
+    })),
+  }
+}
+
+export async function getPedidos(
+  params: ListarPedidosParams = {},
+  token?: string
+): Promise<Pedido[]> {
+  const search = new URLSearchParams()
+  if (params.status) search.set("status", params.status)
+  if (params.dataSequencial) search.set("dataSequencial", params.dataSequencial)
+  if (params.dataIniciadaEm) search.set("dataIniciadaEm", params.dataIniciadaEm)
+  if (params.dataFinalizadaEm)
+    search.set("dataFinalizadaEm", params.dataFinalizadaEm)
+
+  const query = search.toString()
+  const endpoint = query ? `/pedidos?${query}` : "/pedidos"
+  const pedidos = await fetchApi<PedidoApi[]>(endpoint, {
+    method: "GET",
+    cache: "no-store",
+    token,
+  })
+
+  return pedidos.map(normalizarPedido)
+}
+
+export async function getPedidoDetalhe(
+  id: string,
+  token?: string
+): Promise<Pedido> {
+  const pedido = await fetchApi<PedidoApi>(
+    `/pedidos/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      cache: "no-store",
+      token,
+    }
+  )
+
+  return normalizarPedido(pedido)
+}
+
+export function getFilaPedidos(
+  limite = 50,
+  token?: string
+): Promise<FilaPedidosResponse> {
+  return fetchApi<FilaPedidosResponse>(`/pedidos/fila?limite=${limite}`, {
+    method: "GET",
+    cache: "no-store",
+    token,
+  })
 }

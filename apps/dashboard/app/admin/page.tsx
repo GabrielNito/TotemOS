@@ -12,24 +12,86 @@ import {
   UtensilsCrossed,
   Radio,
   Plus,
+  RefreshCw,
+  TriangleAlert,
 } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ChartSplineMetric } from "@/components/dashboard/chart-spline-metric"
 import { ChartPillBars } from "@/components/dashboard/chart-pill-bars"
+import { ApiError, getDispositivos, getPedidos } from "@/lib/api"
+import {
+  calcularMetricasPedidos,
+  descreverOrigemPedido,
+  extrairDataLocalIso,
+  formatarMoeda,
+  formatarSenhaPedido,
+  formatarStatusPedido,
+} from "@/lib/pedidos"
 import type { Pedido, Dispositivo } from "@/lib/types/models"
 import { cn } from "@/lib/utils"
 
 export default function AdminDashboardPage() {
   const { user } = useAuth()
 
-  // Estados dinâmicos preparados para receber dados reais do backend
-  const [pedidos] = React.useState<Pedido[]>([])
-  const [dispositivos] = React.useState<Dispositivo[]>([])
-  const [vendasHoje] = React.useState(0)
-  const [tempoMedioPreparo] = React.useState(0)
+  const [pedidos, setPedidos] = React.useState<Pedido[]>([])
+  const [dispositivos, setDispositivos] = React.useState<Dispositivo[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [erroPedidos, setErroPedidos] = React.useState<string | null>(null)
+
+  const carregarVisaoGeral = React.useCallback(async () => {
+    setIsLoading(true)
+    setErroPedidos(null)
+    try {
+      const [listaPedidos, listaDispositivos] = await Promise.all([
+        getPedidos(),
+        getDispositivos().catch(() => ({ dispositivos: [] })),
+      ])
+      setPedidos(listaPedidos)
+      setDispositivos(listaDispositivos.dispositivos)
+    } catch (error) {
+      setErroPedidos(
+        error instanceof ApiError
+          ? error.message
+          : "Não foi possível carregar os pedidos em tempo real."
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void Promise.resolve().then(carregarVisaoGeral)
+  }, [carregarVisaoGeral])
+
+  const hojeIso = React.useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const pedidosHoje = React.useMemo(
+    () =>
+      pedidos.filter(
+        (p) =>
+          (p.dataSequencial || extrairDataLocalIso(p.createdAt)) === hojeIso
+      ),
+    [pedidos, hojeIso]
+  )
+  const metricasHoje = React.useMemo(
+    () => calcularMetricasPedidos(pedidosHoje),
+    [pedidosHoje]
+  )
+  const filaCozinha = React.useMemo(
+    () =>
+      pedidos.filter(
+        (p) =>
+          p.status === "PENDENTE" ||
+          p.status === "EM_PREPARO" ||
+          p.status === "PRONTO"
+      ),
+    [pedidos]
+  )
+  const vendasHoje = metricasHoje.valorComercialConfirmado
+  const tempoMedioPreparo = 0
 
   const totensAtivosCount = dispositivos.filter(
     (d) => d.tipo === "TOTEM" && d.ativo
@@ -125,7 +187,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className="mt-3 space-y-1">
                 <h3 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  {pedidos.length} pedidos
+                  {isLoading ? "..." : `${filaCozinha.length} pedidos`}
                 </h3>
                 <span className="text-[11px] font-medium text-muted-foreground">
                   Tempo médio: <strong>{tempoMedioPreparo} min</strong>
@@ -203,38 +265,92 @@ export default function AdminDashboardPage() {
                 </p>
               </div>
 
-              <Link
-                href="/admin/relatorios"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "gap-1 text-xs text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Ver histórico
-                <ArrowUpRight className="size-3.5" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => void carregarVisaoGeral()}
+                  className="gap-1 rounded-xl text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw
+                    className={cn("size-3.5", isLoading && "animate-spin")}
+                  />
+                  Atualizar
+                </Button>
+                <Link
+                  href="/admin/pedidos"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Ver histórico
+                  <ArrowUpRight className="size-3.5" />
+                </Link>
+              </div>
             </div>
 
             {/* Renderização Condicional da Fila de Pedidos */}
-            {pedidos.length > 0 ? (
+            {isLoading ? (
+              <div className="space-y-3 rounded-2xl border border-border/40 p-4">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            ) : erroPedidos ? (
+              <div
+                role="alert"
+                className="flex flex-col items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center"
+              >
+                <TriangleAlert className="mb-2 size-5 text-destructive" />
+                <span className="text-xs font-bold text-foreground">
+                  Erro ao carregar pedidos da cozinha
+                </span>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {erroPedidos}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void carregarVisaoGeral()}
+                  className="mt-3 gap-1.5 rounded-xl text-xs"
+                >
+                  <RefreshCw className="size-3.5" />
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : filaCozinha.length > 0 ? (
               <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border/40">
-                {pedidos.map((order) => (
+                {filaCozinha.map((order) => (
                   <div
                     key={order.id}
                     className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex size-10 items-center justify-center rounded-xl bg-muted font-mono text-xs font-bold text-foreground">
-                        #{order.senha}
+                        {formatarSenhaPedido(order.senha)}
                       </span>
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-foreground">
-                            {order.nomeCliente || `Cliente #${order.senha}`}
+                            {order.nomeCliente ||
+                              order.codigoCliente ||
+                              formatarSenhaPedido(order.senha)}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            • {order.dispositivo?.nome || "Totem"}
+                            •{" "}
+                            {descreverOrigemPedido(order, dispositivos).rotulo}
                           </span>
+                          {order.demo && (
+                            <Badge
+                              variant="outline"
+                              className="rounded-full border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-700 dark:text-amber-400"
+                            >
+                              DEMO
+                            </Badge>
+                          )}
                         </div>
                         <p className="line-clamp-1 text-xs text-muted-foreground">
                           {order.itens
@@ -246,7 +362,7 @@ export default function AdminDashboardPage() {
 
                     <div className="flex items-center justify-between gap-3 pl-13 sm:justify-end sm:pl-0">
                       <span className="text-xs font-bold text-foreground tabular-nums">
-                        R$ {order.valorTotal.toFixed(2).replace(".", ",")}
+                        {formatarMoeda(order.valorTotal)}
                       </span>
 
                       <Badge
@@ -265,7 +381,7 @@ export default function AdminDashboardPage() {
                             "bg-emerald-500 text-white dark:bg-emerald-600"
                         )}
                       >
-                        {order.status.replace("_", " ")}
+                        {formatarStatusPedido(order.status)}
                       </Badge>
                     </div>
                   </div>

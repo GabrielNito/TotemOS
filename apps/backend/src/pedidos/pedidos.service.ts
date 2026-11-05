@@ -16,6 +16,8 @@ export interface CriarPedidoOptions {
 export interface ListarPedidosFiltro {
   status?: StatusPedido;
   dataSequencial?: string;
+  dataIniciadaEm?: string;
+  dataFinalizadaEm?: string;
 }
 
 @Injectable()
@@ -274,6 +276,12 @@ export class PedidosService {
         ...(filtro?.status && { status: filtro.status }),
         ...(filtro?.dataSequencial && {
           dataSequencial: filtro.dataSequencial,
+        }),
+        ...((filtro?.dataIniciadaEm || filtro?.dataFinalizadaEm) && {
+          dataSequencial: {
+            ...(filtro.dataIniciadaEm && { gte: filtro.dataIniciadaEm }),
+            ...(filtro.dataFinalizadaEm && { lte: filtro.dataFinalizadaEm }),
+          },
         }),
       },
       include: {

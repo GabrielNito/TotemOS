@@ -26,6 +26,7 @@ app/
 ├── admin/
 │   ├── layout.tsx             — shell administrativo com Sidebar retrátil e Header
 │   ├── page.tsx               — visão geral em Bento Grid (faturamento, KDS e hardware)
+│   ├── pedidos/page.tsx       — consulta e histórico de pedidos reais, filtros e snapshots
 │   ├── catalogo/page.tsx      — gestão de produtos, categorias, combos e preparo zero
 │   ├── relatorios/page.tsx    — faturamento consolidado, ticket médio e produtos campeões
 │   ├── dispositivos/page.tsx  — emissão de código de pareamento e status de terminais

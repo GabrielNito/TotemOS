@@ -18,6 +18,27 @@ export class FilaQueryDto extends createZodDto(
     })
     .strict(),
 ) {}
+const dataIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
+export const ListarPedidosQuerySchema = z
+  .object({
+    status: z.nativeEnum(StatusPedido).optional(),
+    dataSequencial: z
+      .string()
+      .regex(dataIsoRegex, 'Data deve estar no formato YYYY-MM-DD')
+      .optional(),
+    dataIniciadaEm: z
+      .string()
+      .regex(dataIsoRegex, 'Data inicial deve estar no formato YYYY-MM-DD')
+      .optional(),
+    dataFinalizadaEm: z
+      .string()
+      .regex(dataIsoRegex, 'Data final deve estar no formato YYYY-MM-DD')
+      .optional(),
+  })
+  .strict();
+export class ListarPedidosQueryDto extends createZodDto(
+  ListarPedidosQuerySchema,
+) {}
 const resumo = z.object({
   id: z.string().uuid(),
   status: z.nativeEnum(StatusPedido),

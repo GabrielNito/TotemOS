@@ -14,6 +14,7 @@ import {
   Patch,
   ParseUUIDPipe,
   Header,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,12 +34,13 @@ import type { UserPayload } from '../auth/decorators/current-user.decorator';
 import { PedidosService } from './pedidos.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { ErrorResponseDto } from '../auth/dto/auth-response.dto';
-import { StatusPedido, TipoDispositivo } from '@prisma/client';
+import { Role, StatusPedido, TipoDispositivo } from '@prisma/client';
 import { OperacaoPedidosService } from './operacao-pedidos.service';
 import {
   AcompanhamentoResponseDto,
   FilaQueryDto,
   FilaResponseDto,
+  ListarPedidosQueryDto,
   TransicaoPedidoDto,
   TransicaoResponseDto,
 } from './dto/operacao-pedido.dto';
@@ -121,6 +123,16 @@ export class PedidosController {
     required: false,
     description: 'Filtrar por data sequencial no formato YYYY-MM-DD',
   })
+  @ApiQuery({
+    name: 'dataIniciadaEm',
+    required: false,
+    description: 'Data inicial do filtro (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'dataFinalizadaEm',
+    required: false,
+    description: 'Data final do filtro (YYYY-MM-DD)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Lista de pedidos do estabelecimento.',
@@ -132,15 +144,24 @@ export class PedidosController {
   })
   async listar(
     @CurrentUser() user: UserPayload,
-    @Query('status') status?: StatusPedido,
-    @Query('dataSequencial') dataSequencial?: string,
+    @Query()
+    query: ListarPedidosQueryDto | StatusPedido = {},
+    @Query('dataSequencial') dataSequencialLegado?: string,
   ) {
+    const filtro =
+      typeof query === 'string'
+        ? { status: query, dataSequencial: dataSequencialLegado }
+        : {
+            status: query?.status,
+            dataSequencial: query?.dataSequencial ?? dataSequencialLegado,
+            dataIniciadaEm: query?.dataIniciadaEm,
+            dataFinalizadaEm: query?.dataFinalizadaEm,
+          };
     if (user.identity === 'DEVICE')
-      return this.operacao.listarLegado(user, { status, dataSequencial });
-    return this.pedidosService.listar(user.negocioId, {
-      status,
-      dataSequencial,
-    });
+      return this.operacao.listarLegado(user, filtro);
+    if (![Role.DONO, Role.GERENTE].includes(user.role))
+      throw new ForbiddenException('Acesso exclusivo para DONO ou GERENTE.');
+    return this.pedidosService.listar(user.negocioId, filtro);
   }
 
   @Get('fila')
@@ -307,6 +328,8 @@ export class PedidosController {
   async buscarPorId(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     if (user.identity === 'DEVICE')
       return this.operacao.detalharLegado(user, id);
+    if (![Role.DONO, Role.GERENTE].includes(user.role))
+      throw new ForbiddenException('Acesso exclusivo para DONO ou GERENTE.');
     return this.pedidosService.buscarPorId(user.negocioId, id);
   }
 }
