@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   UtensilsCrossed,
+  ClipboardList,
   BarChart3,
   TabletSmartphone,
   Settings,
@@ -46,6 +47,12 @@ export const navItems = [
     url: "/admin",
     icon: LayoutDashboard,
     exact: true,
+  },
+  {
+    title: "Pedidos",
+    url: "/admin/pedidos",
+    icon: ClipboardList,
+    exact: false,
   },
   {
     title: "Catálogo",

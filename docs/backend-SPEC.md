@@ -851,7 +851,8 @@ O experimento técnico documentado em `docs/spikes/kds-local-network.md` avaliou
 - **Response (200 OK)**: Projeção resumida contendo status, senha (se emitida) e total, sem expor dados financeiros internos ou de outros totens.
 
 ##### `GET /pedidos` e `GET /pedidos/:id`
-- **Autenticação**: `AnyAuthGuard` (dispositivos `TOTEM` são rejeitados). Usuários humanos recebem detalhamento administrativo completo; dispositivos `PAINEL` recebem dados operacionais do pedido.
+- **Autenticação**: `AnyAuthGuard` (dispositivos `TOTEM` são rejeitados). Usuários humanos (`DONO` ou `GERENTE`) recebem detalhamento administrativo completo; dispositivos `PAINEL` recebem dados operacionais do pedido.
+- **Query Params (`GET /pedidos`)**: `status` (enum `StatusPedido`), `dataSequencial` (`YYYY-MM-DD`), `dataIniciadaEm` (`YYYY-MM-DD`), `dataFinalizadaEm` (`YYYY-MM-DD`). Parâmetros não reconhecidos (como `negocioId`) são rejeitados pelo schema estrito.
 
 ##### `POST /pedidos/:id/senha`
 - **Autenticação**: `DeviceTokenGuard` restrito exclusivamente a `PAINEL` (KDS).

@@ -10,7 +10,12 @@ export type StatusPedido =
   | "EM_PREPARO"
   | "PRONTO"
   | "ENTREGUE"
+  | "CANCELADO_AGUARDANDO_ESTORNO"
   | "CANCELADO"
+
+export type StatusPagamento = "PENDENTE" | "APROVADO" | "RECUSADO" | "ESTORNADO"
+
+export type MeioPagamento = "CREDITO" | "DEBITO" | "PIX"
 
 export type MetodoPagamento =
   "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO" | "OFFLINE_PENDENTE"
@@ -77,6 +82,23 @@ export interface Produto {
   adicionais?: Adicional[]
 }
 
+export interface PedidoItemAdicional {
+  id: string
+  pedidoItemId: string
+  adicionalId?: string | null
+  nomeAdicional: string
+  precoNoMomento: number
+  quantidade: number
+}
+
+export interface PedidoItemEscolha {
+  id: string
+  pedidoItemId: string
+  itemDoGrupoId?: string | null
+  nomeItem: string
+  deltaNoMomento: number
+}
+
 export interface PedidoItem {
   id: string
   pedidoId: string
@@ -86,6 +108,20 @@ export interface PedidoItem {
   quantidade: number
   observacao?: string | null
   variacaoNome?: string | null
+  adicionais?: PedidoItemAdicional[]
+  escolhas?: PedidoItemEscolha[]
+}
+
+export interface Pagamento {
+  id: string
+  pedidoId: string
+  mpIntentId?: string | null
+  mpPaymentId?: string | null
+  status: StatusPagamento
+  meio?: MeioPagamento | null
+  valor: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Pedido {
@@ -93,17 +129,54 @@ export interface Pedido {
   negocioId: string
   dispositivoId?: string | null
   dispositivo?: Dispositivo | null
-  senha: number
+  senha: number | null
+  senhaAtribuidaEm?: string | null
   dataSequencial: string
+  dataOperacional?: string | null
   status: StatusPedido
   nomeCliente?: string | null
   codigoCliente?: string | null
   valorTotal: number
   observacoes?: string | null
   origemOffline: boolean
+  preparoZero?: boolean
+  demo?: boolean
+  demoAmbiente?: string | null
+  versao?: number
   createdAt: string
   updatedAt: string
   itens: PedidoItem[]
+  pagamentos?: Pagamento[]
+}
+
+export interface PedidoFilaItem {
+  id: string
+  status: StatusPedido
+  senha: number | null
+  dataOperacional: string | null
+  createdAt: string
+  versao: number
+  demo: boolean
+  demoAmbiente: string | null
+  preparoZero: boolean
+  elegivelCozinha: true
+  autorizacaoOperacional?: {
+    tipo: "DEMO"
+    financeira: false
+  } | null
+  itens: Array<{
+    nomeProduto: string
+    quantidade: number
+    variacaoNome: string | null
+    observacao: string | null
+    adicionais: Array<{ nomeAdicional: string; quantidade: number }>
+    escolhas: Array<{ nomeItem: string }>
+  }>
+}
+
+export interface FilaPedidosResponse {
+  pedidos: PedidoFilaItem[]
+  proximoCursor: string | null
 }
 
 export interface DashboardMetrics {

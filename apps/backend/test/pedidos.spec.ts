@@ -4,6 +4,7 @@ import {
   CriarPedidoSchema,
   CriarPedidoDto,
 } from '../src/pedidos/dto/criar-pedido.dto';
+import { ListarPedidosQuerySchema } from '../src/pedidos/dto/operacao-pedido.dto';
 import { PedidosService } from '../src/pedidos/pedidos.service';
 import { PedidosController } from '../src/pedidos/pedidos.controller';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -714,6 +715,62 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
 
       expect(resultado.id).toBe('ped-uuid-123');
       expect(resultado.negocioId).toBe('negocio-uuid-teste');
+    });
+
+    test('GET /pedidos rejeita negocioId arbitrário na query e filtra por intervalo de datas', async () => {
+      expect(
+        ListarPedidosQuerySchema.safeParse({
+          negocioId: 'negocio-arbitrario',
+          status: StatusPedido.PENDENTE,
+        }).success,
+      ).toBe(false);
+      expect(
+        ListarPedidosQuerySchema.safeParse({
+          status: StatusPedido.PENDENTE,
+          dataIniciadaEm: '2026-10-01',
+          dataFinalizadaEm: '2026-10-31',
+        }).success,
+      ).toBe(true);
+
+      const mockService = criarMockService();
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+        {} as never,
+      );
+
+      const resultado = (await controller.listar(userPayload, {
+        status: StatusPedido.PENDENTE,
+        dataIniciadaEm: '2026-10-01',
+        dataFinalizadaEm: '2026-10-31',
+      })) as unknown as Array<{
+        id: string;
+        negocioId: string;
+        dataIniciadaEm?: string;
+        dataFinalizadaEm?: string;
+      }>;
+
+      expect(resultado[0]?.negocioId).toBe('negocio-uuid-teste');
+      expect(resultado[0]?.dataIniciadaEm).toBe('2026-10-01');
+      expect(resultado[0]?.dataFinalizadaEm).toBe('2026-10-31');
+    });
+
+    test('GET /pedidos e GET /pedidos/:id bloqueiam papel humano desconhecido com 403', () => {
+      const mockService = criarMockService();
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+        {} as never,
+      );
+      const papelInvalido: UserPayload = {
+        ...userPayload,
+        role: 'OPERADOR' as Role,
+      };
+
+      expect(controller.listar(papelInvalido, {})).rejects.toThrow();
+      expect(
+        controller.buscarPorId(papelInvalido, 'ped-uuid-123'),
+      ).rejects.toThrow();
     });
   });
 });
