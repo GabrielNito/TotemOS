@@ -29,28 +29,34 @@ describe("integração de dispositivos no Dashboard", () => {
       cache?: RequestInit["cache"]
     }> = []
 
-    globalThis.fetch = async (input, init) => {
-      chamadas.push({
-        url: String(input),
-        method: init?.method,
-        cache: init?.cache,
-      })
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamadas.push({
+          url: String(input),
+          method: init?.method,
+          cache: init?.cache,
+        })
 
-      return respostaJson({
-        dispositivos: [
-          {
-            id: "device-1",
-            negocioId: "business-1",
-            nome: "Totem entrada",
-            tipo: "TOTEM",
-            pareadoEm: "2026-10-28T12:00:00.000Z",
-            ativo: true,
-            revogadoEm: null,
-            createdAt: "2026-10-28T12:00:00.000Z",
-          },
-        ],
-      })
-    }
+        return respostaJson({
+          dispositivos: [
+            {
+              id: "device-1",
+              negocioId: "business-1",
+              nome: "Totem entrada",
+              tipo: "TOTEM",
+              pareadoEm: "2026-10-28T12:00:00.000Z",
+              ativo: true,
+              revogadoEm: null,
+              createdAt: "2026-10-28T12:00:00.000Z",
+            },
+          ],
+        })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const response = await getDispositivos()
 
@@ -72,21 +78,27 @@ describe("integração de dispositivos no Dashboard", () => {
       body?: string
     }> = []
 
-    globalThis.fetch = async (input, init) => {
-      chamadas.push({
-        url: String(input),
-        method: init?.method,
-        body: typeof init?.body === "string" ? init.body : undefined,
-      })
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamadas.push({
+          url: String(input),
+          method: init?.method,
+          body: typeof init?.body === "string" ? init.body : undefined,
+        })
 
-      return respostaJson(
-        {
-          codigo: "004219",
-          expiraEm: "2026-10-28T12:15:00.000Z",
-        },
-        201
-      )
-    }
+        return respostaJson(
+          {
+            codigo: "004219",
+            expiraEm: "2026-10-28T12:15:00.000Z",
+          },
+          201
+        )
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const response = await gerarCodigoPareamento({
       nome: "Totem entrada",
@@ -107,10 +119,16 @@ describe("integração de dispositivos no Dashboard", () => {
   test("revoga um dispositivo e aceita a resposta 204 sem corpo", async () => {
     let chamada: { url: string; method?: string } | undefined
 
-    globalThis.fetch = async (input, init) => {
-      chamada = { url: String(input), method: init?.method }
-      return new Response(null, { status: 204 })
-    }
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamada = { url: String(input), method: init?.method }
+        return new Response(null, { status: 204 })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     await revogarDispositivo("device-1")
 
@@ -121,8 +139,11 @@ describe("integração de dispositivos no Dashboard", () => {
   })
 
   test("preserva ApiError retornado pelo backend", async () => {
-    globalThis.fetch = async () =>
-      respostaJson({ message: "Apenas DONO pode gerar códigos." }, 403)
+    globalThis.fetch = Object.assign(
+      async () =>
+        respostaJson({ message: "Apenas DONO pode gerar códigos." }, 403),
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     await assert.rejects(
       () =>

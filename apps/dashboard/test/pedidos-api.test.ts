@@ -91,16 +91,22 @@ describe("gestão e histórico de pedidos reais no Dashboard (TDD)", () => {
       headers: Record<string, string>
     }> = []
 
-    globalThis.fetch = async (input, init) => {
-      chamadas.push({
-        url: String(input),
-        method: init?.method,
-        cache: init?.cache,
-        headers: Object.fromEntries(new Headers(init?.headers).entries()),
-      })
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamadas.push({
+          url: String(input),
+          method: init?.method,
+          cache: init?.cache,
+          headers: Object.fromEntries(new Headers(init?.headers).entries()),
+        })
 
-      return respostaJson([pedidoApiMock])
-    }
+        return respostaJson([pedidoApiMock])
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const pedidos = await getPedidos(
       {
@@ -137,15 +143,18 @@ describe("gestão e histórico de pedidos reais no Dashboard (TDD)", () => {
   test("consulta detalhe do pedido por ID preservando snapshots e senha opcional", async () => {
     let urlChamada = ""
 
-    globalThis.fetch = async (input) => {
-      urlChamada = String(input)
-      return respostaJson({
-        ...pedidoApiMock,
-        status: "EM_PREPARO",
-        senha: 18,
-        dataOperacional: "2026-11-05",
-      })
-    }
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        urlChamada = String(input)
+        return respostaJson({
+          ...pedidoApiMock,
+          status: "EM_PREPARO",
+          senha: 18,
+          dataOperacional: "2026-11-05",
+        })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const detalhe = await getPedidoDetalhe(pedidoApiMock.id, "jwt-gerente")
 
@@ -163,37 +172,40 @@ describe("gestão e histórico de pedidos reais no Dashboard (TDD)", () => {
   test("consulta fila elegível da cozinha em GET /pedidos/fila sem mocks silenciosos", async () => {
     let urlChamada = ""
 
-    globalThis.fetch = async (input) => {
-      urlChamada = String(input)
-      return respostaJson({
-        pedidos: [
-          {
-            id: pedidoApiMock.id,
-            status: "PENDENTE",
-            senha: 7,
-            dataOperacional: "2026-11-05",
-            createdAt: "2026-11-05T11:20:00.000Z",
-            versao: 2,
-            demo: true,
-            demoAmbiente: "staging",
-            preparoZero: false,
-            elegivelCozinha: true,
-            autorizacaoOperacional: { tipo: "DEMO", financeira: false },
-            itens: [
-              {
-                nomeProduto: "Burger Duplo",
-                quantidade: 1,
-                variacaoNome: "Duplo 320g",
-                observacao: null,
-                adicionais: [{ nomeAdicional: "Bacon Extra", quantidade: 2 }],
-                escolhas: [],
-              },
-            ],
-          },
-        ],
-        proximoCursor: null,
-      })
-    }
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        urlChamada = String(input)
+        return respostaJson({
+          pedidos: [
+            {
+              id: pedidoApiMock.id,
+              status: "PENDENTE",
+              senha: 7,
+              dataOperacional: "2026-11-05",
+              createdAt: "2026-11-05T11:20:00.000Z",
+              versao: 2,
+              demo: true,
+              demoAmbiente: "staging",
+              preparoZero: false,
+              elegivelCozinha: true,
+              autorizacaoOperacional: { tipo: "DEMO", financeira: false },
+              itens: [
+                {
+                  nomeProduto: "Burger Duplo",
+                  quantidade: 1,
+                  variacaoNome: "Duplo 320g",
+                  observacao: null,
+                  adicionais: [{ nomeAdicional: "Bacon Extra", quantidade: 2 }],
+                  escolhas: [],
+                },
+              ],
+            },
+          ],
+          proximoCursor: null,
+        })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const fila = await getFilaPedidos(50, "jwt-dono")
 
@@ -223,8 +235,10 @@ describe("gestão e histórico de pedidos reais no Dashboard (TDD)", () => {
     ]
 
     for (const cenario of cenarios) {
-      globalThis.fetch = async () =>
-        respostaJson({ message: cenario.message }, cenario.status)
+      globalThis.fetch = Object.assign(
+        async () => respostaJson({ message: cenario.message }, cenario.status),
+        { preconnect: fetchOriginal.preconnect }
+      )
 
       await assert.rejects(cenario.fn, (error: unknown) => {
         assert.ok(error instanceof ApiError)
