@@ -148,6 +148,11 @@ jobs:
           cd apps/dashboard
           bun run typecheck
 
+      - name: Testar indicadores, componentes e regressões (bun test)
+        run: |
+          cd apps/dashboard
+          bun test
+
       - name: Validar Build (bun run build)
         run: |
           cd apps/dashboard

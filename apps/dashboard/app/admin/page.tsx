@@ -2,489 +2,443 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  DollarSign,
-  TrendingUp,
-  Clock,
-  TabletSmartphone,
-  ChefHat,
-  ArrowUpRight,
-  UtensilsCrossed,
-  Radio,
-  Plus,
-  RefreshCw,
-  TriangleAlert,
-} from "lucide-react"
-
 import { useAuth } from "@/contexts/auth-context"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ChartSplineMetric } from "@/components/dashboard/chart-spline-metric"
-import { ChartPillBars } from "@/components/dashboard/chart-pill-bars"
-import { ApiError, getDispositivos, getPedidos } from "@/lib/api"
+import { getAuthToken } from "@/lib/auth"
+import { getPedidos, getDispositivos } from "@/lib/api"
 import {
-  calcularMetricasPedidos,
-  descreverOrigemPedido,
-  extrairDataLocalIso,
+  ConsultaIndicadores,
+  type FonteIndicadores,
+} from "@/lib/indicadores-consulta"
+import {
+  agregarIndicadores,
+  periodoAtual,
+  resumirDispositivos,
+  TIMEZONE,
+  type PeriodoTipo,
+} from "@/lib/indicadores"
+import {
   formatarMoeda,
   formatarSenhaPedido,
   formatarStatusPedido,
+  descreverOrigemPedido,
 } from "@/lib/pedidos"
-import type { Pedido, Dispositivo } from "@/lib/types/models"
-import { cn } from "@/lib/utils"
+import { ChartPillBars } from "@/components/dashboard/chart-pill-bars"
+import { ChartSplineMetric } from "@/components/dashboard/chart-spline-metric"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const card = "rounded-3xl border border-border/40 bg-card p-6 shadow-xs"
+const rotulos: Record<PeriodoTipo, string> = {
+  dia: "Dia",
+  semana: "Semana",
+  mes: "Mês",
+  ano: "Ano",
+}
+
+function EstadoFonte({
+  nome,
+  fonte,
+  carregando,
+}: {
+  nome: string
+  fonte: FonteIndicadores<unknown>
+  carregando: boolean
+}) {
+  const [tempo, setTempo] = React.useState(false)
+  React.useEffect(() => {
+    const idade = fonte.atualizadoEm
+      ? Date.now() - new Date(fonte.atualizadoEm).getTime()
+      : 0
+    const timer = setTimeout(() => setTempo(true), Math.max(0, 300000 - idade))
+    return () => clearTimeout(timer)
+  }, [fonte.atualizadoEm])
+  const velha = Boolean(fonte.atualizadoEm && tempo)
+  return (
+    <div className="text-xs text-muted-foreground" aria-live="polite">
+      <p>
+        {nome}:{" "}
+        {carregando
+          ? "Atualizando…"
+          : fonte.atualizadoEm
+            ? `Consulta concluída em ${new Date(fonte.atualizadoEm).toLocaleString("pt-BR", { timeZone: TIMEZONE })}`
+            : "Sem consulta concluída"}
+      </p>
+      {fonte.erro && (
+        <p role="alert" className="text-destructive">
+          {fonte.erro}
+        </p>
+      )}
+      {fonte.dados !== null && (fonte.erro || velha || carregando) && (
+        <p>Dados desatualizados. Último snapshot preservado; use Atualizar.</p>
+      )}
+    </div>
+  )
+}
+
+function Metrica({
+  titulo,
+  valor,
+  detalhe,
+}: {
+  titulo: string
+  valor: React.ReactNode
+  detalhe: string
+}) {
+  return (
+    <div className={card}>
+      <h2 className="text-xs font-medium text-muted-foreground">{titulo}</h2>
+      <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums">
+        {valor}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p>
+    </div>
+  )
+}
 
 export default function AdminDashboardPage() {
-  const { user } = useAuth()
+  const { user, isLoading, logout } = useAuth()
+  const token = getAuthToken()
+  if (isLoading)
+    return (
+      <Skeleton className="h-48 rounded-3xl" aria-label="Carregando sessão" />
+    )
+  if (
+    !user?.negocioId ||
+    !token ||
+    !["DONO", "GERENTE"].includes(user.role ?? "")
+  )
+    return (
+      <p role="alert">
+        Sessão administrativa inválida.{" "}
+        <Link href="/login">Entrar novamente</Link>
+      </p>
+    )
+  return (
+    <VisaoGeral
+      key={`${user.negocioId}:${user.id ?? user.sub}:${token}`}
+      negocioId={user.negocioId}
+      token={token}
+      nome={user.negocioNome ?? "Painel de Gestão"}
+      onReautenticar={logout}
+    />
+  )
+}
 
-  const [pedidos, setPedidos] = React.useState<Pedido[]>([])
-  const [dispositivos, setDispositivos] = React.useState<Dispositivo[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [erroPedidos, setErroPedidos] = React.useState<string | null>(null)
-
-  const carregarVisaoGeral = React.useCallback(async () => {
-    setIsLoading(true)
-    setErroPedidos(null)
-    try {
-      const [listaPedidos, listaDispositivos] = await Promise.all([
-        getPedidos(),
-        getDispositivos().catch(() => ({ dispositivos: [] })),
-      ])
-      setPedidos(listaPedidos)
-      setDispositivos(listaDispositivos.dispositivos)
-    } catch (error) {
-      setErroPedidos(
-        error instanceof ApiError
-          ? error.message
-          : "Não foi possível carregar os pedidos em tempo real."
+export function VisaoGeral({
+  negocioId,
+  token,
+  nome,
+  onReautenticar,
+}: {
+  negocioId: string
+  token: string
+  nome: string
+  onReautenticar?: () => void
+}) {
+  const [consulta] = React.useState(
+    () =>
+      new ConsultaIndicadores(
+        async (signal) => {
+          const pedidos = await getPedidos({}, token, signal)
+          agregarIndicadores(pedidos, [], negocioId, periodoAtual("dia"), true)
+          return pedidos
+        },
+        async (signal) => {
+          const { dispositivos } = await getDispositivos(token, signal)
+          resumirDispositivos(dispositivos, negocioId)
+          return dispositivos
+        }
       )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
+  )
+  const estado = React.useSyncExternalStore(
+    consulta.assinar,
+    consulta.snapshot,
+    consulta.snapshot
+  )
   React.useEffect(() => {
-    void Promise.resolve().then(carregarVisaoGeral)
-  }, [carregarVisaoGeral])
-
-  const hojeIso = React.useMemo(() => new Date().toISOString().slice(0, 10), [])
-  const pedidosHoje = React.useMemo(
+    void consulta.atualizar()
+    return () => consulta.cancelar()
+  }, [consulta])
+  const [tipo, setTipo] = React.useState<PeriodoTipo>("dia")
+  const [incluirDemo, setIncluirDemo] = React.useState(false)
+  const periodo = React.useMemo(
     () =>
-      pedidos.filter(
-        (p) =>
-          (p.dataSequencial || extrairDataLocalIso(p.createdAt)) === hojeIso
+      periodoAtual(
+        tipo,
+        estado.pedidos.atualizadoEm
+          ? new Date(estado.pedidos.atualizadoEm)
+          : new Date()
       ),
-    [pedidos, hojeIso]
+    [tipo, estado.pedidos.atualizadoEm]
   )
-  const metricasHoje = React.useMemo(
-    () => calcularMetricasPedidos(pedidosHoje),
-    [pedidosHoje]
-  )
-  const filaCozinha = React.useMemo(
+  const resultado = React.useMemo(
     () =>
-      pedidos.filter(
-        (p) =>
-          p.status === "PENDENTE" ||
-          p.status === "EM_PREPARO" ||
-          p.status === "PRONTO"
-      ),
-    [pedidos]
+      estado.pedidos.dados === null
+        ? null
+        : agregarIndicadores(
+            estado.pedidos.dados,
+            estado.dispositivos.dados ?? [],
+            negocioId,
+            periodo,
+            incluirDemo
+          ),
+    [
+      estado.pedidos.dados,
+      estado.dispositivos.dados,
+      negocioId,
+      periodo,
+      incluirDemo,
+    ]
   )
-  const vendasHoje = metricasHoje.valorComercialConfirmado
-  const tempoMedioPreparo = 0
-
-  const totensAtivosCount = dispositivos.filter(
-    (d) => d.tipo === "TOTEM" && d.ativo
-  ).length
-  const totensTotalCount = dispositivos.filter((d) => d.tipo === "TOTEM").length
-
+  const dispositivos = estado.dispositivos.dados
+  const resumo =
+    dispositivos === null ? null : resumirDispositivos(dispositivos, negocioId)
+  const descricao = `${incluirDemo ? "Comerciais e DEMO" : "Sem DEMO"}; todos os status. Criação em ${TIMEZONE}.`
   return (
     <div className="flex flex-1 flex-col gap-6">
-      {/* Header Banner com Saudação e Status do Ecossistema */}
-      <div className="flex flex-col justify-between gap-4 rounded-3xl border border-border/40 bg-card p-6 shadow-xs backdrop-blur-xs sm:flex-row sm:items-center">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {user?.negocioNome || "Painel de Gestão"}
-            </h1>
-            <Badge
-              variant="outline"
-              className="gap-1.5 rounded-full border-emerald-500/30 bg-emerald-500/10 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
-            >
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Operação Conectada
-            </Badge>
-          </div>
+      <div
+        className={`${card} flex flex-col justify-between gap-4 sm:flex-row sm:items-center`}
+      >
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">{nome}</h1>
           <p className="text-xs text-muted-foreground">
-            Visão consolidada de vendas, fila de produção e status dos
-            dispositivos em tempo real.
+            Indicadores operacionais de pedidos e cadastro de dispositivos.
           </p>
+          <EstadoFonte
+            key={`pedidos:${estado.pedidos.atualizadoEm}`}
+            nome="Pedidos"
+            fonte={estado.pedidos}
+            carregando={estado.carregando}
+          />
+          <EstadoFonte
+            key={`dispositivos:${estado.dispositivos.atualizadoEm}`}
+            nome="Dispositivos"
+            fonte={estado.dispositivos}
+            carregando={estado.carregando}
+          />
         </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/admin/catalogo"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "gap-1.5 rounded-xl text-xs"
-            )}
+        <div className="flex flex-wrap gap-3">
+          {estado.pedidos.erro?.includes("(401)") && onReautenticar && (
+            <Button onClick={onReautenticar}>Entrar novamente</Button>
+          )}
+          <Button
+            variant="outline"
+            disabled={estado.carregando}
+            onClick={() => void consulta.atualizar()}
           >
-            <UtensilsCrossed className="size-3.5" />
-            Gerenciar Cardápio
+            {estado.carregando ? "Atualizando…" : "Atualizar"}
+          </Button>
+          <Link href="/admin/catalogo" className="text-sm underline">
+            Cardápio
           </Link>
-          <Link
-            href="/admin/dispositivos"
-            className={cn(
-              buttonVariants({ size: "sm" }),
-              "gap-1.5 rounded-xl text-xs font-semibold shadow-xs"
-            )}
-          >
-            <TabletSmartphone className="size-3.5" />
+          <Link href="/admin/dispositivos" className="text-sm underline">
             Totens & KDS
           </Link>
         </div>
       </div>
-
-      {/* Bento Grid Principal */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div
+          role="group"
+          aria-label="Período de criação"
+          className="flex gap-1"
+        >
+          {(Object.keys(rotulos) as PeriodoTipo[]).map((p) => (
+            <Button
+              key={p}
+              size="sm"
+              variant={tipo === p ? "secondary" : "ghost"}
+              aria-pressed={tipo === p}
+              onClick={() => setTipo(p)}
+            >
+              {rotulos[p]}
+            </Button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={incluirDemo}
+            onChange={(e) => setIncluirDemo(e.target.checked)}
+          />
+          Incluir DEMO na fila, origem e gráficos
+        </label>
+        <p className="w-full text-xs text-muted-foreground">
+          Criação: {periodo.inicio} (inclusivo) até {periodo.fim} (exclusivo),
+          dias civis em {TIMEZONE}. Semana: segunda a domingo. Status atuais na
+          última consulta.
+        </p>
+      </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* ================= COLUNA PRINCIPAL ESQUERDA (8 COLUNAS) ================= */}
         <div className="flex flex-col gap-6 lg:col-span-8">
-          {/* Grade de 4 Métricas Bento */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Card 1: Vendas Hoje */}
-            <div className="group flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs transition-all hover:border-border/80">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Vendas Hoje
-                </span>
-                <div className="flex size-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <DollarSign className="size-4" />
-                </div>
+          {resultado ? (
+            <>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <Metrica
+                  titulo="Pedidos registrados"
+                  valor={resultado.comercial.totalPedidos}
+                  detalhe="Criados no período, sem DEMO; inclui cancelamentos."
+                />
+                <Metrica
+                  titulo="Valor dos pedidos"
+                  valor={formatarMoeda(resultado.valorPedidos)}
+                  detalhe="Valor nominal, não receita. Inclui aguardando pagamento, pendente, em preparo, pronto e entregue. Sem DEMO e cancelados."
+                />
+                <Metrica
+                  titulo="Fila da cozinha no período"
+                  valor={resultado.fila.length}
+                  detalhe={`Pendente, em preparo e pronto. ${incluirDemo ? "Inclui DEMO identificados na lista." : "Sem DEMO."} Apenas pedidos criados no intervalo.`}
+                />
+                <Metrica
+                  titulo="Entregues"
+                  valor={resultado.comercial.pedidosEntregues}
+                  detalhe="Status ENTREGUE, sem DEMO. Não comprova pagamento."
+                />
               </div>
-              <div className="mt-3 space-y-1">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  R$ {vendasHoje.toFixed(2).replace(".", ",")}
-                </h3>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-                  <TrendingUp className="size-3" />
-                  0%
-                  <span className="font-normal text-muted-foreground">
-                    vs ontem
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            {/* Card 2: Fila na Cozinha */}
-            <div className="group flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs transition-all hover:border-border/80">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Fila na Cozinha
-                </span>
-                <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                  <ChefHat className="size-4" />
-                </div>
-              </div>
-              <div className="mt-3 space-y-1">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  {isLoading ? "..." : `${filaCozinha.length} pedidos`}
-                </h3>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Tempo médio: <strong>{tempoMedioPreparo} min</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Card 3: Tempo no Totem */}
-            <div className="group flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs transition-all hover:border-border/80">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Tempo no Totem
-                </span>
-                <div className="flex size-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                  <Clock className="size-4" />
-                </div>
-              </div>
-              <div className="mt-3 space-y-1">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  0s
-                </h3>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Aguardando interações
-                </span>
-              </div>
-            </div>
-
-            {/* Card 4: Totens cadastrados */}
-            <div className="group flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs transition-all hover:border-border/80">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Totens cadastrados
-                </span>
-                <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <TabletSmartphone className="size-4" />
-                </div>
-              </div>
-              <div className="mt-3 space-y-1">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  {totensAtivosCount} / {totensTotalCount}
-                </h3>
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      totensAtivosCount > 0
-                        ? "bg-primary"
-                        : "bg-muted-foreground/50"
-                    )}
-                  />
-                  {totensTotalCount > 0
-                    ? `${totensAtivosCount} ativos no cadastro`
-                    : "Nenhum pareado"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Gráfico de Barras em Cápsulas (Horários de Pico) */}
-          <ChartPillBars />
-
-          {/* Tabela da Fila em Tempo Real do KDS */}
-          <div className="rounded-3xl border border-border/40 bg-card p-6 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between pb-4">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <ChefHat className="size-4 text-primary" />
-                  <h4 className="text-sm font-semibold text-foreground">
-                    Fila da Cozinha em Tempo Real
-                  </h4>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Pedidos emitidos nos totens aguardando ou em processo de
-                  montagem.
+              <div className={`${card} space-y-3 text-sm`}>
+                <p>
+                  Aguardando liberação:{" "}
+                  <strong>
+                    {resultado.comercial.pedidosAguardandoPagamento}
+                  </strong>{" "}
+                  (AGUARDANDO_PAGAMENTO, sem DEMO)
+                </p>
+                <p>
+                  Cancelamentos:{" "}
+                  <strong>{resultado.comercial.pedidosCancelados}</strong> ·{" "}
+                  {formatarMoeda(resultado.valorCancelados)} nominais excluídos.
+                  Sem DEMO. Inclui aguardando estorno; não comprova estorno
+                  financeiro.
+                </p>
+                <p>
+                  DEMO: <strong>{resultado.demo.totalPedidos}</strong>{" "}
+                  registrados · {formatarMoeda(resultado.valorDemo)}{" "}
+                  operacionais sem cancelados. Fila DEMO:{" "}
+                  {resultado.demo.pedidosAtivosNaFila}. Não são vendas
+                  financeiras.
                 </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isLoading}
-                  onClick={() => void carregarVisaoGeral()}
-                  className="gap-1 rounded-xl text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <RefreshCw
-                    className={cn("size-3.5", isLoading && "animate-spin")}
-                  />
-                  Atualizar
-                </Button>
-                <Link
-                  href="/admin/pedidos"
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "sm" }),
-                    "gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Ver histórico
-                  <ArrowUpRight className="size-3.5" />
+              <ChartPillBars data={resultado.horas} descricao={descricao} />
+              <div className={card}>
+                <h2 className="mb-2 text-sm font-semibold">
+                  Fila dos pedidos criados no período
+                </h2>
+                <Link className="text-xs underline" href="/admin/pedidos">
+                  Ver histórico de pedidos
                 </Link>
-              </div>
-            </div>
-
-            {/* Renderização Condicional da Fila de Pedidos */}
-            {isLoading ? (
-              <div className="space-y-3 rounded-2xl border border-border/40 p-4">
-                <Skeleton className="h-12 w-full rounded-xl" />
-                <Skeleton className="h-12 w-full rounded-xl" />
-              </div>
-            ) : erroPedidos ? (
-              <div
-                role="alert"
-                className="flex flex-col items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center"
-              >
-                <TriangleAlert className="mb-2 size-5 text-destructive" />
-                <span className="text-xs font-bold text-foreground">
-                  Erro ao carregar pedidos da cozinha
-                </span>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {erroPedidos}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void carregarVisaoGeral()}
-                  className="mt-3 gap-1.5 rounded-xl text-xs"
-                >
-                  <RefreshCw className="size-3.5" />
-                  Tentar novamente
-                </Button>
-              </div>
-            ) : filaCozinha.length > 0 ? (
-              <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border/40">
-                {filaCozinha.map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-10 items-center justify-center rounded-xl bg-muted font-mono text-xs font-bold text-foreground">
-                        {formatarSenhaPedido(order.senha)}
-                      </span>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">
-                            {order.nomeCliente ||
-                              order.codigoCliente ||
-                              formatarSenhaPedido(order.senha)}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            •{" "}
-                            {descreverOrigemPedido(order, dispositivos).rotulo}
-                          </span>
-                          {order.demo && (
-                            <Badge
-                              variant="outline"
-                              className="rounded-full border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-700 dark:text-amber-400"
-                            >
-                              DEMO
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="line-clamp-1 text-xs text-muted-foreground">
-                          {order.itens
+                {!resultado.fila.length ? (
+                  <p className="py-8 text-sm text-muted-foreground">
+                    Nenhum pedido na fila para este período e filtro.
+                  </p>
+                ) : (
+                  <ul className="mt-4 divide-y divide-border/40">
+                    {resultado.fila.slice(0, 20).map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex flex-wrap justify-between gap-3 py-3 text-xs"
+                      >
+                        <span>
+                          {formatarSenhaPedido(p.senha)} ·{" "}
+                          {formatarStatusPedido(p.status)}
+                          {p.demo ? " · DEMO" : ""}
+                          <br />
+                          {p.itens
                             .map((i) => `${i.quantidade}x ${i.nomeProduto}`)
                             .join(", ")}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3 pl-13 sm:justify-end sm:pl-0">
-                      <span className="text-xs font-bold text-foreground tabular-nums">
-                        {formatarMoeda(order.valorTotal)}
-                      </span>
-
-                      <Badge
-                        variant={
-                          order.status === "PRONTO"
-                            ? "default"
-                            : order.status === "EM_PREPARO"
-                              ? "secondary"
-                              : "outline"
-                        }
-                        className={cn(
-                          "rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase",
-                          order.status === "EM_PREPARO" &&
-                            "border-amber-500/20 bg-amber-500/15 text-amber-700 dark:text-amber-400",
-                          order.status === "PRONTO" &&
-                            "bg-emerald-500 text-white dark:bg-emerald-600"
-                        )}
-                      >
-                        {formatarStatusPedido(order.status)}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                        </span>
+                        <span>
+                          {descreverOrigemPedido(p, dispositivos ?? []).rotulo}
+                          <br />
+                          {formatarMoeda(p.valorTotal)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {resultado.fila.length > 20 && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Exibindo 20 de {resultado.fila.length}. Consulte o histórico
+                    para os demais.
+                  </p>
+                )}
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 p-8 text-center">
-                <div className="mb-2.5 flex size-10 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                  <ChefHat className="size-5" />
-                </div>
-                <span className="text-xs font-bold text-foreground">
-                  Fila da cozinha vazia
-                </span>
-                <p className="mt-1 max-w-sm text-[11px] leading-relaxed text-muted-foreground">
-                  Nenhum pedido aguardando preparo no momento. Pedidos
-                  confirmados nos totens entrarão nesta lista automaticamente.
+            </>
+          ) : estado.carregando ? (
+            <Skeleton
+              className="h-64 rounded-3xl"
+              aria-label="Carregando indicadores"
+            />
+          ) : (
+            <div role="alert" className={card}>
+              Indicadores de pedidos indisponíveis. Use Atualizar para tentar
+              novamente.
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-6 lg:col-span-4">
+          {estado.carregando && !resultado ? (
+            <Skeleton
+              className="h-64 rounded-3xl"
+              aria-label="Carregando série de pedidos"
+            />
+          ) : (
+            <ChartSplineMetric
+              key={`${tipo}:${incluirDemo}`}
+              data={resultado?.serie}
+              descricao={descricao}
+            />
+          )}
+          {resultado && (
+            <div className={`${card} space-y-2 text-xs`}>
+              <h2 className="text-sm font-semibold">Origem dos pedidos</h2>
+              <p>{descricao}</p>
+              <p>Totem identificado: {resultado.origens.totem}</p>
+              <p>Direta (sem dispositivo): {resultado.origens.direta}</p>
+              <p>
+                Terminal não identificado como Totem:{" "}
+                {resultado.origens.naoIdentificada}
+              </p>
+              <p>
+                Com origem offline histórica: {resultado.origens.offline}{" "}
+                (subconjunto das origens acima)
+              </p>
+              {estado.dispositivos.erro && (
+                <p>
+                  Identificação de terminais limitada pela falha do cadastro.
                 </p>
-              </div>
+              )}
+            </div>
+          )}
+          <div className={`${card} space-y-3`}>
+            <h2 className="text-sm font-semibold">Dispositivos cadastrados</h2>
+            <p className="text-xs text-muted-foreground">
+              Cadastro total, independente do período de pedidos. Conectividade
+              não medida.
+            </p>
+            {resumo ? (
+              resumo.map((d) => (
+                <p key={d.tipo} className="text-xs">
+                  {d.tipo}: {d.total} cadastrados · {d.ativos} ativos no
+                  cadastro · {d.revogados} revogados
+                </p>
+              ))
+            ) : (
+              <p className="text-sm">
+                {estado.carregando
+                  ? "Carregando cadastro…"
+                  : "Cadastro indisponível. Use Atualizar."}
+              </p>
             )}
           </div>
-        </div>
-
-        {/* ================= COLUNA LATERAL DIREITA (4 COLUNAS) ================= */}
-        <div className="flex flex-col gap-6 lg:col-span-4">
-          {/* Card Hero: Gráfico Spline Customizado (Estilo Imagem 5) */}
-          <ChartSplineMetric />
-
-          {/* Card de Cadastro dos Dispositivos */}
-          <div className="rounded-3xl border border-border/40 bg-card p-6 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between pb-4">
-              <div className="space-y-0.5">
-                <h4 className="text-sm font-semibold text-foreground">
-                  Hardware & Terminais
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  Cadastros de dispositivos pareados.
-                </p>
-              </div>
-              <Radio
-                className={cn(
-                  "size-4",
-                  dispositivos.length > 0
-                    ? "text-primary"
-                    : "text-muted-foreground/40"
-                )}
-              />
-            </div>
-
-            {dispositivos.length > 0 ? (
-              <div className="space-y-3 text-xs">
-                {dispositivos.map((dev) => (
-                  <div
-                    key={dev.id}
-                    className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/20 p-3.5"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={cn(
-                          "size-2 rounded-full",
-                          dev.ativo
-                            ? "bg-emerald-500"
-                            : "bg-muted-foreground/50"
-                        )}
-                      />
-                      <div>
-                        <span className="block font-semibold text-foreground">
-                          {dev.nome}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {dev.tipo === "TOTEM" ? "Totem" : "Painel KDS"}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full text-[10px]"
-                    >
-                      {dev.ativo ? "Ativo no cadastro" : "Revogado"}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 p-6 text-center">
-                <span className="text-xs font-bold text-foreground">
-                  Nenhum dispositivo pareado
-                </span>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Conecte seus totens e painéis para consultar os cadastros
-                  aqui.
-                </p>
-                <Link
-                  href="/admin/dispositivos"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "mt-3 gap-1.5 rounded-xl text-xs"
-                  )}
-                >
-                  <Plus className="size-3" />
-                  Parear Dispositivo
-                </Link>
-              </div>
-            )}
+          <div className={`${card} space-y-2 text-xs text-muted-foreground`}>
+            <h2 className="text-sm font-semibold text-foreground">
+              Medições indisponíveis
+            </h2>
+            <p>
+              Faturamento indisponível: contrato financeiro ainda não
+              homologado.
+            </p>
+            <p>Tempo no Totem: ainda não medido.</p>
+            <p>Tempo médio de preparo: ainda não medido.</p>
           </div>
         </div>
       </div>

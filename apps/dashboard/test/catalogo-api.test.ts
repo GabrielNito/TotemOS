@@ -106,39 +106,45 @@ describe("integração do catálogo no Dashboard", () => {
       method?: string
       cache?: RequestInit["cache"]
     }> = []
-    globalThis.fetch = async (input, init) => {
-      chamadas.push({
-        url: String(input),
-        method: init?.method,
-        cache: init?.cache,
-      })
-      return respostaJson({
-        categorias: [],
-        produtos: [
-          {
-            id: "produto-1",
-            negocioId: "negocio-1",
-            categoriaId: "categoria-1",
-            categoria: { id: "categoria-1", nome: "Lanches" },
-            nome: "X-Bacon",
-            precoBase: "25.90",
-            tempoEstimadoPreparo: 12,
-            esgotado: false,
-            ativo: true,
-            adicionais: [
-              {
-                id: "adicional-1",
-                produtoId: "produto-1",
-                nome: "Bacon",
-                preco: "4.00",
-                maximo: 2,
-                esgotado: false,
-              },
-            ],
-          },
-        ],
-      })
-    }
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamadas.push({
+          url: String(input),
+          method: init?.method,
+          cache: init?.cache,
+        })
+        return respostaJson({
+          categorias: [],
+          produtos: [
+            {
+              id: "produto-1",
+              negocioId: "negocio-1",
+              categoriaId: "categoria-1",
+              categoria: { id: "categoria-1", nome: "Lanches" },
+              nome: "X-Bacon",
+              precoBase: "25.90",
+              tempoEstimadoPreparo: 12,
+              esgotado: false,
+              ativo: true,
+              adicionais: [
+                {
+                  id: "adicional-1",
+                  produtoId: "produto-1",
+                  nome: "Bacon",
+                  preco: "4.00",
+                  maximo: 2,
+                  esgotado: false,
+                },
+              ],
+            },
+          ],
+        })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     const catalogo = await getCatalogoAdministrativo()
 
@@ -160,34 +166,44 @@ describe("integração do catálogo no Dashboard", () => {
       body?: string
       contentType: string | null
     }> = []
-    globalThis.fetch = async (input, init) => {
-      chamadas.push({
-        url: String(input),
-        method: init?.method,
-        body: typeof init?.body === "string" ? init.body : undefined,
-        contentType: new Headers(init?.headers).get("content-type"),
-      })
+    globalThis.fetch = Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]
+      ) => {
+        chamadas.push({
+          url: String(input),
+          method: init?.method,
+          body: typeof init?.body === "string" ? init.body : undefined,
+          contentType: new Headers(init?.headers).get("content-type"),
+        })
 
-      if (init?.method === "DELETE") {
-        return respostaJson({ id: "produto-1", nome: "X-Bacon", ativo: false })
-      }
+        if (init?.method === "DELETE") {
+          return respostaJson({
+            id: "produto-1",
+            nome: "X-Bacon",
+            ativo: false,
+          })
+        }
 
-      if (String(input).endsWith("/categorias")) {
-        return respostaJson({ id: "categoria-1", nome: "Lanches", ordem: 1 })
-      }
+        if (String(input).endsWith("/categorias")) {
+          return respostaJson({ id: "categoria-1", nome: "Lanches", ordem: 1 })
+        }
 
-      return respostaJson({
-        id: "produto-1",
-        negocioId: "negocio-1",
-        categoriaId: "categoria-1",
-        nome: "X-Bacon",
-        precoBase: "25.90",
-        tempoEstimadoPreparo: 12,
-        esgotado: false,
-        ativo: true,
-        adicionais: [],
-      })
-    }
+        return respostaJson({
+          id: "produto-1",
+          negocioId: "negocio-1",
+          categoriaId: "categoria-1",
+          nome: "X-Bacon",
+          precoBase: "25.90",
+          tempoEstimadoPreparo: 12,
+          esgotado: false,
+          ativo: true,
+          adicionais: [],
+        })
+      },
+      { preconnect: fetchOriginal.preconnect }
+    )
 
     await createCategoria({ nome: "Lanches", ordem: 1 })
     await updateCategoria("categoria-1", { ativo: false })
@@ -271,8 +287,20 @@ describe("integração do catálogo no Dashboard", () => {
     const categorias: Categoria[] = [
       { id: "cat-1", negocioId: "n-1", nome: "Bebidas", ordem: 2, ativo: true },
       { id: "cat-2", negocioId: "n-1", nome: "Lanches", ordem: 1, ativo: true },
-      { id: "cat-3", negocioId: "n-1", nome: "Sobremesas", ordem: 3, ativo: false },
-      { id: "cat-4", negocioId: "n-1", nome: "Acompanhamentos", ordem: 4, ativo: true },
+      {
+        id: "cat-3",
+        negocioId: "n-1",
+        nome: "Sobremesas",
+        ordem: 3,
+        ativo: false,
+      },
+      {
+        id: "cat-4",
+        negocioId: "n-1",
+        nome: "Acompanhamentos",
+        ordem: 4,
+        ativo: true,
+      },
     ]
 
     const produtos: Produto[] = [
@@ -287,8 +315,22 @@ describe("integração do catálogo no Dashboard", () => {
         ativo: true,
         esgotado: false,
         adicionais: [
-          { id: "add-1", produtoId: "prod-1", nome: "Bacon extra", preco: 4, maximo: 2, esgotado: false },
-          { id: "add-2", produtoId: "prod-1", nome: "Queijo extra", preco: 3, maximo: 2, esgotado: true },
+          {
+            id: "add-1",
+            produtoId: "prod-1",
+            nome: "Bacon extra",
+            preco: 4,
+            maximo: 2,
+            esgotado: false,
+          },
+          {
+            id: "add-2",
+            produtoId: "prod-1",
+            nome: "Queijo extra",
+            preco: 3,
+            maximo: 2,
+            esgotado: true,
+          },
         ],
       },
       {

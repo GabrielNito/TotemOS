@@ -136,10 +136,15 @@ export interface GerarCodigoPareamentoResponse {
   expiraEm: string
 }
 
-export function getDispositivos(): Promise<DispositivosResponse> {
+export function getDispositivos(
+  token?: string,
+  signal?: AbortSignal
+): Promise<DispositivosResponse> {
   return fetchApi<DispositivosResponse>("/dispositivos", {
     method: "GET",
     cache: "no-store",
+    token,
+    signal,
   })
 }
 
@@ -374,7 +379,8 @@ function normalizarPedido(pedido: PedidoApi): Pedido {
 
 export async function getPedidos(
   params: ListarPedidosParams = {},
-  token?: string
+  token?: string,
+  signal?: AbortSignal
 ): Promise<Pedido[]> {
   const search = new URLSearchParams()
   if (params.status) search.set("status", params.status)
@@ -389,6 +395,7 @@ export async function getPedidos(
     method: "GET",
     cache: "no-store",
     token,
+    signal,
   })
 
   return pedidos.map(normalizarPedido)
