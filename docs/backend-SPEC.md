@@ -854,6 +854,28 @@ O experimento técnico documentado em `docs/spikes/kds-local-network.md` avaliou
 - **Autenticação**: `AnyAuthGuard` (dispositivos `TOTEM` são rejeitados). Usuários humanos (`DONO` ou `GERENTE`) recebem detalhamento administrativo completo; dispositivos `PAINEL` recebem dados operacionais do pedido.
 - **Query Params (`GET /pedidos`)**: `status` (enum `StatusPedido`), `dataSequencial` (`YYYY-MM-DD`), `dataIniciadaEm` (`YYYY-MM-DD`), `dataFinalizadaEm` (`YYYY-MM-DD`). Parâmetros não reconhecidos (como `negocioId`) são rejeitados pelo schema estrito.
 
+**Correção #34, filtro explícito por criação:** humanos DONO/GERENTE podem enviar
+`criadoEmInicio` e/ou `criadoEmFim` como dias civis ISO `YYYY-MM-DD`. Cada limite
+é convertido separadamente ao primeiro instante do dia em America/Sao_Paulo,
+usando Temporal com a base IANA do runtime. A consulta Prisma aplica
+`createdAt >= início` e `createdAt < fim`. Não usa offset fixo nem soma de 24h;
+transições históricas de horário de verão estão cobertas em PostgreSQL.
+
+Datas inexistentes, início >= fim e combinação de qualquer filtro de criação
+com datas operacionais legadas retornam 400. Um limite isolado é permitido.
+O pipe Zod é explícito no parâmetro Query, inclusive com a assinatura de chamada
+legada mantida nos testes. `negocioId` continua vindo exclusivamente do JWT.
+Dispositivos PAINEL mantêm a rota legada, mas recebem 403 para os filtros novos;
+TOTEM permanece sem acesso administrativo. A regra de atribuição de senha não muda.
+
+Filtros legados mantêm seu significado: `dataSequencial` exata, ou
+`dataIniciadaEm`/`dataFinalizadaEm` sobre dataSequencial com fim inclusivo.
+Esses parâmetros não passam a representar criação. O Dashboard histórico usa
+somente os novos parâmetros; a visão geral do PR #23 continua compatível sem eles.
+Nenhuma migration ou índice foi criado; o custo de consulta em históricos grandes
+continua sujeito à avaliação do backend. Backend com o contrato novo deve estar
+disponível antes de publicar o Dashboard que o utiliza.
+
 ##### `POST /pedidos/:id/senha`
 - **Autenticação**: `DeviceTokenGuard` restrito exclusivamente a `PAINEL` (KDS).
 - **Headers Obrigatórios**: `X-Idempotency-Key: <uuid>`.

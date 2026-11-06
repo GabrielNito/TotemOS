@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { StatusPedido, Prisma } from '@prisma/client';
 import { demoEnvironmentFor } from './demo-policy';
+import { inicioDiaSaoPaulo } from './periodo-criacao';
 
 export interface CriarPedidoOptions {
   dispositivoId?: string;
@@ -18,6 +19,8 @@ export interface ListarPedidosFiltro {
   dataSequencial?: string;
   dataIniciadaEm?: string;
   dataFinalizadaEm?: string;
+  criadoEmInicio?: string;
+  criadoEmFim?: string;
 }
 
 @Injectable()
@@ -274,6 +277,16 @@ export class PedidosService {
       where: {
         negocioId,
         ...(filtro?.status && { status: filtro.status }),
+        ...((filtro?.criadoEmInicio || filtro?.criadoEmFim) && {
+          createdAt: {
+            ...(filtro.criadoEmInicio && {
+              gte: inicioDiaSaoPaulo(filtro.criadoEmInicio),
+            }),
+            ...(filtro.criadoEmFim && {
+              lt: inicioDiaSaoPaulo(filtro.criadoEmFim),
+            }),
+          },
+        }),
         ...(filtro?.dataSequencial && {
           dataSequencial: filtro.dataSequencial,
         }),

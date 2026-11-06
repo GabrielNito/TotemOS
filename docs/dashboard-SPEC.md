@@ -42,6 +42,32 @@ app/
 - **Modelos de Domínio (`lib/types/models.ts`)**: Tipos TypeScript sincronizados com o schema do Prisma (`Produto`, `Categoria`, `Dispositivo`, `Pedido`, `Usuario`, `DashboardMetrics`).
 - **Feedback Visual**: Estados vazios (*Empty States*) nativos em todas as páginas para recepção assíncrona dos dados do backend.
 
+### Histórico de pedidos, correção do card #34
+
+`/admin/pedidos` é uma consulta somente leitura para JWT humano DONO/GERENTE.
+Filtros `criadoEmInicio` e `criadoEmFim` são datas civis de **criação** em
+America/Sao_Paulo, com início inclusivo e fim exclusivo. A interface mostra esses
+limites; o backend aplica `createdAt >= inícioUTC AND createdAt < fimUTC`.
+Não há uma segunda filtragem por data no navegador. A data operacional da senha
+permanece separada, e senha null não é convertida em zero.
+
+Lista, cadastro e detalhe têm estados independentes e gerações próprias.
+Filtros novos descartam o snapshot da lista anterior; atualização manual pode
+preservar o último snapshot com aviso explícito de desatualização. Erro de
+cadastro limita a identificação da origem, mas não impede leitura de pedidos.
+401/403 invalidam todas as fontes. Unmount, troca de identidade/token e fechamento
+do detalhe cancelam requisições e descartam resultados antigos. Não há polling.
+
+O card monetário mostra **valor nominal comercial**, incluindo aguardando
+pagamento e excluindo DEMO e ambos os cancelamentos. Não comprova receita;
+faturamento continua indisponível. `valorComercialConfirmado` permanece como campo
+legado por compatibilidade, sem uso financeiro nesta tela. Novos campos de
+`calcularMetricasPedidos` são aditivos; o trabalho paralelo do PR #23 não é
+dependência desta correção. Busca aceita senha formatada, como `#014`.
+
+Contrato backend, RED/GREEN e limites em
+[evidências da correção](evidence/dashboard-pedidos-correcao/README.md).
+
 ---
 
 ## 4. Componentes Assinatura de UI

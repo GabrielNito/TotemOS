@@ -18,6 +18,10 @@ export interface MetricasPedidos {
   pedidosEntregues: number
   pedidosAguardandoPagamento: number
   pedidosCancelados: number
+  pedidosDemo: number
+  valorNominalComercial: number
+  valorNominalCancelado: number
+  /** @deprecated Nome legado: soma nominal de status operacionais, não pagamento. */
   valorComercialConfirmado: number
   valorDemoOperacional: number
   valorTotalServidor: number
@@ -107,7 +111,7 @@ export function descreverOrigemPedido(
       : "Painel / Direto"
 
   const partes: string[] = [
-    pedido.origemOffline ? "Sincronizado offline" : "Cloud online",
+    pedido.origemOffline ? "Sincronizado offline" : "Origem cloud",
   ]
   if (pedido.demo) {
     partes.push(
@@ -154,6 +158,9 @@ export function filtrarPedidosPorPeriodo(
 }
 
 export function calcularMetricasPedidos(pedidos: Pedido[]): MetricasPedidos {
+  let pedidosDemo = 0
+  let comercialCentavos = 0
+  let canceladoCentavos = 0
   let pedidosAtivosNaFila = 0
   let pedidosEntregues = 0
   let pedidosAguardandoPagamento = 0
@@ -167,6 +174,9 @@ export function calcularMetricasPedidos(pedidos: Pedido[]): MetricasPedidos {
     const cancelado =
       pedido.status === "CANCELADO" ||
       pedido.status === "CANCELADO_AGUARDANDO_ESTORNO"
+    if (pedido.demo) pedidosDemo++
+    else if (cancelado) canceladoCentavos += Math.round(pedido.valorTotal * 100)
+    else comercialCentavos += Math.round(pedido.valorTotal * 100)
 
     if (
       pedido.status === "PENDENTE" ||
@@ -199,6 +209,9 @@ export function calcularMetricasPedidos(pedidos: Pedido[]): MetricasPedidos {
     pedidosEntregues,
     pedidosAguardandoPagamento,
     pedidosCancelados,
+    pedidosDemo,
+    valorNominalComercial: comercialCentavos / 100,
+    valorNominalCancelado: canceladoCentavos / 100,
     valorComercialConfirmado,
     valorDemoOperacional,
     valorTotalServidor,

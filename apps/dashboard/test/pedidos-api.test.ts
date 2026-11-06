@@ -314,3 +314,65 @@ describe("gestão e histórico de pedidos reais no Dashboard (TDD)", () => {
     assert.equal(metricas.valorDemoOperacional, 30)
   })
 })
+
+// Regressão: criação no dia 04/11, senha operacional no dia 05/11.
+test("envia filtros explícitos de criação e AbortSignal, sem filtros legados ou negocioId", async () => {
+  const abort = new AbortController()
+  globalThis.fetch = Object.assign(
+    async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1]
+    ) => {
+      const url = new URL(String(input))
+      assert.equal(url.searchParams.get("criadoEmInicio"), "2026-11-04")
+      assert.equal(url.searchParams.get("criadoEmFim"), "2026-11-05")
+      assert.equal(url.searchParams.has("dataIniciadaEm"), false)
+      assert.equal(url.searchParams.has("negocioId"), false)
+      assert.equal(init?.signal, abort.signal)
+      return respostaJson([
+        {
+          ...pedidoApiMock,
+          createdAt: "2026-11-05T02:00:00Z",
+          dataSequencial: "2026-11-05",
+        },
+      ])
+    },
+    fetchOriginal
+  )
+  const filtros = { criadoEmInicio: "2026-11-04", criadoEmFim: "2026-11-05" }
+  const pedidos = await getPedidos(filtros, "jwt-dono", abort.signal)
+  assert.equal(pedidos.length, 1)
+})
+
+test("valor nominal comercial inclui aguardando, separa DEMO/cancelamentos e não declara receita", () => {
+  const base: Pedido = {
+    id: "p",
+    negocioId: "a",
+    senha: null,
+    dataSequencial: "2026-11-05",
+    status: "AGUARDANDO_PAGAMENTO",
+    valorTotal: 0.1,
+    demo: false,
+    origemOffline: false,
+    createdAt: "2026-11-05T02:00:00Z",
+    updatedAt: "2026-11-05T02:00:00Z",
+    itens: [],
+  }
+  const r = calcularMetricasPedidos([
+    base,
+    { ...base, id: "p2", status: "ENTREGUE", valorTotal: 0.2 },
+    { ...base, id: "demo", demo: true, valorTotal: 99 },
+    { ...base, id: "cancel", status: "CANCELADO", valorTotal: 10 },
+    {
+      ...base,
+      id: "estorno",
+      status: "CANCELADO_AGUARDANDO_ESTORNO",
+      valorTotal: 20,
+    },
+  ])
+  assert.equal(r.valorNominalComercial, 0.3)
+  assert.equal(r.valorNominalCancelado, 30)
+  assert.equal(r.pedidosDemo, 1)
+  assert.equal(r.valorDemoOperacional, 99)
+  assert.equal(r.valorComercialConfirmado, 0.2) // compatibilidade legada, nunca receita
+})

@@ -34,8 +34,33 @@ export const ListarPedidosQuerySchema = z
       .string()
       .regex(dataIsoRegex, 'Data final deve estar no formato YYYY-MM-DD')
       .optional(),
+    criadoEmInicio: z.iso.date().optional(),
+    criadoEmFim: z.iso.date().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((query, ctx) => {
+    const criacao = query.criadoEmInicio || query.criadoEmFim;
+    if (
+      criacao &&
+      (query.dataSequencial || query.dataIniciadaEm || query.dataFinalizadaEm)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Não combine criação com filtros de data operacional.',
+      });
+    }
+    if (
+      query.criadoEmInicio &&
+      query.criadoEmFim &&
+      query.criadoEmInicio >= query.criadoEmFim
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['criadoEmFim'],
+        message: 'Fim exclusivo deve ser posterior ao início.',
+      });
+    }
+  });
 export class ListarPedidosQueryDto extends createZodDto(
   ListarPedidosQuerySchema,
 ) {}
