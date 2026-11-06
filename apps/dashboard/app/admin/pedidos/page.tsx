@@ -38,78 +38,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  ApiError,
-  getDispositivos,
-  getPedidoDetalhe,
-  getPedidos,
-} from "@/lib/api"
+import { getDispositivos, getPedidoDetalhe, getPedidos } from "@/lib/api"
 import {
   STATUS_PEDIDO_OPCOES,
   calcularMetricasPedidos,
   calcularSubtotalItemSnapshot,
   descreverOrigemPedido,
-  filtrarPedidosPorPeriodo,
   formatarMoeda,
   formatarSenhaPedido,
   formatarStatusPedido,
 } from "@/lib/pedidos"
-import type { Dispositivo, Pedido, StatusPedido } from "@/lib/types/models"
+import type { StatusPedido } from "@/lib/types/models"
 import { cn } from "@/lib/utils"
+import { getAuthToken, type UserSession } from "@/lib/auth"
+import { HistoricoPedidosConsulta } from "@/lib/historico-pedidos-consulta"
 
 function formatarDataHora(data: string): string {
   return new Date(data).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     dateStyle: "short",
     timeStyle: "short",
   })
-}
-
-function mensagemErroPedido(error: unknown): {
-  titulo: string
-  detalhe: string
-  codigo?: number
-} {
-  if (error instanceof ApiError) {
-    if (error.statusCode === 401) {
-      return {
-        titulo: "Sessão expirada ou não autenticada (401)",
-        detalhe:
-          "Sua credencial não foi aceita pelo servidor. Faça login novamente para consultar os pedidos do estabelecimento.",
-        codigo: 401,
-      }
-    }
-    if (error.statusCode === 403) {
-      return {
-        titulo: "Acesso restrito a DONO ou GERENTE (403)",
-        detalhe:
-          error.message ||
-          "Apenas usuários humanos autorizados podem acessar o histórico administrativo de pedidos.",
-        codigo: 403,
-      }
-    }
-    if (error.statusCode === 404) {
-      return {
-        titulo: "Pedido não encontrado neste estabelecimento (404)",
-        detalhe:
-          error.message ||
-          "O pedido solicitado não existe ou pertence a outro negócio.",
-        codigo: 404,
-      }
-    }
-    return {
-      titulo: `Erro ao consultar servidor (${error.statusCode})`,
-      detalhe: error.message,
-      codigo: error.statusCode,
-    }
-  }
-
-  return {
-    titulo: "Falha de comunicação com o backend",
-    detalhe:
-      error instanceof Error
-        ? error.message
-        : "Não foi possível carregar os pedidos reais do estabelecimento.",
-  }
 }
 
 export function StatusPedidoBadge({ status }: { status: StatusPedido }) {
@@ -138,98 +87,121 @@ export function StatusPedidoBadge({ status }: { status: StatusPedido }) {
 }
 
 export default function PedidosPage() {
-  const { user, logout } = useAuth()
-  const [pedidos, setPedidos] = React.useState<Pedido[]>([])
-  const [dispositivos, setDispositivos] = React.useState<Dispositivo[]>([])
+  const { user, logout, isLoading } = useAuth()
+  const token = getAuthToken()
+  if (isLoading) return <PedidosSkeleton />
+  if (
+    !token ||
+    !user?.negocioId ||
+    !["DONO", "GERENTE"].includes(user.role ?? "")
+  )
+    return (
+      <p role="alert">
+        Acesso restrito a DONO ou GERENTE.{" "}
+        <Button onClick={logout}>Autenticar novamente</Button>
+      </p>
+    )
+  return (
+    <HistoricoPedidosPage
+      key={user.negocioId + ":" + (user.id ?? user.sub) + ":" + token}
+      user={user}
+      token={token}
+      logout={logout}
+    />
+  )
+}
+
+export function HistoricoPedidosPage({
+  user,
+  token,
+  logout,
+}: {
+  user: UserSession
+  token: string
+  logout: () => void
+}) {
   const [statusFiltro, setStatusFiltro] = React.useState<
     "TODOS" | StatusPedido
   >("TODOS")
   const [dataInicial, setDataInicial] = React.useState("")
   const [dataFinal, setDataFinal] = React.useState("")
   const [busca, setBusca] = React.useState("")
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [isRefetching, setIsRefetching] = React.useState(false)
-  const [erro, setErro] = React.useState<{
-    titulo: string
-    detalhe: string
-    codigo?: number
-  } | null>(null)
-
-  const [pedidoSelecionadoId, setPedidoSelecionadoId] = React.useState<
-    string | null
-  >(null)
-  const [pedidoDetalhe, setPedidoDetalhe] = React.useState<Pedido | null>(null)
-  const [isLoadingDetalhe, setIsLoadingDetalhe] = React.useState(false)
-  const [erroDetalhe, setErroDetalhe] = React.useState<{
-    titulo: string
-    detalhe: string
-    codigo?: number
-  } | null>(null)
-
-  const carregarPedidos = React.useCallback(
-    async (silencioso = false) => {
-      if (silencioso) setIsRefetching(true)
-      else setIsLoading(true)
-      setErro(null)
-
-      try {
-        const [listaPedidos, listaDispositivos] = await Promise.all([
-          getPedidos({
-            status: statusFiltro === "TODOS" ? undefined : statusFiltro,
-            dataIniciadaEm: dataInicial || undefined,
-            dataFinalizadaEm: dataFinal || undefined,
-          }),
-          getDispositivos().catch(() => ({ dispositivos: [] })),
-        ])
-        setPedidos(listaPedidos)
-        setDispositivos(listaDispositivos.dispositivos)
-      } catch (error) {
-        setErro(mensagemErroPedido(error))
-      } finally {
-        setIsLoading(false)
-        setIsRefetching(false)
-      }
-    },
+  const filtros = React.useMemo(
+    () => ({
+      status: statusFiltro === "TODOS" ? undefined : statusFiltro,
+      criadoEmInicio: dataInicial || undefined,
+      criadoEmFim: dataFinal || undefined,
+    }),
     [statusFiltro, dataInicial, dataFinal]
   )
-
+  const [consulta] = React.useState(
+    () =>
+      new HistoricoPedidosConsulta(user.negocioId ?? "", {
+        listar: (f, s) => getPedidos(f, token, s),
+        dispositivos: async (s) =>
+          (await getDispositivos(token, s)).dispositivos,
+        detalhe: (id, s) => getPedidoDetalhe(id, token, s),
+      })
+  )
+  const estado = React.useSyncExternalStore(
+    consulta.assinar,
+    consulta.snapshot,
+    consulta.snapshot
+  )
   React.useEffect(() => {
-    void Promise.resolve().then(() => carregarPedidos(false))
-  }, [carregarPedidos])
-
-  const abrirDetalhePedido = React.useCallback(async (id: string) => {
-    setPedidoSelecionadoId(id)
-    setPedidoDetalhe(null)
-    setErroDetalhe(null)
-    setIsLoadingDetalhe(true)
-
-    try {
-      const detalhe = await getPedidoDetalhe(id)
-      setPedidoDetalhe(detalhe)
-    } catch (error) {
-      setErroDetalhe(mensagemErroPedido(error))
-    } finally {
-      setIsLoadingDetalhe(false)
+    let ativa = true
+    void Promise.resolve().then(() => {
+      if (ativa) void consulta.carregar(filtros)
+    })
+    return () => {
+      ativa = false
+      consulta.cancelarConsultas()
     }
-  }, [])
+  }, [consulta, filtros])
+  React.useEffect(() => () => consulta.cancelar(), [consulta])
+  const filtroAtual = estado.filtro === JSON.stringify(filtros)
+  const pedidos = React.useMemo(
+    () => (filtroAtual ? (estado.pedidos.dados ?? []) : []),
+    [filtroAtual, estado.pedidos.dados]
+  )
+  const dispositivos = estado.dispositivos.dados ?? []
+  const pedidosDisponiveis = filtroAtual && estado.pedidos.dados !== null
+  const isLoading =
+    !filtroAtual || (estado.pedidos.carregando && !pedidosDisponiveis)
+  const isRefetching =
+    filtroAtual && estado.pedidos.carregando && pedidosDisponiveis
+  const erro = filtroAtual ? estado.pedidos.erro : null
+  const erroDetalhe = estado.detalhe.erro
+  const pedidoDetalhe = estado.detalhe.dados
+  const isLoadingDetalhe = estado.detalhe.carregando
+  const pedidoSelecionadoId = estado.selecionadoId
+  const setPedidoSelecionadoId = (id: string | null) => {
+    if (id) void consulta.abrirDetalhe(id)
+    else consulta.fecharDetalhe()
+  }
+  const abrirDetalhePedido = (id: string) => consulta.abrirDetalhe(id)
+  const carregarPedidos = (silencioso = false) =>
+    consulta.carregar(filtros, silencioso)
+  const medido = (valor: React.ReactNode) =>
+    pedidosDisponiveis ? valor : isLoading ? "..." : "Indisponível"
 
   const pedidosFiltrados = React.useMemo(() => {
-    const porPeriodo = filtrarPedidosPorPeriodo(pedidos, dataInicial, dataFinal)
     const termo = busca.trim().toLowerCase()
-    if (!termo) return porPeriodo
+    if (!termo) return pedidos
 
-    return porPeriodo.filter((p) => {
+    return pedidos.filter((p) => {
       const senhaStr = p.senha !== null ? String(p.senha) : ""
       const cliente = (p.nomeCliente || p.codigoCliente || "").toLowerCase()
       const itens = p.itens.map((i) => i.nomeProduto.toLowerCase()).join(" ")
       return (
         p.id.toLowerCase().includes(termo) ||
         senhaStr.includes(termo) ||
+        (p.senha !== null && formatarSenhaPedido(p.senha).includes(termo)) ||
         cliente.includes(termo) ||
         itens.includes(termo)
       )
     })
-  }, [pedidos, dataInicial, dataFinal, busca])
+  }, [pedidos, busca])
 
   const metricas = React.useMemo(
     () => calcularMetricasPedidos(pedidosFiltrados),
@@ -262,7 +234,11 @@ export default function PedidosPage() {
               variant="outline"
               className="rounded-full border-primary/20 bg-primary/5 text-[11px] font-semibold"
             >
-              {isLoading ? "..." : `${pedidosFiltrados.length} registros`}
+              {pedidosDisponiveis
+                ? `${pedidosFiltrados.length} registros`
+                : isLoading
+                  ? "..."
+                  : "Indisponível"}
             </Badge>
             {user?.role && (
               <Badge
@@ -296,6 +272,24 @@ export default function PedidosPage() {
         </div>
       </header>
 
+      {estado.dispositivos.erro && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Identificação da origem limitada: falha no cadastro de dispositivos (
+          {estado.dispositivos.erro.codigo ?? "rede/timeout"}).{" "}
+          {estado.dispositivos.dados
+            ? "Cadastro anterior desatualizado."
+            : "Cadastro indisponível."}
+        </p>
+      )}
+      {estado.pedidos.atualizadoEm && filtroAtual && (
+        <p className="text-xs text-muted-foreground">
+          Última consulta de pedidos:{" "}
+          {formatarDataHora(estado.pedidos.atualizadoEm)} (America/Sao_Paulo).{" "}
+          {erro || isRefetching
+            ? "Dados desatualizados: último snapshot preservado."
+            : "Atualização manual."}
+        </p>
+      )}
       {/* Cards de Métricas do Servidor */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs">
@@ -309,11 +303,11 @@ export default function PedidosPage() {
           </div>
           <div className="mt-3 space-y-0.5">
             <h2 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-              {isLoading ? "..." : metricas.totalPedidos}
+              {medido(metricas.totalPedidos)}
             </h2>
             <span className="text-[11px] text-muted-foreground">
-              {metricas.pedidosEntregues} entregues •{" "}
-              {metricas.pedidosCancelados} cancelados
+              {medido(metricas.pedidosEntregues)} entregues •{" "}
+              {medido(metricas.pedidosCancelados)} cancelados
             </span>
           </div>
         </div>
@@ -329,7 +323,7 @@ export default function PedidosPage() {
           </div>
           <div className="mt-3 space-y-0.5">
             <h2 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-              {isLoading ? "..." : metricas.pedidosAtivosNaFila}
+              {medido(metricas.pedidosAtivosNaFila)}
             </h2>
             <span className="text-[11px] text-muted-foreground">
               Pendentes, em preparo ou prontos
@@ -340,7 +334,7 @@ export default function PedidosPage() {
         <div className="flex flex-col justify-between rounded-3xl border border-border/40 bg-card p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              Valor Servidor (Comercial)
+              Valor nominal comercial
             </span>
             <div className="flex size-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <DollarSign className="size-4" />
@@ -348,12 +342,11 @@ export default function PedidosPage() {
           </div>
           <div className="mt-3 space-y-0.5">
             <h2 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-              {isLoading
-                ? "..."
-                : formatarMoeda(metricas.valorComercialConfirmado)}
+              {medido(formatarMoeda(metricas.valorNominalComercial))}
             </h2>
             <span className="text-[11px] text-muted-foreground">
-              Snapshots confirmados pelo backend
+              Inclui aguardando pagamento; sem DEMO ou cancelados. Não é receita
+              recebida. Faturamento indisponível.
             </span>
           </div>
         </div>
@@ -369,10 +362,11 @@ export default function PedidosPage() {
           </div>
           <div className="mt-3 space-y-0.5">
             <h2 className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-              {isLoading ? "..." : metricas.pedidosAguardandoPagamento} retidos
+              {medido(metricas.pedidosAguardandoPagamento)} retidos
             </h2>
             <span className="text-[11px] text-muted-foreground">
-              Volume DEMO: {formatarMoeda(metricas.valorDemoOperacional)}
+              Valor DEMO sem cancelados:{" "}
+              {medido(formatarMoeda(metricas.valorDemoOperacional))}
             </span>
           </div>
         </div>
@@ -383,7 +377,7 @@ export default function PedidosPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <Filter className="size-3.5 text-primary" />
-            <span>Filtros de Consulta</span>
+            <span>Filtros de criação (America/Sao_Paulo)</span>
           </div>
           {temFiltroAtivo && (
             <Button
@@ -421,7 +415,7 @@ export default function PedidosPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="filtro-data-inicio" className="text-xs">
-              Data Inicial
+              Criado a partir de (inclusivo)
             </Label>
             <div className="relative">
               <Calendar className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -437,7 +431,7 @@ export default function PedidosPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="filtro-data-fim" className="text-xs">
-              Data Final
+              Criado antes de (exclusivo)
             </Label>
             <div className="relative">
               <Calendar className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -543,8 +537,12 @@ export default function PedidosPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="px-4 text-xs">Senha / Período</TableHead>
-                <TableHead className="px-4 text-xs">Data & Hora</TableHead>
+                <TableHead className="px-4 text-xs">
+                  Senha / Data operacional
+                </TableHead>
+                <TableHead className="px-4 text-xs">
+                  Criação (São Paulo)
+                </TableHead>
                 <TableHead className="px-4 text-xs">Cliente</TableHead>
                 <TableHead className="px-4 text-xs">Origem</TableHead>
                 <TableHead className="px-4 text-xs">
@@ -580,7 +578,9 @@ export default function PedidosPage() {
                           {formatarSenhaPedido(pedido.senha)}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {pedido.dataOperacional || pedido.dataSequencial}
+                          {pedido.senha === null
+                            ? "Sem data operacional"
+                            : pedido.dataOperacional || pedido.dataSequencial}
                         </span>
                       </div>
                     </TableCell>
@@ -690,8 +690,6 @@ export default function PedidosPage() {
         onOpenChange={(open) => {
           if (!open) {
             setPedidoSelecionadoId(null)
-            setPedidoDetalhe(null)
-            setErroDetalhe(null)
           }
         }}
       >

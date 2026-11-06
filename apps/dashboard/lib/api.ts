@@ -136,10 +136,15 @@ export interface GerarCodigoPareamentoResponse {
   expiraEm: string
 }
 
-export function getDispositivos(): Promise<DispositivosResponse> {
+export function getDispositivos(
+  token?: string,
+  signal?: AbortSignal
+): Promise<DispositivosResponse> {
   return fetchApi<DispositivosResponse>("/dispositivos", {
     method: "GET",
     cache: "no-store",
+    token,
+    signal,
   })
 }
 
@@ -341,6 +346,8 @@ export interface ListarPedidosParams {
   dataSequencial?: string
   dataIniciadaEm?: string
   dataFinalizadaEm?: string
+  criadoEmInicio?: string
+  criadoEmFim?: string
 }
 
 function normalizarPedido(pedido: PedidoApi): Pedido {
@@ -374,7 +381,8 @@ function normalizarPedido(pedido: PedidoApi): Pedido {
 
 export async function getPedidos(
   params: ListarPedidosParams = {},
-  token?: string
+  token?: string,
+  signal?: AbortSignal
 ): Promise<Pedido[]> {
   const search = new URLSearchParams()
   if (params.status) search.set("status", params.status)
@@ -382,6 +390,8 @@ export async function getPedidos(
   if (params.dataIniciadaEm) search.set("dataIniciadaEm", params.dataIniciadaEm)
   if (params.dataFinalizadaEm)
     search.set("dataFinalizadaEm", params.dataFinalizadaEm)
+  if (params.criadoEmInicio) search.set("criadoEmInicio", params.criadoEmInicio)
+  if (params.criadoEmFim) search.set("criadoEmFim", params.criadoEmFim)
 
   const query = search.toString()
   const endpoint = query ? `/pedidos?${query}` : "/pedidos"
@@ -389,6 +399,7 @@ export async function getPedidos(
     method: "GET",
     cache: "no-store",
     token,
+    signal,
   })
 
   return pedidos.map(normalizarPedido)
@@ -396,7 +407,8 @@ export async function getPedidos(
 
 export async function getPedidoDetalhe(
   id: string,
-  token?: string
+  token?: string,
+  signal?: AbortSignal
 ): Promise<Pedido> {
   const pedido = await fetchApi<PedidoApi>(
     `/pedidos/${encodeURIComponent(id)}`,
@@ -404,6 +416,7 @@ export async function getPedidoDetalhe(
       method: "GET",
       cache: "no-store",
       token,
+      signal,
     }
   )
 

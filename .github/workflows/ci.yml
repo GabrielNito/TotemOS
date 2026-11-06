@@ -118,6 +118,7 @@ jobs:
           bun run test:demo:e2e
           bun run test:operacao:e2e
           bun run test:senha:e2e
+          bun run test:pedidos:e2e
           bunx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
   dashboard-test:
@@ -147,6 +148,11 @@ jobs:
         run: |
           cd apps/dashboard
           bun run typecheck
+
+      - name: Testar indicadores, componentes e regressões (bun test)
+        run: |
+          cd apps/dashboard
+          bun test
 
       - name: Validar Build (bun run build)
         run: |

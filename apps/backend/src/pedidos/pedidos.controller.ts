@@ -1,4 +1,5 @@
 import { SenhaPedidoService } from './senha-pedido.service';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { SenhaPedidoDto, SenhaResponseDto } from './dto/senha-pedido.dto';
 import {
   Controller,
@@ -133,6 +134,18 @@ export class PedidosController {
     required: false,
     description: 'Data final do filtro (YYYY-MM-DD)',
   })
+  @ApiQuery({
+    name: 'criadoEmInicio',
+    required: false,
+    description:
+      'Criação: início inclusivo do dia civil America/Sao_Paulo (YYYY-MM-DD), somente humano DONO/GERENTE. Não combinar com datas operacionais legadas.',
+  })
+  @ApiQuery({
+    name: 'criadoEmFim',
+    required: false,
+    description:
+      'Criação: início exclusivo do dia civil America/Sao_Paulo (YYYY-MM-DD). Deve ser posterior ao início quando ambos forem enviados.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Lista de pedidos do estabelecimento.',
@@ -144,7 +157,7 @@ export class PedidosController {
   })
   async listar(
     @CurrentUser() user: UserPayload,
-    @Query()
+    @Query(new ZodValidationPipe(ListarPedidosQueryDto))
     query: ListarPedidosQueryDto | StatusPedido = {},
     @Query('dataSequencial') dataSequencialLegado?: string,
   ) {
@@ -156,7 +169,16 @@ export class PedidosController {
             dataSequencial: query?.dataSequencial ?? dataSequencialLegado,
             dataIniciadaEm: query?.dataIniciadaEm,
             dataFinalizadaEm: query?.dataFinalizadaEm,
+            criadoEmInicio: query?.criadoEmInicio,
+            criadoEmFim: query?.criadoEmFim,
           };
+    if (
+      user.identity === 'DEVICE' &&
+      (filtro.criadoEmInicio || filtro.criadoEmFim)
+    )
+      throw new ForbiddenException(
+        'Filtros de criação exclusivos para DONO ou GERENTE.',
+      );
     if (user.identity === 'DEVICE')
       return this.operacao.listarLegado(user, filtro);
     if (![Role.DONO, Role.GERENTE].includes(user.role))
