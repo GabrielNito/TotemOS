@@ -1,5 +1,26 @@
 # TotemOS Dashboard
 
+## Primeira configuração operacional, card #38
+
+`/admin/configuracao-inicial`, acessível pela sidebar, reconhece a sessão
+administrativa, o catálogo real e o cadastro de Totem/Painel KDS. Reutiliza
+`GET /catalogo/admin` e `GET /dispositivos` com JWT humano, sem enviar negocioId.
+Catálogo pronto exige produto ativo e não esgotado em categoria ativa, conforme
+as regras compartilhadas da vitrine. Equipamentos exigem ao menos um TOTEM e
+um PAINEL ativos e sem revogação. Cadastro não comprova conectividade.
+
+Configurações operacionais ficam indisponíveis até os contratos dos cards
+#36/#37. O assistente não aciona os salvamentos simulados da tela legada.
+As quatro etapas distinguem conclusão, pendência, indisponibilidade, loading
+e erro. O diagnóstico é reconsultado ao entrar e por atualização manual;
+navegação local não conclui etapas. Não há progresso salvo no navegador.
+
+Consultas independentes têm timeout de 20 segundos, AbortSignal, descarte de
+respostas antigas e reinício por identidade/token. 401 encerra a sessão;
+401/403 removem ambas as fontes. A sessão em validação não mostra dados em cache.
+
+[Critérios, TDD, capturas de teste e limites de homologação](../../docs/evidence/dashboard-primeira-configuracao/README.md).
+
 ## Visão geral operacional, card #35
 
 `/admin` consulta `GET /pedidos` e `GET /dispositivos` com JWT humano

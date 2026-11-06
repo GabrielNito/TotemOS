@@ -13,6 +13,7 @@ import {
   ChevronsUpDown,
   LogOut,
   Store,
+  ListChecks,
 } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
@@ -47,6 +48,12 @@ export const navItems = [
     url: "/admin",
     icon: LayoutDashboard,
     exact: true,
+  },
+  {
+    title: "Configuração inicial",
+    url: "/admin/configuracao-inicial",
+    icon: ListChecks,
+    exact: false,
   },
   {
     title: "Pedidos",

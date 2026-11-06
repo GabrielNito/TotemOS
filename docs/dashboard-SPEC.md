@@ -28,6 +28,7 @@ app/
 │   ├── page.tsx               — indicadores operacionais reais em Bento Grid
 │   ├── pedidos/page.tsx       — consulta e histórico de pedidos reais, filtros e snapshots
 │   ├── catalogo/page.tsx      — gestão de produtos, categorias, combos e preparo zero
+│   ├── configuracao-inicial/page.tsx — diagnóstico guiado de primeira configuração
 │   ├── relatorios/page.tsx    — faturamento consolidado, ticket médio e produtos campeões
 │   ├── dispositivos/page.tsx  — emissão de código de pareamento e status de terminais
 │   └── configuracoes/page.tsx — modo de identificação, offline, equipe e PIN do dono
@@ -71,6 +72,36 @@ Contrato backend, RED/GREEN e limites em
 ---
 
 ## 4. Componentes Assinatura de UI
+
+### Assistente de primeira configuração (#38)
+
+`/admin/configuracao-inicial` tem acesso pela sidebar, sem redirecionamento
+global obrigatório. Etapas: estabelecimento (sessão humana autenticada), catálogo
+(`GET /catalogo/admin`), configurações operacionais (indisponíveis até #36/#37),
+equipamentos (`GET /dispositivos`). Não duplica cadastros nem realiza mutações.
+
+Catálogo pronto reutiliza `calcularDiagnosticoPublicacao`: pelo menos um produto
+ativo e não esgotado em categoria ativa. Categoria vazia não conclui a etapa.
+Equipamentos exigem TOTEM e PAINEL ativos com `revogadoEm === null`, sem inferir
+heartbeat. Pareamento usa a página de dispositivos existente.
+
+Progresso deriva das respostas atuais, com estados concluído, pendente,
+indisponível, carregando e erro. A contagem inclui quatro etapas, sem percentual;
+indisponibilidade de integração fica separada da pendência do operador.
+Retomada e atualização manual reconsultam as fontes. Não persiste progresso,
+códigos de pareamento ou navegação no navegador.
+
+Consultas independentes com AbortController, timeout de 20 s, descarte por versão
+e nova instância por identidade/token. 401 encerra a sessão; 401/403 invalidam
+ambos os snapshots. Payload de outro tenant é rejeitado. Falha de uma fonte
+mantém a outra válida e oferece nova tentativa, sem preservar confirmação antiga.
+Sessão em validação bloqueia o assistente.
+
+O adaptador em `lib/configuracao-inicial.ts` mantém configuração indisponível.
+A integração futura deverá consumir e validar NegocioConfig persistido, sem
+defaults ou estado da tela legada. Aceite integral depende de #36/#37 e #41.
+
+### Componentes compartilhados
 
 - `ChartSplineMetric`: Contagem de pedidos por props, curva Bézier, hover e seleção por teclado. Sem meta ou crescimento fictícios; vazio/indisponível explícitos.
 - `ChartPillBars`: Gráfico em cápsulas verticais exibindo a distribuição de pedidos por hora e destaque do horário de pico.
