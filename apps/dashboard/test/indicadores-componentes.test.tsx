@@ -1,5 +1,12 @@
 import * as React from "react"
-import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  expect,
+  test,
+  setSystemTime,
+} from "bun:test"
 import { Window } from "happy-dom"
 import { act } from "react"
 import type { Root } from "react-dom/client"
@@ -288,4 +295,28 @@ test("loading não é erro nem uma métrica zero", async () => {
   expect(texto()).not.toContain("Indicador indisponível")
   await act(async () => responder(json([])))
   expect(texto()).toContain("Nenhum pedido registrado no período")
+})
+
+test("virada do ano em São Paulo preserva período do snapshot até atualizar", async () => {
+  setSystemTime(new Date("2026-01-01T02:59:00Z"))
+  try {
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) =>
+        String(input).includes("dispositivos")
+          ? json({ dispositivos: [] })
+          : json([p()]),
+      { preconnect: fetchOriginal.preconnect }
+    )
+    await render(<VisaoGeral negocioId="a" token="a" nome="A" />)
+    expect(texto()).toContain("2025-12-31 (inclusivo) até 2026-01-01")
+    setSystemTime(new Date("2026-01-01T03:01:00Z"))
+    await act(async () => botao("Semana").click())
+    await act(async () => botao("Dia").click())
+    expect(texto()).toContain("2025-12-31 (inclusivo) até 2026-01-01")
+    await act(async () => botao("Atualizar").click())
+    expect(texto()).toContain("2026-01-01 (inclusivo) até 2026-01-02")
+    expect(texto()).toContain("12,35")
+  } finally {
+    setSystemTime()
+  }
 })

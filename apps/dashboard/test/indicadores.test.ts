@@ -216,3 +216,29 @@ describe("indicadores verificáveis #35", () => {
     expect(JSON.stringify(r)).not.toContain("online")
   })
 })
+
+test("histórico com dez mil pedidos mantém contagem, centavos e total da série", () => {
+  const pedidos: Pedido[] = Array.from({ length: 10000 }, (_, i) => ({
+    id: String(i),
+    negocioId: "a",
+    senha: null,
+    dataSequencial: "1999-01-01",
+    status: "PENDENTE",
+    valorTotal: 10.1,
+    origemOffline: false,
+    demo: false,
+    createdAt: "2026-01-01T12:00:00Z",
+    updatedAt: "2026-01-02T12:00:00Z",
+    itens: [],
+  }))
+  const r = agregarIndicadores(
+    pedidos,
+    [],
+    "a",
+    periodoAtual("ano", new Date("2026-01-01T12:00:00Z")),
+    false
+  )
+  expect(r.comercial.totalPedidos).toBe(10000)
+  expect(r.valorPedidos).toBe(101000)
+  expect(r.serie.reduce((s, p) => s + p.value, 0)).toBe(10000)
+})

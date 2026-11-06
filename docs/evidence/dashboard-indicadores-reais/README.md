@@ -143,3 +143,89 @@ Não alteramos backend; integração PostgreSQL será verificada pelos jobs exis
 da CI. Homologação com usuários, Android, pagamentos, hardware, histórico de grande
 volume e ambiente DEMO isolado permanece no card #41 e na revisão humana.
 Não houve deploy, merge ou migration. CI dos quatro apps será acompanhada no PR.
+
+## Revisão de finalização, 06/11/2026
+
+Revisão do HEAD inicial `bcd31fe16fb73334a94cf8e6be4d05c862db9188`.
+O fetch confirmou develop ainda em `e034c0f`, PR #23 aberto, sem conflitos,
+sem threads de revisão e com os quatro jobs da execução
+[42259783665](https://github.com/GabrielNito/TotemOS/actions/runs/42259783665)
+aprovados nesse HEAD. API de proteção retornou "Branch not protected";
+regras efetivas/rulesets vazios e nenhum revisor solicitado no GitHub.
+O registro do card em Code Review & CI informa aprovação humana final pendente;
+ausência de proteção automática não substitui essa aprovação.
+
+### Bugs reproduzidos e correção mínima
+
+Severidade | Problema | RED | GREEN
+--- | --- | --- | ---
+P1 | Promise.allSettled mantinha os snapshots após um 401/403 já conhecido enquanto a outra fonte continuava pendente | Quatro testes, 401/403 em cada fonte, ainda encontraram dados no snapshot | Negação da requisição vigente limpa ambas as fontes imediatamente, cancela o transporte e invalida a geração; conclusão tardia não repopula os dados
+P2 | Timestamp de pedidos era atribuído ao concluir a fonte mais lenta; podia mudar o dia de referência indevidamente | Teste com pedidos concluídos e dispositivos demorados encontrou timestamp posterior | Timestamp capturado individualmente ao concluir cada fonte com sucesso
+
+Os cinco testes falharam antes de alterar a implementação, com **9 pass / 5 fail**
+na suíte de consulta. Após a correção passaram; também foi verificado que 401
+tardio de requisição substituída não apaga o snapshot recente. A coordenação
+continua usando allSettled para erros parciais comuns, com invalidação antecipada
+apenas para negação de acesso. Sem mudança de fórmulas, API ou design.
+
+Os 60 testes anteriores foram reexecutados com sucesso antes da correção.
+Suíte final: **68 pass / 0 fail**, 6 arquivos, 160 expect calls. Oito cenários
+adicionados: cinco RED/GREEN acima, 401 obsoleto, virada de ano na UI e histórico
+de dez mil pedidos. Lint sem erros/warnings, typecheck, Prettier dos 12 arquivos
+TS/TSX da entrega, build Next 16.2.6 e git diff --check aprovados novamente.
+
+### Resultado das demais verificações
+
+Contagens e valores seguem as definições acima, inclusive ambos os cancelamentos,
+DEMO fora do valor comercial e pagamento pendente/ENTREGUE sem receita inferida.
+JWT humano e escopo do servidor preservados. Chave da visão geral inclui tenant,
+identidade e token; unmount cancela a geração. Dados cruzados entre tenants são
+rejeitados; não há cache global de métricas. Dependências novas são somente de
+desenvolvimento. CI adiciona execução dos testes sem remover verificações.
+Nos testes antigos, os mocks preservam preconnect e as asserções de domínio.
+
+Virada de dia/ano com o Dashboard aberto foi exercitada no DOM: consulta às
+02:59Z de 01/01 corresponde a 31/12 em São Paulo. Após 03:01Z, alternar filtros
+preserva o calendário do snapshot; Atualizar muda explicitamente para 01/01.
+Esse comportamento mantém a semântica documentada, sem polling ou números
+reclassificados como recentes. Capturas desktop/mobile existentes continuam
+sendo apenas fixtures HTTP, sem prova de PostgreSQL, financeiro ou equipamentos.
+
+### Avaliação objetiva de escala e recomendação ao Caio
+
+Benchmark sintético adicional, com registros mínimos, itens vazios e criação
+distribuída nos doze meses, sem medir banco, parsing ou tráfego:
+
+Pedidos | JSON serializado | Agregação | Contagem / valor nominal
+--- | --- | --- | ---
+10.000 | 2,2 MiB | 68 ms | 10.000 / 101000
+50.000 | 11,2 MiB | 307 ms | 50.000 / 505000
+100.000 | 22,5 MiB | 583 ms | 100.000 / 1010000
+
+São medições locais, não metas de latência nem garantia para mobile. Objetos
+normalizados, snapshots e arrays intermediários usam memória adicional; o
+trabalho síncrono pode pausar a UI conforme o histórico cresce. A validação
+inicial e uma troca de filtro podem repetir agregações. Teste funcional com
+10.000 pedidos confirmou quantidade, soma em centavos e total da série.
+
+O findMany não limita linhas nem trunca a lista. Resposta HTTP/JSON incompleta
+produz erro; não há aproveitamento de linhas parciais como total. Há, porém,
+limite externo real: a documentação da
+[Vercel Functions](https://vercel.com/docs/functions/limitations#request-body-size)
+informa 4,5 MB para corpo de resposta, pertinente ao adaptador Node em
+apps/backend/vercel.json. Snapshots podem atingir esse teto muito antes dos
+volumes mínimos acima. Não foi reproduzida uma resposta grande na plataforma;
+não existe aqui um número seguro universal de pedidos nem validação de proxy.
+
+Parecer de escala: aceitável para o P0 de volume inicial limitado, com
+indisponibilidade explícita em falha; não é solução para histórico indefinido.
+Não exige reescrever o card nem criar endpoint neste PR. Antes de ampliar o uso,
+Caio deve revisar agregação tenant-scoped por createdAt, projeção sem itens e
+pagamentos desnecessários, índice (negocioId, createdAt), limite de payload,
+benchmark PostgreSQL/rede e testes entre tenants. Os filtros atuais por
+dataSequencial não podem ser usados como atalho. Homologação integrada segue #41.
+
+Nenhum backend, banco operacional, migration, Totem ou KDS foi alterado nesta
+revisão. Nenhum comando de deploy executado; a integração Vercel existente
+publica previews automaticamente ao receber pushes, conforme comentário do bot
+no PR. Previews não são homologação ou promoção manual de produção.

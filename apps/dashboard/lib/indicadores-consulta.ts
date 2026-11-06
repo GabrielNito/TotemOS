@@ -69,36 +69,46 @@ export class ConsultaIndicadores {
     this.controle = controle
     const timeout = setTimeout(() => controle.abort(), this.timeoutMs)
     this.publicar({ ...this.estado, carregando: true })
+    const carregar = async <T>(
+      consultar: (signal: AbortSignal) => Promise<T>
+    ) => {
+      try {
+        const dados = await consultar(controle.signal)
+        return { dados, atualizadoEm: new Date().toISOString() }
+      } catch (error) {
+        if (
+          versao === this.versao &&
+          error instanceof ApiError &&
+          [401, 403].includes(error.statusCode)
+        ) {
+          // A outra fonte pode estar lenta. Negação de acesso invalida ambas já.
+          this.cancelar()
+          clearTimeout(timeout)
+          const erro = mensagemErroIndicadores(error)
+          this.publicar({
+            pedidos: { ...vazio<Pedido[]>(), erro },
+            dispositivos: { ...vazio<Dispositivo[]>(), erro },
+            carregando: false,
+          })
+        }
+        throw error
+      }
+    }
     const [pedidos, dispositivos] = await Promise.allSettled([
-      this.pedidos(controle.signal),
-      this.dispositivos(controle.signal),
+      carregar(this.pedidos),
+      carregar(this.dispositivos),
     ])
     clearTimeout(timeout)
     if (versao !== this.versao) return
-    const proibido = [pedidos, dispositivos].find(
-      (r) =>
-        r.status === "rejected" &&
-        r.reason instanceof ApiError &&
-        [401, 403].includes(r.reason.statusCode)
-    )
-    if (proibido?.status === "rejected") {
-      const erro = mensagemErroIndicadores(proibido.reason)
-      this.publicar({
-        pedidos: { ...vazio<Pedido[]>(), erro },
-        dispositivos: { ...vazio<Dispositivo[]>(), erro },
-        carregando: false,
-      })
-      return
-    }
     const fonte = <T>(
-      res: PromiseSettledResult<T>,
+      res: PromiseSettledResult<{ dados: T; atualizadoEm: string }>,
       anterior: FonteIndicadores<T>
     ): FonteIndicadores<T> =>
       res.status === "fulfilled"
         ? {
-            dados: res.value,
+            dados: res.value.dados,
             erro: null,
-            atualizadoEm: new Date().toISOString(),
+            atualizadoEm: res.value.atualizadoEm,
           }
         : { ...anterior, erro: mensagemErroIndicadores(res.reason) }
     this.publicar({

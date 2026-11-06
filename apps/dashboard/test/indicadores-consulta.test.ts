@@ -123,3 +123,82 @@ test("timeout aborta transporte e mantém fontes indisponíveis, sem zeros", asy
   expect(c.snapshot().pedidos.erro).toContain("comunicação")
   expect(c.snapshot().dispositivos.dados).toEqual([])
 })
+
+for (const status of [401, 403]) {
+  for (const fonte of ["pedidos", "dispositivos"] as const) {
+    test(`${status} em ${fonte} limpa snapshots sem esperar a outra fonte e cancela transporte`, async () => {
+      let negar = false
+      let concluir!: (value: never[]) => void
+      let signalPendente!: AbortSignal
+      const carregar = async (nome: string, signal: AbortSignal) => {
+        if (!negar) return []
+        if (nome === fonte) throw new ApiError(status, "privado")
+        signalPendente = signal
+        return new Promise<never[]>((r) => {
+          concluir = r
+        })
+      }
+      const c = new ConsultaIndicadores(
+        (s) => carregar("pedidos", s),
+        (s) => carregar("dispositivos", s)
+      )
+      await c.atualizar()
+      negar = true
+      const refetch = c.atualizar()
+      await new Promise((r) => setTimeout(r, 0))
+      const antesDeConcluir = c.snapshot()
+      const abortou = signalPendente.aborted
+      concluir([])
+      await refetch
+      expect(antesDeConcluir.pedidos.dados).toBeNull()
+      expect(antesDeConcluir.dispositivos.dados).toBeNull()
+      expect(antesDeConcluir.carregando).toBe(false)
+      expect(abortou).toBe(true)
+      expect(c.snapshot()).toBe(antesDeConcluir)
+    })
+  }
+}
+
+test("timestamp de pedidos reflete sua conclusão, mesmo com dispositivos lentos", async () => {
+  let concluir!: (value: never[]) => void
+  const c = new ConsultaIndicadores(
+    async () => [],
+    () =>
+      new Promise((r) => {
+        concluir = r
+      })
+  )
+  const carregamento = c.atualizar()
+  await new Promise((r) => setTimeout(r, 0))
+  const pedidosJaConcluidos = Date.now()
+  await new Promise((r) => setTimeout(r, 20))
+  concluir([])
+  await carregamento
+  expect(
+    new Date(c.snapshot().pedidos.atualizadoEm!).getTime()
+  ).toBeLessThanOrEqual(pedidosJaConcluidos)
+  expect(
+    new Date(c.snapshot().dispositivos.atualizadoEm!).getTime()
+  ).toBeGreaterThan(pedidosJaConcluidos)
+})
+
+test("401 tardio de atualização substituída não invalida snapshot mais novo", async () => {
+  let rejeitar!: (erro: unknown) => void
+  let chamadas = 0
+  const c = new ConsultaIndicadores(
+    () =>
+      ++chamadas === 1
+        ? new Promise((_, reject) => {
+            rejeitar = reject
+          })
+        : Promise.resolve([]),
+    async () => []
+  )
+  const antiga = c.atualizar()
+  await c.atualizar()
+  const nova = c.snapshot()
+  rejeitar(new ApiError(401, "sessão antiga"))
+  await antiga
+  expect(c.snapshot()).toBe(nova)
+  expect(c.snapshot().pedidos.erro).toBeNull()
+})
