@@ -253,12 +253,17 @@ function normalizarProduto(produto: ProdutoApi): Produto {
   }
 }
 
-export async function getCatalogoAdministrativo(): Promise<CatalogoAdministrativo> {
+export async function getCatalogoAdministrativo(
+  token?: string,
+  signal?: AbortSignal
+): Promise<CatalogoAdministrativo> {
   const catalogo = await fetchApi<CatalogoAdministrativoApi>(
     "/catalogo/admin",
     {
       method: "GET",
       cache: "no-store",
+      token,
+      signal,
     }
   )
 

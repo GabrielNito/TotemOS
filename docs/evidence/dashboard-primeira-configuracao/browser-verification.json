@@ -1,0 +1,120 @@
+[
+  {
+    "name": "desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "overflow": false,
+    "keyboardSelected": "true",
+    "routes": [
+      {
+        "path": "/admin/catalogo",
+        "status": 200
+      },
+      {
+        "path": "/admin/dispositivos",
+        "status": 200
+      }
+    ],
+    "requests": [
+      {
+        "path": "/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      }
+    ],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    "storage": [
+      "totemos_user"
+    ],
+    "accessibilityViolations": [],
+    "partialFailure": true,
+    "refetchSoldOut": true,
+    "fixture": true
+  },
+  {
+    "name": "mobile",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "overflow": false,
+    "keyboardSelected": "true",
+    "routes": [
+      {
+        "path": "/admin/catalogo",
+        "status": 200
+      },
+      {
+        "path": "/admin/dispositivos",
+        "status": 200
+      }
+    ],
+    "requests": [
+      {
+        "path": "/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      },
+      {
+        "path": "/catalogo/admin",
+        "method": "GET"
+      },
+      {
+        "path": "/dispositivos",
+        "method": "GET"
+      }
+    ],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    "storage": [
+      "totemos_user"
+    ],
+    "accessibilityViolations": [],
+    "partialFailure": true,
+    "refetchSoldOut": true,
+    "fixture": true
+  }
+]
