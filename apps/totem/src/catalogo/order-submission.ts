@@ -26,6 +26,7 @@ export type PendingOrder = {
 export type OrderAttempt = {
   negocioId: string;
   dispositivoId?: string;
+  postStarted?: boolean;
   key: string;
   request: OrderRequest;
   result?: PendingOrder;
@@ -142,6 +143,7 @@ export class OrderSubmission {
     private uuid: () => string,
     private clearCart?: () => Promise<void>,
     private dispositivoId?: string,
+    private verifyLegacyOrder?: (id: string) => Promise<TrackingSnapshot>,
   ) {}
   async restore() {
     const saved = await this.storage.get();
@@ -155,6 +157,8 @@ export class OrderSubmission {
       value.negocioId !== this.negocioId ||
       (value.dispositivoId !== undefined &&
         value.dispositivoId !== this.dispositivoId) ||
+      (value.postStarted !== undefined &&
+        typeof value.postStarted !== "boolean") ||
       !validOrderId(value.key) ||
       !validRequest(value.request)
     )
@@ -173,6 +177,25 @@ export class OrderSubmission {
     }
     if (value.closing !== undefined && value.closing !== true)
       throw new Error("Encerramento inválido.");
+    if (this.dispositivoId && value.dispositivoId === undefined) {
+      if (!value.result || !this.verifyLegacyOrder)
+        throw new Error(
+          "Não foi possível confirmar o dispositivo do pedido salvo. Solicite assistência.",
+        );
+      const snapshot = await this.verifyLegacyOrder(value.result.id);
+      if (value.closing && snapshot.status !== "ENTREGUE")
+        throw new Error(
+          "Não foi possível confirmar o encerramento. Solicite assistência.",
+        );
+      value.dispositivoId = this.dispositivoId;
+      value.result = {
+        ...value.result,
+        status: snapshot.status,
+        valorTotal: snapshot.valorTotal,
+      };
+      value.tracking = { snapshot, syncedAt: Date.now() };
+      await this.storage.set(JSON.stringify(value));
+    }
     this.attempt = value;
     if (value.closing) await this.finish();
   }
@@ -224,6 +247,7 @@ export class OrderSubmission {
     const attempt: OrderAttempt = {
       negocioId: this.negocioId,
       ...(this.dispositivoId && { dispositivoId: this.dispositivoId }),
+      postStarted: false,
       key,
       request: JSON.parse(JSON.stringify(request)),
     };
@@ -244,9 +268,13 @@ export class OrderSubmission {
     if (this.busy || !this.attempt)
       throw new Error("Envio em andamento ou pedido ausente.");
     if (this.attempt.result) return this.attempt.result;
+    // A record from before this flag may already have reached the server.
+    const firstPost = this.attempt.postStarted === false;
+    const sending = { ...this.attempt, postStarted: true };
     this.busy = true;
     try {
-      await this.storage.set(JSON.stringify(this.attempt));
+      await this.storage.set(JSON.stringify(sending));
+      this.attempt = sending;
       const result = validateResult(
         await this.send(this.attempt.request, this.attempt.key),
         this.negocioId,
@@ -257,6 +285,9 @@ export class OrderSubmission {
       return result;
     } catch (error) {
       if (error instanceof OrderRejectedError) {
+        if (!firstPost) {
+          throw new Error("O envio anterior ainda não foi confirmado.");
+        }
         await this.storage.set("");
         this.attempt = null;
       }

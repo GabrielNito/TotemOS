@@ -93,7 +93,8 @@ experiência simulada, inclusive ao abrir a rota de ativação.
 Reabra o app após reinício para restaurar sessão e pedido. A abertura automática
 depende da configuração gerenciada do aparelho. A tentativa salva é recuperada
 mesmo se o catálogo estiver indisponível. Uma falha no envio, inclusive 404,
-mantém a tentativa para consulta. Um pedido pendente bloqueia o retorno ao
+mantém a tentativa para consulta. Um 400 em retentativa também preserva a tentativa.
+Um pedido pendente bloqueia o retorno ao
 carrinho. Em background, a identificação em memória é removida e a janela
 Android real usa proteção contra captura e miniaturas de recentes.
 

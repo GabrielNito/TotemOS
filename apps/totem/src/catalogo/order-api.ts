@@ -3,7 +3,7 @@ import { restoreDeviceSession } from "../device-pairing/session";
 import { getApiBaseUrl } from "./api";
 import { OrderSubmission, OrderRejectedError } from "./order-submission";
 import { clearBusinessCart } from "./cart-storage";
-import { TrackingError } from "./order-tracking-api";
+import { getOrderTracking, TrackingError } from "./order-tracking-api";
 
 // This is an idempotency identifier, never an authentication credential.
 function requestId() {
@@ -78,5 +78,6 @@ export function createOrderSubmission(
     requestId,
     () => clearBusinessCart(negocioId),
     dispositivoId,
+    (id) => getOrderTracking(negocioId, id, undefined, dispositivoId),
   );
 }
