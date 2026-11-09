@@ -116,4 +116,4 @@ O fluxo de CI atual cobre exportação dos bundles. O build nativo local complem
 A revisão reproduziu três falhas de recuperação em Jest (legado sem autoria, exposição de snapshot legado e 400 após perda da resposta e reinício) e o uso de autofill na identificação real. A recuperação passou a preservar a tentativa incerta e confirmar a autoria do legado com ID antes de exibir o resultado. O caso positivo confirma a gravação do vínculo e a preservação da chave e do payload. O Jest passou de 217 para 223 testes em 36 suítes.
 
 O APK de desenvolvimento manteve o SHA-256 indicado acima. As correções desta revisão são JavaScript e são servidas pelo Metro nesse APK. Use o bundle do HEAD revisado no APK independente de homologação.
-Os exports Android foram repetidos em sequência com --clear; os bundles real e preview geraram hashes distintos.
+Os exports Android foram repetidos em sequência com `--clear`. Os bundles Hermes real e preview tiveram SHA-256 `e3acb842032392798efef97e77d24b7d25566780bd6b191fa7f458f84ba18c46` e `4b9cb0db2ed7aec905a8a401d2c61e86c364511e73c8c4006aae96755a571bd8`, respectivamente.
