@@ -314,7 +314,9 @@ test("recovers a pending attempt on restart and keeps navigation locked while ch
   try {
     expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
     await act(async () => tree.root.findByType(OrderStatus).props.onRetry());
-    expect(tree.root.findByType(OrderStatus).props.error).toBe("rede");
+    expect(tree.root.findByType(OrderStatus).props.error).toBe(
+      "Não foi possível confirmar o pedido. Consulte novamente.",
+    );
     expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
     await act(async () => tree.root.findByType(OrderStatus).props.onRetry());
     expect(tree.root.findByType(OrderStatus).props.result.id).toBe("recovered");
@@ -451,5 +453,137 @@ test("the paired catalog uses real IDs through configuration, cart editing, undo
     expect(createOrderSubmission).toHaveBeenCalled();
   } finally {
     await act(async () => tree.unmount());
+  }
+});
+
+test("Voltar no catálogo é consumido pelo Totem", async () => {
+  const { BackHandler } =
+    jest.requireActual<typeof import("react-native")>("react-native");
+  const listen = jest.spyOn(BackHandler, "addEventListener");
+  let tree!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      tree = create(
+        <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+      );
+    });
+    await act(async () =>
+      tree.root.findByType(KioskStandby).props.onContinue(),
+    );
+    const handler = listen.mock.calls.at(-1)![1];
+    expect(handler({ type: "hardwareBackPress", timeStamp: 0 })).toBe(true);
+    expect(tree.root.findAllByType(MenuScreen)).toHaveLength(1);
+  } finally {
+    if (tree) await act(async () => tree.unmount());
+    listen.mockRestore();
+  }
+});
+
+test("pedido registrado é recuperado mesmo com carrinho ilegível", async () => {
+  const result = { id: "order", status: "EM_PREPARO", valorTotal: "45.00" };
+  jest.mocked(createOrderSubmission).mockReturnValue({
+    attempt: { result },
+    restore: jest.fn(async () => {}),
+  } as unknown as ReturnType<typeof createOrderSubmission>);
+  jest
+    .mocked(loadBusinessCart)
+    .mockRejectedValue(new Error("SecureStore indisponível"));
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(
+      <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+    );
+  });
+  try {
+    expect(tree.root.findByType(OrderStatus).props.result).toEqual(result);
+    expect(loadBusinessCart).not.toHaveBeenCalled();
+    expect(tree.root.findByType(OrderStatus).props.onBack).toBeUndefined();
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test("Voltar acompanha as etapas e bloqueia retorno durante envio e acompanhamento", async () => {
+  const { BackHandler } =
+    jest.requireActual<typeof import("react-native")>("react-native");
+  const listen = jest.spyOn(BackHandler, "addEventListener").mockClear();
+  let resolve!: (result: object) => void;
+  const submission = {
+    attempt: null as object | null,
+    restore: jest.fn(async () => {}),
+    prepare: jest.fn(async () => {
+      submission.attempt = {};
+    }),
+    submit: jest.fn(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    ),
+  };
+  jest
+    .mocked(createOrderSubmission)
+    .mockReturnValue(
+      submission as unknown as ReturnType<typeof createOrderSubmission>,
+    );
+  let tree!: ReactTestRenderer;
+  const back = async () => {
+    await act(async () => {
+      expect(
+        listen.mock.calls.at(-1)![1]({
+          type: "hardwareBackPress",
+          timeStamp: 0,
+        }),
+      ).toBe(true);
+    });
+  };
+  try {
+    await act(async () => {
+      tree = create(
+        <BusinessKioskScreen negocioId="tenant-a" categories={categories} />,
+      );
+    });
+    await act(async () =>
+      tree.root.findByType(KioskStandby).props.onContinue(),
+    );
+    const menu = tree.root.findByType(MenuScreen);
+    await act(async () =>
+      menu.props.onProduct(menu.props.sections[0].products[0]),
+    );
+    await back();
+    expect(tree.root.findAllByType(BusinessProductScreen)).toHaveLength(0);
+    await act(async () => {
+      const currentMenu = tree.root.findByType(MenuScreen);
+      currentMenu.props.onProduct(currentMenu.props.sections[0].products[0]);
+    });
+    await act(async () =>
+      tree.root
+        .findByType(BusinessProductScreen)
+        .props.onSave({ variacaoId: "large-real", adicionais: {} }, 1),
+    );
+    await act(async () => tree.root.findByType(MenuScreen).props.onCart());
+    await back();
+    expect(tree.root.findAllByType(CartScreen)).toHaveLength(0);
+    await act(async () => tree.root.findByType(MenuScreen).props.onCart());
+    await act(async () => tree.root.findByType(CartScreen).props.onCheckout());
+    await back();
+    expect(tree.root.findAllByType(CartScreen)).toHaveLength(1);
+    await act(async () => tree.root.findByType(CartScreen).props.onCheckout());
+    await act(async () =>
+      tree.root.findByType(CheckoutScreen).props.onComplete(),
+    );
+    expect(tree.root.findByType(OrderStatus).props.busy).toBe(true);
+    await back();
+    expect(tree.root.findAllByType(CartScreen)).toHaveLength(0);
+    await act(async () => resolve({ id: "tracked-order", status: "PENDENTE" }));
+    await back();
+    expect(tree.root.findByType(OrderStatus).props.result.id).toBe(
+      "tracked-order",
+    );
+    expect(tree.root.findAllByType(CartScreen)).toHaveLength(0);
+    expect(submission.submit).toHaveBeenCalledTimes(1);
+  } finally {
+    if (tree) await act(async () => tree.unmount());
+    listen.mockRestore();
   }
 });

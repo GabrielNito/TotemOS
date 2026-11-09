@@ -85,7 +85,7 @@ Jest e exportação não comprovam homologação operacional.
 - Pagamento recusado: **carrinho persiste**, só a etapa de pagamento reseta.
 - Sem opção de dinheiro físico — só cartão/débito/crédito/Pix via maquininha.
 - Se o backend cloud não responder, preservar tentativa e carrinho; repetir a mesma chave/payload e bloquear nova venda enquanto o resultado for incerto. O P0 é cloud-online. Envio LAN, venda offline e reconciliação são hipóteses pós-MVP não validadas.
-- Kiosk mode (Android Lock Task Mode) é requisito de produto futuro (#42); não inferir sua implementação a partir da interface de prévia.
+- No Android real, o #42 protege a navegação interna e confirma o modo do sistema. Lock Task exige autorização por DPC. Screen Pinning é escolhido pelo operador no Android e admite saída pelo sistema. A prévia não solicita modo nativo. A recuperação de tentativa pode começar antes da resposta do catálogo. [Operação e suporte](evidence/totem-kiosk-recovery/README.md).
 
 ## Pareamento (substitui login)
 

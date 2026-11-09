@@ -10,6 +10,7 @@ import Animated, {
 import { experienceModes } from "./experience-context";
 import type { Mode } from "./reference-model";
 import { colors, KioskText } from "./ui";
+import { AndroidKioskMode } from "../android-kiosk/guard";
 
 const icons = { counter: Store, table: Utensils, qr: Smartphone };
 const dialogEntrance = FadeInDown.duration(220)
@@ -132,6 +133,7 @@ export function ContextDialog({
                 ? `Atendimento de ${businessName}.`
                 : "Seu pedido permanece salvo neste totem."}
           </KioskText>
+          {!simulation && <AndroidKioskMode />}
         </Animated.ScrollView>
       </View>
     </Modal>

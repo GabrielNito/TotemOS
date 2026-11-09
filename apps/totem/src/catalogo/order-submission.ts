@@ -25,6 +25,7 @@ export type PendingOrder = {
 };
 export type OrderAttempt = {
   negocioId: string;
+  dispositivoId?: string;
   key: string;
   request: OrderRequest;
   result?: PendingOrder;
@@ -140,6 +141,7 @@ export class OrderSubmission {
     private send: Send,
     private uuid: () => string,
     private clearCart?: () => Promise<void>,
+    private dispositivoId?: string,
   ) {}
   async restore() {
     const saved = await this.storage.get();
@@ -151,6 +153,8 @@ export class OrderSubmission {
     if (
       !value ||
       value.negocioId !== this.negocioId ||
+      (value.dispositivoId !== undefined &&
+        value.dispositivoId !== this.dispositivoId) ||
       !validOrderId(value.key) ||
       !validRequest(value.request)
     )
@@ -219,6 +223,7 @@ export class OrderSubmission {
     const key = this.uuid();
     const attempt: OrderAttempt = {
       negocioId: this.negocioId,
+      ...(this.dispositivoId && { dispositivoId: this.dispositivoId }),
       key,
       request: JSON.parse(JSON.stringify(request)),
     };

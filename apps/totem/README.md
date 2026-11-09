@@ -74,3 +74,27 @@ Standby manual preserva a tentativa e retorna à mesma tela; entrar em standby
 limpa a identificação em memória. Não existe descarte por timeout ou 404.
 
 Detalhes e limites: [evidências do #33](../../docs/evidence/totem-acompanhamento/README.md).
+
+## Android dedicado e recuperação, card #42
+
+O APK real consulta o estado do Android antes de abrir o fluxo comercial. O
+aplicativo comum controla a navegação interna. A fixação temporária é iniciada
+pelo operador no Android e pode ser desfeita pelo sistema. O Lock Task gerenciado
+exige autorização de um DPC para `com.totemos.totem`. O estado fica visível na
+ativação e no diálogo de atendimento. A opção **Iniciar modo dedicado** aparece
+na ativação quando o Android autoriza. Para aparelho já pareado, use a abertura
+gerenciada pelo DPC compatível.
+
+O módulo Kotlin local é autolinkado pelo Expo. Recompile o development build
+depois de atualizar o código nativo. O APK de operação deve ter bundle
+incorporado e assinatura do ambiente. `EXPO_PUBLIC_KIOSK_PREVIEW=1` usa só a
+experiência simulada, inclusive ao abrir a rota de ativação.
+
+Reabra o app após reinício para restaurar sessão e pedido. A abertura automática
+depende da configuração gerenciada do aparelho. A tentativa salva é recuperada
+mesmo se o catálogo estiver indisponível. Uma falha no envio, inclusive 404,
+mantém a tentativa para consulta. Um pedido pendente bloqueia o retorno ao
+carrinho. Em background, a identificação em memória é removida e a janela
+Android real usa proteção contra captura e miniaturas de recentes.
+
+[Runbook de suporte, evidências e limitações do #42](../../docs/evidence/totem-kiosk-recovery/README.md).

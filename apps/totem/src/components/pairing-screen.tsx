@@ -1,5 +1,11 @@
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState, type ComponentProps } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -53,10 +59,12 @@ interface PairingScreenProps {
   destination: PairingDestination;
   expectedDeviceType: DeviceType;
   title: string;
+  kioskMode?: ReactNode;
 }
 
 type PairingUiState =
   | { status: "checking" }
+  | { status: "restore-error"; message: string }
   | { status: "error"; message: string }
   | { status: "expired-or-used"; message: string }
   | { status: "loading" }
@@ -67,7 +75,7 @@ function stateFromRestoreResult(
 ): PairingUiState {
   if (result.kind === "authenticated") return { status: "checking" };
   if (result.kind === "error") {
-    return { message: result.message, status: "error" };
+    return { message: result.message, status: "restore-error" };
   }
   return { status: "waiting" };
 }
@@ -144,6 +152,7 @@ export function PairingScreen({
   destination,
   expectedDeviceType,
   title,
+  kioskMode,
 }: PairingScreenProps) {
   const router = useRouter();
   const [fontsLoaded, fontError] = useFonts({
@@ -155,6 +164,7 @@ export function PairingScreen({
     BarlowCondensed_700Bold,
   });
   const [codigo, setCodigo] = useState("");
+  const [reload, setReload] = useState(0);
   const [state, setState] = useState<PairingUiState>({ status: "checking" });
 
   const redirectToDestination = useCallback(() => {
@@ -176,7 +186,7 @@ export function PairingScreen({
     return () => {
       cancelled = true;
     };
-  }, [expectedDeviceType, redirectToDestination]);
+  }, [expectedDeviceType, redirectToDestination, reload]);
 
   const handlePair = async () => {
     if (state.status === "loading") return;
@@ -192,6 +202,26 @@ export function PairingScreen({
 
   if (!fontsLoaded && !fontError) return <BrandedLoading />;
   if (state.status === "checking") return <BrandedLoading />;
+  if (state.status === "restore-error") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <BrandHeader />
+        <View style={styles.loadingState}>
+          <Text style={styles.loadingText}>{state.message}</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.primaryButton}
+            onPress={() => {
+              setState({ status: "checking" });
+              setReload((current) => current + 1);
+            }}
+          >
+            <Text style={styles.primaryButtonText}>Verificar novamente</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const isLoading = state.status === "loading";
   const hasMessage =
@@ -310,6 +340,7 @@ export function PairingScreen({
             </View>
           </View>
 
+          {kioskMode}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Brioche · TotemOS</Text>
             <Text style={styles.footerText}>Ativação segura</Text>

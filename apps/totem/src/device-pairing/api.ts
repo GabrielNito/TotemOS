@@ -54,30 +54,37 @@ async function request<T>(
     ...(headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-    ...requestOptions,
-    headers: requestHeaders,
-  });
-
-  let payload: unknown;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    payload = await response.json();
-  } catch {
-    payload = undefined;
-  }
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      ...requestOptions,
+      headers: requestHeaders,
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const errorPayload = getErrorPayload(payload);
-    const code =
-      typeof errorPayload.code === "string" ? errorPayload.code : undefined;
-    throw new PairingApiError(
-      response.status,
-      code,
-      getErrorMessage(errorPayload, response.status),
-    );
-  }
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = undefined;
+    }
 
-  return payload as T;
+    if (!response.ok) {
+      const errorPayload = getErrorPayload(payload);
+      const code =
+        typeof errorPayload.code === "string" ? errorPayload.code : undefined;
+      throw new PairingApiError(
+        response.status,
+        code,
+        getErrorMessage(errorPayload, response.status),
+      );
+    }
+
+    return payload as T;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function activateDevice(
