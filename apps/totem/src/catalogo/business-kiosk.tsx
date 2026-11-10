@@ -40,6 +40,7 @@ import { ExperienceContext } from "../kiosk/experience-context";
 import { KioskStandby } from "../kiosk/standby";
 import { OrderNotice } from "../kiosk/notice";
 import { ContextDialog } from "../kiosk/context-dialog";
+import { useAndroidKioskRefresh } from "../android-kiosk/guard";
 import { s } from "../kiosk/kiosk-styles";
 import { BusinessProductScreen } from "./business-product";
 import {
@@ -186,6 +187,7 @@ function BusinessKiosk({
   const [removed, setRemoved] = useState<CartLine | null>(null);
   const [removalOpen, setRemovalOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const refreshKioskMode = useAndroidKioskRefresh();
   const insets = useSafeAreaInsets();
   const viewport = useRef<View>(null);
   const motion = useProductMotion(screen, viewport, useReducedMotion());
@@ -405,7 +407,10 @@ function BusinessKiosk({
         mode: "counter",
         brand,
         goHome: () => go("catalog"),
-        openContext: () => setContextOpen(true),
+        openContext: () => {
+          refreshKioskMode?.();
+          setContextOpen(true);
+        },
       }}
     >
       <SafeAreaView

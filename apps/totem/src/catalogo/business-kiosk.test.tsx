@@ -1,4 +1,7 @@
 import React from "react";
+import { requireOptionalNativeModule } from "expo";
+import { AppState, BackHandler, type AppStateStatus } from "react-native";
+import { AndroidKioskGuard } from "../android-kiosk/guard";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { BusinessKioskScreen } from "./business-kiosk";
 import { MenuScreen } from "../kiosk/menu-screen";
@@ -13,6 +16,10 @@ import { createCartLine } from "./model";
 import { createOrderSubmission } from "./order-api";
 import { OrderStatus } from "./order-status";
 import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
+jest.mock("expo", () => ({
+  ...jest.requireActual("expo"),
+  requireOptionalNativeModule: jest.fn(),
+}));
 jest.mock("./order-api", () => ({ createOrderSubmission: jest.fn() }));
 jest.mock("./order-status", () => ({ OrderStatus: () => null }));
 
@@ -70,7 +77,12 @@ jest.mock("./business-product", () => ({ BusinessProductScreen: () => null }));
 jest.mock("../kiosk/cart", () => ({ CartScreen: () => null }));
 jest.mock("../kiosk/checkout", () => ({ CheckoutScreen: () => null }));
 jest.mock("../kiosk/notice", () => ({ OrderNotice: () => null }));
-jest.mock("../kiosk/context-dialog", () => ({ ContextDialog: () => null }));
+jest.mock("../kiosk/context-dialog", () => ({
+  ContextDialog: ({ visible }: { visible: boolean }) => {
+    const { AndroidKioskMode } = jest.requireActual("../android-kiosk/guard");
+    return visible ? <AndroidKioskMode /> : null;
+  },
+}));
 jest.mock("../kiosk/standby", () => ({ KioskStandby: () => null }));
 jest.mock("../kiosk/ui", () => ({
   KioskText: jest.requireActual("react-native").Text,
@@ -586,4 +598,136 @@ test("Voltar acompanha as etapas e bloqueia retorno durante envio e acompanhamen
     if (tree) await act(async () => tree.unmount());
     listen.mockRestore();
   }
+});
+
+describe("modo Android no diálogo real", () => {
+  const ordinary = { mode: "ordinary", managedPermitted: false };
+  const pinned = { mode: "pinned", managedPermitted: false };
+  let tree: ReactTestRenderer | undefined;
+  let change: (state: AppStateStatus) => void;
+
+  beforeEach(() => {
+    const listeners: ((state: AppStateStatus) => void)[] = [];
+    change = (state) => listeners.forEach((listener) => listener(state));
+    jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation((event, listener) => {
+        if (event === "change") listeners.push(listener);
+        return { remove: jest.fn() };
+      });
+    jest
+      .spyOn(BackHandler, "addEventListener")
+      .mockReturnValue({ remove: jest.fn() });
+  });
+
+  afterEach(async () => {
+    if (tree) await act(async () => tree?.unmount());
+    tree = undefined;
+    jest.restoreAllMocks();
+  });
+
+  async function mount(getStatus: () => Promise<unknown>) {
+    const startManaged = jest.fn();
+    jest
+      .mocked(requireOptionalNativeModule)
+      .mockReturnValue({ getStatus, startManaged });
+    await act(async () => {
+      tree = create(
+        <AndroidKioskGuard>
+          <BusinessKioskScreen negocioId="tenant-a" categories={categories} />
+        </AndroidKioskGuard>,
+      );
+    });
+    await continueService();
+    return startManaged;
+  }
+  async function continueService() {
+    await act(async () =>
+      tree!.root.findByType(KioskStandby).props.onContinue(),
+    );
+  }
+  async function open() {
+    const trigger = tree!.root.findAll(
+      (node) =>
+        node.props.accessibilityLabel === "Abrir atendimento" &&
+        typeof node.props.onPress === "function",
+    )[0];
+    await act(async () => trigger.props.onPress());
+  }
+  async function close() {
+    await act(async () => tree!.root.findByType(ContextDialog).props.onClose());
+  }
+  const output = () => JSON.stringify(tree!.toJSON());
+
+  test("lê NONE → PINNED → NONE ao abrir e reabrir, mesmo sem transição de AppState", async () => {
+    const getStatus = jest
+      .fn()
+      .mockResolvedValueOnce(ordinary)
+      .mockResolvedValueOnce(ordinary)
+      .mockResolvedValueOnce(pinned)
+      .mockResolvedValueOnce(pinned)
+      .mockResolvedValueOnce(ordinary);
+    const startManaged = await mount(getStatus);
+    await open();
+    expect(output()).toContain("Android em modo comum");
+    await close();
+    await open();
+    expect(output()).toContain("Aplicativo fixado pelo Android");
+    await close();
+    await open();
+    expect(output()).toContain("Aplicativo fixado pelo Android");
+    await close();
+    await open();
+    expect(output()).toContain("Android em modo comum");
+    expect(getStatus).toHaveBeenCalledTimes(5);
+    expect(startManaged).not.toHaveBeenCalled();
+  });
+
+  test("retorno do background vence uma leitura antiga do diálogo", async () => {
+    let resolveOld!: (status: object) => void;
+    const getStatus = jest
+      .fn()
+      .mockResolvedValueOnce(ordinary)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOld = resolve;
+          }),
+      )
+      .mockResolvedValue(pinned);
+    await mount(getStatus);
+    await open();
+    expect(output()).toContain("Consultando o modo do Android");
+    expect(output()).not.toContain("Android em modo comum");
+    await act(async () => change("background"));
+    await act(async () => change("active"));
+    await continueService();
+    await open();
+    expect(output()).toContain("Aplicativo fixado pelo Android");
+    await act(async () => resolveOld(ordinary));
+    expect(output()).toContain("Aplicativo fixado pelo Android");
+    expect(output()).not.toContain("Android em modo comum");
+  });
+
+  test("falha de leitura no diálogo informa indisponibilidade sem anunciar NONE", async () => {
+    const getStatus = jest
+      .fn()
+      .mockResolvedValueOnce(ordinary)
+      .mockRejectedValueOnce(new Error("bridge unavailable"));
+    await mount(getStatus);
+    await open();
+    expect(output()).toContain("Modo Android indisponível");
+    expect(output()).not.toContain("Android em modo comum");
+  });
+
+  test("reconsulta LOCKED no diálogo e preserva a indicação gerenciada", async () => {
+    const getStatus = jest
+      .fn()
+      .mockResolvedValue({ mode: "managed", managedPermitted: true });
+    const startManaged = await mount(getStatus);
+    await open();
+    expect(output()).toContain("Modo dedicado gerenciado ativo");
+    expect(getStatus).toHaveBeenCalledTimes(2);
+    expect(startManaged).not.toHaveBeenCalled();
+  });
 });

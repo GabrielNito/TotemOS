@@ -26,6 +26,7 @@ import {
 
 const KioskContext = createContext<{
   status: KioskStatus | null;
+  refreshStatus: () => void;
   start: () => void;
 } | null>(null);
 
@@ -35,11 +36,16 @@ export function AndroidKioskGuard({ children }: { children: ReactNode }) {
   const policy = useRef({ generation: 0, managed: false });
   const update = useCallback(async (start = false) => {
     const check = ++policy.current.generation;
-    const native = requireOptionalNativeModule<KioskBridge>("TotemKiosk");
-    const current =
-      start && native
-        ? await startManagedKiosk(native)
-        : await checkKioskPolicy(native);
+    let current: KioskStatus;
+    try {
+      const native = requireOptionalNativeModule<KioskBridge>("TotemKiosk");
+      current =
+        start && native
+          ? await startManagedKiosk(native)
+          : await checkKioskPolicy(native);
+    } catch {
+      current = { mode: "native-error" };
+    }
     if (check !== policy.current.generation) return;
     if (current.mode === "managed") policy.current.managed = true;
     setStatus(
@@ -80,7 +86,9 @@ export function AndroidKioskGuard({ children }: { children: ReactNode }) {
 
   const blocked = !status || !("managedPermitted" in status);
   return (
-    <KioskContext.Provider value={{ status, start: () => refresh(true) }}>
+    <KioskContext.Provider
+      value={{ status, refreshStatus: refresh, start: () => refresh(true) }}
+    >
       <View style={styles.root}>
         {checked && (
           <View
@@ -122,10 +130,24 @@ export function AndroidKioskGuard({ children }: { children: ReactNode }) {
   );
 }
 
+export function useAndroidKioskRefresh() {
+  return useContext(KioskContext)?.refreshStatus;
+}
+
 export function AndroidKioskMode({ setup = false }: { setup?: boolean }) {
   const kiosk = useContext(KioskContext);
   const status = kiosk?.status;
-  if (!kiosk || !status || !("managedPermitted" in status)) return null;
+  if (!kiosk) return null;
+  if (!status || !("managedPermitted" in status)) {
+    if (setup) return null;
+    return (
+      <Text accessibilityLiveRegion="polite" style={styles.copy}>
+        {status
+          ? "Modo Android indisponível"
+          : "Consultando o modo do Android..."}
+      </Text>
+    );
+  }
   const label = {
     ordinary: "Android em modo comum",
     pinned:
