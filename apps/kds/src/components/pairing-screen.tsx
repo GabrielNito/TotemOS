@@ -16,10 +16,8 @@ import {
 } from "../device-pairing/session";
 import type { DeviceType } from "../device-pairing/types";
 
-type PairingDestination = "/catalogo" | "/pedidos";
-
 interface PairingScreenProps {
-  destination: PairingDestination;
+  destination: "/pedidos";
   expectedDeviceType: DeviceType;
   title: string;
 }
