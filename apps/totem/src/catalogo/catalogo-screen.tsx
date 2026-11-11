@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { restoreDeviceSession } from "../device-pairing/session";
-import type { NegocioIdentity } from "../device-pairing/types";
+import {
+  restoreDeviceSession,
+  type AuthenticatedSessionResult,
+} from "../device-pairing/session";
 import { useKioskFonts } from "../kiosk/use-kiosk-fonts";
 import { Action, KioskText } from "../kiosk/ui";
 import { getCatalogoPublico } from "./api";
@@ -14,11 +16,13 @@ type CatalogState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | {
-      status: "ready";
-      negocioId: string;
-      categories: CatalogCategory[];
-      negocio?: NegocioIdentity;
+      status: "authenticated";
+      session: AuthenticatedSessionResult;
+      categories?: CatalogCategory[];
+      catalogFailed?: boolean;
     };
+
+const emptyCatalog: CatalogCategory[] = [];
 
 export function CatalogoScreen() {
   const [fontsLoaded, fontError] = useKioskFonts();
@@ -29,41 +33,33 @@ export function CatalogoScreen() {
     const controller = new AbortController();
     let cancelled = false;
     void (async () => {
+      const session = await restoreDeviceSession({
+        expectedDeviceType: "TOTEM",
+      });
+      if (cancelled) return;
+      if (session.kind === "pairing") {
+        router.replace("/parear");
+        return;
+      }
+      if (session.kind === "error") {
+        setState({ status: "error", message: session.message });
+        return;
+      }
+
+      setState({ status: "authenticated", session });
+      const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const session = await restoreDeviceSession({
-          expectedDeviceType: "TOTEM",
-        });
-        if (cancelled) return;
-        if (session.kind === "pairing") {
-          router.replace("/parear");
-          return;
-        }
-        if (session.kind === "error") {
-          setState({ status: "error", message: session.message });
-          return;
-        }
         const categories = await getCatalogoPublico(
           session.dispositivo.negocioId,
           controller.signal,
         );
-        if (cancelled) return;
-        setState({
-          status: "ready",
-          negocioId: session.dispositivo.negocioId,
-          categories,
-          negocio: session.negocio,
-        });
-      } catch (error) {
-        if (
-          cancelled ||
-          (error instanceof Error && error.name === "AbortError")
-        )
-          return;
-        setState({
-          status: "error",
-          message:
-            "Não foi possível carregar o catálogo. Verifique a conexão e tente novamente.",
-        });
+        if (!cancelled)
+          setState({ status: "authenticated", session, categories });
+      } catch {
+        if (!cancelled)
+          setState({ status: "authenticated", session, catalogFailed: true });
+      } finally {
+        clearTimeout(timeout);
       }
     })();
     return () => {
@@ -71,35 +67,23 @@ export function CatalogoScreen() {
       controller.abort();
     };
   }, [reload, router]);
-  if (fontsLoaded && state.status === "ready" && state.categories.length) {
-    return (
-      <BusinessKioskScreen
-        key={state.negocioId}
-        negocioId={state.negocioId}
-        categories={state.categories}
-        businessName={state.negocio?.nome}
-        welcome={state.negocio?.mensagemBoasVindas ?? undefined}
-        identificationMode={state.negocio?.modoIdentificacao}
-      />
-    );
-  }
-  const failed =
-    !!fontError ||
-    state.status === "error" ||
-    (state.status === "ready" && !state.categories.length);
-  return (
+
+  const error = fontError
+    ? "Não foi possível carregar a interface do totem."
+    : state.status === "error"
+      ? state.message
+      : state.status === "authenticated" && state.catalogFailed
+        ? "Não foi possível carregar o catálogo. Verifique a conexão e tente novamente."
+        : state.status === "authenticated" && state.categories?.length === 0
+          ? "O estabelecimento ainda não tem produtos disponíveis."
+          : undefined;
+  const fallback = (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <View style={styles.center}>
-        {failed ? (
+        {error ? (
           <>
             <KioskText style={styles.title}>Cardápio indisponível</KioskText>
-            <KioskText style={styles.copy}>
-              {fontError
-                ? "Não foi possível carregar a interface do totem."
-                : state.status === "error"
-                  ? state.message
-                  : "O estabelecimento ainda não tem produtos disponíveis."}
-            </KioskText>
+            <KioskText style={styles.copy}>{error}</KioskText>
             <Action
               onPress={() => {
                 setState({ status: "loading" });
@@ -117,6 +101,22 @@ export function CatalogoScreen() {
         )}
       </View>
     </SafeAreaView>
+  );
+
+  if (!fontsLoaded || state.status !== "authenticated") return fallback;
+
+  const { dispositivo, negocio } = state.session;
+  return (
+    <BusinessKioskScreen
+      key={dispositivo.id}
+      negocioId={dispositivo.negocioId}
+      dispositivoId={dispositivo.id}
+      categories={state.categories ?? emptyCatalog}
+      businessName={negocio?.nome}
+      welcome={negocio?.mensagemBoasVindas ?? undefined}
+      identificationMode={negocio?.modoIdentificacao}
+      unavailableCatalog={state.categories?.length ? undefined : fallback}
+    />
   );
 }
 

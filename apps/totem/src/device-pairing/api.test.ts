@@ -89,4 +89,29 @@ describe("device pairing API", () => {
       PairingApiError,
     );
   });
+
+  it("aborta a validação da sessão se a conexão não responder", async () => {
+    jest.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(
+        (_url, options?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () =>
+              reject(new Error("timeout")),
+            );
+          }),
+      );
+      const result = getCurrentDevice("token-de-teste");
+      const signal = fetchMock.mock.calls[0][1].signal as
+        | AbortSignal
+        | undefined;
+      expect(signal).toBeDefined();
+      const rejected = expect(result).rejects.toThrow("timeout");
+      await jest.advanceTimersByTimeAsync(20000);
+      expect(signal?.aborted).toBe(true);
+      await rejected;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

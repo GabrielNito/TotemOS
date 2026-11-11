@@ -1,5 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, Platform, StyleSheet, View } from "react-native";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  BackHandler,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -26,6 +40,7 @@ import { ExperienceContext } from "../kiosk/experience-context";
 import { KioskStandby } from "../kiosk/standby";
 import { OrderNotice } from "../kiosk/notice";
 import { ContextDialog } from "../kiosk/context-dialog";
+import { useAndroidKioskRefresh } from "../android-kiosk/guard";
 import { s } from "../kiosk/kiosk-styles";
 import { BusinessProductScreen } from "./business-product";
 import {
@@ -43,7 +58,11 @@ import {
 import { cartTotal, saveCartLine, changeCartQuantity } from "./cart-state";
 import { loadBusinessCart, saveBusinessCart } from "./cart-storage";
 import { createOrderSubmission } from "./order-api";
-import { buildOrderRequest, type PendingOrder } from "./order-submission";
+import {
+  buildOrderRequest,
+  OrderRejectedError,
+  type PendingOrder,
+} from "./order-submission";
 import { OrderStatus } from "./order-status";
 import { TrackingError } from "./order-tracking-api";
 import { useRouter } from "expo-router";
@@ -68,6 +87,8 @@ type BusinessKioskProps = {
   businessName?: string;
   welcome?: string;
   categories: CatalogCategory[];
+  dispositivoId?: string;
+  unavailableCatalog?: ReactNode;
   identificationMode?: "NOME" | "CODIGO" | "OPCIONAL";
 };
 
@@ -80,6 +101,8 @@ function BusinessKiosk({
   businessName = "TotemOS",
   welcome,
   categories,
+  dispositivoId,
+  unavailableCatalog,
   identificationMode = "OPCIONAL",
 }: BusinessKioskProps) {
   const sections = useMemo(
@@ -107,8 +130,8 @@ function BusinessKiosk({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartReady, setCartReady] = useState(false);
   const submission = useMemo(
-    () => createOrderSubmission(negocioId),
-    [negocioId],
+    () => createOrderSubmission(negocioId, dispositivoId),
+    [negocioId, dispositivoId],
   );
   const [orderResult, setOrderResult] = useState<PendingOrder>();
   const [orderBusy, setOrderBusy] = useState(false);
@@ -121,7 +144,7 @@ function BusinessKiosk({
     let mounted = true;
     void submission
       .restore()
-      .then(() => loadBusinessCart(negocioId, true))
+      .then(() => (submission.attempt ? [] : loadBusinessCart(negocioId, true)))
       .then((stored) => {
         if (!mounted) return;
         setCart(stored);
@@ -164,6 +187,7 @@ function BusinessKiosk({
   const [removed, setRemoved] = useState<CartLine | null>(null);
   const [removalOpen, setRemovalOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const refreshKioskMode = useAndroidKioskRefresh();
   const insets = useSafeAreaInsets();
   const viewport = useRef<View>(null);
   const motion = useProductMotion(screen, viewport, useReducedMotion());
@@ -210,21 +234,40 @@ function BusinessKiosk({
     };
   }, [resetIdle]);
   useEffect(() => {
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state !== "background") return;
+      setContextOpen(false);
+      setRemovalOpen(false);
+      setIdentity({ name: "", cpf: "", wantsCpf: false });
+      if (screen !== "order") enterStandby();
+    });
+    return () => listener.remove();
+  }, [screen, enterStandby]);
+  useEffect(() => {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        if (screen === "order") return true;
-        if (standby) {
-          setStandby(false);
+        if (screen === "order") {
+          if (!orderSending.current && !submission.attempt && !restoreFailed)
+            setCurrentScreen(unavailableCatalog ? "catalog" : "cart");
           return true;
         }
-        if (screen === "catalog") return false;
+        if (standby || !cartReady) return true;
+        if (screen === "catalog") return true;
         back();
         return true;
       },
     );
     return () => subscription.remove();
-  }, [standby, screen, back]);
+  }, [
+    standby,
+    screen,
+    back,
+    submission,
+    restoreFailed,
+    unavailableCatalog,
+    cartReady,
+  ]);
   const showNotice = (message: string) =>
     setNotice((current) => ({ message, version: current.version + 1 }));
   const sendOrder = async () => {
@@ -238,12 +281,21 @@ function BusinessKiosk({
     try {
       if (restoreFailed) {
         await submission.restore();
-        setCart(await loadBusinessCart(negocioId, true));
-        setRestoreFailed(false);
         if (!submission.attempt) {
-          setCurrentScreen("cart");
+          setCart(await loadBusinessCart(negocioId, true));
+          setRestoreFailed(false);
+          setCurrentScreen(unavailableCatalog ? "catalog" : "cart");
           return;
         }
+        setRestoreFailed(false);
+        if (submission.attempt.result) {
+          setOrderResult(submission.attempt.result);
+          return;
+        }
+      }
+      if (!submission.attempt && unavailableCatalog) {
+        setCurrentScreen("catalog");
+        return;
       }
       if (!submission.attempt)
         await submission.prepare(
@@ -254,8 +306,19 @@ function BusinessKiosk({
     } catch (error) {
       if (error instanceof TrackingError && error.status === 401)
         router.replace("/parear");
+      if (error instanceof OrderRejectedError && !cart.length) {
+        try {
+          setCart(await loadBusinessCart(negocioId, true));
+        } catch {
+          setRestoreFailed(true);
+          setOrderError(
+            "Não foi possível recuperar o carrinho. Solicite assistência ou tente novamente.",
+          );
+          return;
+        }
+      }
       setOrderError(
-        error instanceof Error
+        error instanceof TrackingError || error instanceof OrderRejectedError
           ? error.message
           : "Não foi possível confirmar o pedido. Consulte novamente.",
       );
@@ -327,14 +390,27 @@ function BusinessKiosk({
     };
   });
   const brand = { name: businessName, tagline: "CARDÁPIO" };
-  if (!cartReady) return <View style={s.root} />;
+  if (!cartReady) {
+    return (
+      <View style={[s.root, { justifyContent: "center" }]}>
+        <ActivityIndicator
+          accessibilityLabel="Recuperando atendimento"
+          color="#773b2e"
+        />
+      </View>
+    );
+  }
+  if (unavailableCatalog && screen !== "order") return unavailableCatalog;
   return (
     <ExperienceContext.Provider
       value={{
         mode: "counter",
         brand,
         goHome: () => go("catalog"),
-        openContext: () => setContextOpen(true),
+        openContext: () => {
+          refreshKioskMode?.();
+          setContextOpen(true);
+        },
       }}
     >
       <SafeAreaView
@@ -491,7 +567,10 @@ function BusinessKiosk({
                   }}
                   onBack={
                     !submission.attempt && !restoreFailed
-                      ? () => setCurrentScreen("cart")
+                      ? () =>
+                          setCurrentScreen(
+                            unavailableCatalog ? "catalog" : "cart",
+                          )
                       : undefined
                   }
                 />

@@ -3,7 +3,12 @@ import { getApiBaseUrl } from "./api";
 import { parseTracking, validOrderId } from "./order-tracking";
 
 type ErrorKind =
-  "http" | "network" | "timeout" | "aborted" | "invalid" | "storage";
+  | "http"
+  | "network"
+  | "timeout"
+  | "aborted"
+  | "invalid"
+  | "storage";
 export class TrackingError extends Error {
   constructor(
     public kind: ErrorKind,
@@ -36,6 +41,7 @@ export async function getOrderTracking(
   negocioId: string,
   id: string,
   signal?: AbortSignal,
+  dispositivoId?: string,
 ) {
   if (!validOrderId(id)) throw new TrackingError("http", 400);
   const session = await restoreDeviceSession({ expectedDeviceType: "TOTEM" });
@@ -44,6 +50,7 @@ export async function getOrderTracking(
   if (session.kind !== "authenticated") throw new TrackingError("network");
   if (
     session.dispositivo.negocioId !== negocioId ||
+    (dispositivoId !== undefined && session.dispositivo.id !== dispositivoId) ||
     session.dispositivo.tipo !== "TOTEM" ||
     !session.dispositivo.ativo ||
     session.dispositivo.revogadoEm

@@ -519,7 +519,7 @@ export function CheckoutScreen({
                           placeholder="Ex.: Gabriel"
                           placeholderTextColor="#94988e"
                           maxLength={40}
-                          autoComplete="given-name"
+                          autoComplete={simulation ? "given-name" : "off"}
                           autoCapitalize="words"
                           autoCorrect={false}
                           returnKeyType={wantsCpf ? "next" : "done"}

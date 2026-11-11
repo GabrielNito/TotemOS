@@ -296,7 +296,15 @@ test("falha ao persistir tentativa retém UUID/payload e exige nova persistênci
   expect(() => s.prepare(buildOrderRequest(cart, "Outro", "NOME"))).toThrow();
   f.send.mockResolvedValue(response);
   await s.submit();
-  expect(f.storage.set.mock.calls[0][0]).toBe(f.storage.set.mock.calls[1][0]);
+  const prepared = JSON.parse(f.storage.set.mock.calls[0][0]);
+  expect(prepared.postStarted).toBe(false);
+  expect(JSON.parse(f.storage.set.mock.calls[1][0])).toEqual({
+    ...prepared,
+    postStarted: true,
+  });
+  expect(f.storage.set.mock.invocationCallOrder[1]).toBeLessThan(
+    f.send.mock.invocationCallOrder[0],
+  );
   expect(f.send.mock.calls[0][0].nomeCliente).toBe("Ana");
 });
 test.each([

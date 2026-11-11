@@ -32,7 +32,13 @@ jest.mock("../device-pairing/session", () => ({
   restoreDeviceSession: jest.fn(),
 }));
 jest.mock("./api", () => ({ getCatalogoPublico: jest.fn() }));
-jest.mock("./business-kiosk", () => ({ BusinessKioskScreen: () => null }));
+jest.mock("./business-kiosk", () => ({
+  BusinessKioskScreen: ({
+    unavailableCatalog,
+  }: {
+    unavailableCatalog?: React.ReactNode;
+  }) => unavailableCatalog ?? null,
+}));
 jest.mock("../kiosk/ui", () => ({
   KioskText: jest.requireActual("react-native").Text,
   Action: () => null,
@@ -173,7 +179,9 @@ test("shows loading until the authenticated catalog request resolves", async () 
   });
   try {
     expect(JSON.stringify(tree.toJSON())).toContain("Carregando o cardápio");
-    expect(tree.root.findAllByType(BusinessKioskScreen)).toHaveLength(0);
+    expect(tree.root.findByType(BusinessKioskScreen).props.categories).toEqual(
+      [],
+    );
     await act(async () => resolve(categories));
     expect(tree.root.findByType(BusinessKioskScreen).props.categories).toEqual(
       categories,
@@ -203,7 +211,10 @@ test.each(["empty", "network-error"] as const)(
           ? "ainda não tem produtos disponíveis"
           : "Não foi possível carregar o catálogo",
       );
-      expect(tree.root.findAllByType(BusinessKioskScreen)).toHaveLength(0);
+      expect(tree.root.findByType(BusinessKioskScreen).props).toMatchObject({
+        dispositivoId: "device-a",
+        categories: [],
+      });
       const retry = tree.root.findByType(Action);
       expect(retry.props.children).toBe("Tentar novamente");
       await act(async () => retry.props.onPress());

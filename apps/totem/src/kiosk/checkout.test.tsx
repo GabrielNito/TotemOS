@@ -426,3 +426,32 @@ test("closing the keyboard restores the scroll position from before field focus"
     jest.useRealTimers();
   }
 });
+
+test.each([false, true])(
+  "isolates Android autofill for connected identification (simulation=%s)",
+  async (simulation) => {
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(
+        <CheckoutScreen
+          stage="identification"
+          simulation={simulation}
+          items={items}
+          total={39.8}
+          identity={emptyIdentity}
+          onIdentityChange={jest.fn()}
+          onComplete={jest.fn()}
+          onBack={jest.fn()}
+          onRestart={jest.fn()}
+        />,
+      );
+    });
+    try {
+      expect(tree.root.findByType(TextInput).props.autoComplete).toBe(
+        simulation ? "given-name" : "off",
+      );
+    } finally {
+      await act(async () => tree.unmount());
+    }
+  },
+);
