@@ -31,7 +31,7 @@ app/
 │   ├── configuracao-inicial/page.tsx — diagnóstico guiado de primeira configuração
 │   ├── relatorios/page.tsx    — faturamento consolidado, ticket médio e produtos campeões
 │   ├── dispositivos/page.tsx  — emissão de código de pareamento e status de terminais
-│   └── configuracoes/page.tsx — modo de identificação, offline, equipe e PIN do dono
+│   └── configuracoes/page.tsx — configurações operacionais via API, equipe da sessão e validação de PIN
 └── proxy.ts                   — proteção e redirecionamento de rotas (Next.js 16)
 ```
 
@@ -40,7 +40,7 @@ app/
 ## 3. Padrão de Integração e Consumo de Dados
 
 - **Camada de API (`lib/api.ts`)**: Funções tipadas com tratamento centralizado de erros (`ApiError`), envio automático de Bearer Token e suporte a `NEXT_PUBLIC_API_URL`.
-- **Modelos de Domínio (`lib/types/models.ts`)**: Tipos TypeScript sincronizados com o schema do Prisma (`Produto`, `Categoria`, `Dispositivo`, `Pedido`, `Usuario`, `DashboardMetrics`).
+- **Modelos de Domínio (`lib/types/models.ts`)**: Tipos TypeScript sincronizados com o schema do Prisma (`Produto`, `Categoria`, `Dispositivo`, `Pedido`, `Usuario`, `DashboardMetrics`, `ConfiguracaoNegocio`).
 - **Feedback Visual**: Estados vazios (*Empty States*) nativos em todas as páginas para recepção assíncrona dos dados do backend.
 
 ### Histórico de pedidos, correção do card #34
@@ -165,3 +165,12 @@ P0 consulta integralmente. Históricos grandes exigem revisão de agregação e
 índice por Caio, com benchmark PostgreSQL e contrato explícito. Nenhum backend,
 guard, migration ou pagamento foi alterado. Detalhes em
 [evidências do card #35](evidence/dashboard-indicadores-reais/README.md).
+
+## 7. Configurações operacionais P0, card #37
+
+A rota `/admin/configuracoes` consome `GET /negocio/config` e persiste alterações via `PATCH /negocio/config` com JWT humano (`DONO` ou `GERENTE`), validação Zod em cliente/resposta (`lib/schemas/configuracoes.ts`) e sem enviar `negocioId` pela UI. Payload divergente do `negocioId` autenticado ou flag de pagamento offline marcada como operacional são rejeitados defensivamente.
+
+- **Leitura e Edição por Perfil**: `DONO` e `GERENTE` visualizam `modoIdentificacao` (`OPCIONAL`, `NOME`, `CODIGO`), `tempoPadraoPreparo` (`1..120` minutos) e `mensagemBoasVindas` (`<= 200` caracteres ou vazia/null). Apenas `DONO` pode editar e salvar, informando o PIN numérico de 4 dígitos no envio. `GERENTE` opera em modo somente leitura, sem disparar mutações.
+- **Modo Offline Não Operacional**: `pagamentoOffline` é exibido como não operacional no P0 (`Não operacional no P0`, status desativado no servidor), sem controle interativo para ativação local ou promessa de fila offline.
+- **Abas Equipe e Segurança no P0**: a aba `Equipe` exibe exclusivamente o usuário autenticado na sessão atual e sinaliza que gestão de usuários adicionais está indisponível no P0 (sem geração local ou `Math.random`). A aba `PIN & Segurança` marca alteração de PIN como indisponível no P0 e oferece verificação do PIN atual diretamente contra `POST /auth/validar-pin`.
+- **Ciclo de Vida e Segurança**: gerenciador com timeout de 20 s, controle de concorrência por versão de requisição, preservação de edição em falha de salvamento (exceto `401`/`403`, que limpam o estado imediatamente) e descarte completo de dados na troca de sessão ou tenant. Detalhes e evidências em [evidências do card #37](evidence/dashboard-configuracoes-operacionais/README.md).
