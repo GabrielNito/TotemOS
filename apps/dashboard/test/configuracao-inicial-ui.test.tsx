@@ -53,6 +53,15 @@ afterAll(() => {
 })
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status })
+const configuracao = {
+  negocioId: "a",
+  modoIdentificacao: "OPCIONAL",
+  tempoPadraoPreparo: 15,
+  mensagemBoasVindas: null,
+  permitirPagamentoOffline: false,
+  pagamentoOfflineOperacional: false,
+  pagamentoOfflineStatus: "NAO_OPERACIONAL",
+}
 function mock(
   handler: (url: string, options?: RequestInit) => Promise<Response>
 ) {
@@ -85,7 +94,9 @@ test("negócio novo: checklist real, navegação focável, status acessíveis e 
     return json(
       url.endsWith("catalogo/admin")
         ? { categorias: [], produtos: [] }
-        : { dispositivos: [] }
+        : url.endsWith("negocio/config")
+          ? configuracao
+          : { dispositivos: [] }
     )
   })
   await render()
@@ -100,8 +111,12 @@ test("negócio novo: checklist real, navegação focável, status acessíveis e 
   expect(document.activeElement).toBe(etapas[2])
   await act(async () => etapas[2].click())
   expect(etapas[2].getAttribute("aria-pressed")).toBe("true")
-  expect(texto()).toContain("Configurações operacionais aguardando integração")
-  expect(container.querySelector("a[href='/admin/configuracoes']")).toBeNull()
+  expect(texto()).toContain("Revisão pendente")
+  expect(
+    container.querySelector("a[href='/admin/configuracoes']")
+  ).not.toBeNull()
+  expect(texto()).toContain("15 min")
+  expect(texto()).toContain("Sem mensagem")
   expect(container.querySelector("[role='status']")).not.toBeNull()
   expect(container.querySelector("form")).toBeNull()
   expect(win.localStorage.length).toBe(0)
@@ -112,9 +127,11 @@ test("erro parcial oferece refetch; cadastro não afirma conectividade", async (
   mock(async (url) =>
     url.endsWith("catalogo/admin")
       ? json({ categorias: [], produtos: [] })
-      : falhar
-        ? json({ message: "segredo" }, 503)
-        : json({ dispositivos: [] })
+      : url.endsWith("negocio/config")
+        ? json(configuracao)
+        : falhar
+          ? json({ message: "segredo" }, 503)
+          : json({ dispositivos: [] })
   )
   await render()
   expect(texto()).toContain("Erro")
@@ -124,7 +141,7 @@ test("erro parcial oferece refetch; cadastro não afirma conectividade", async (
   )
   falhar = false
   await act(async () => button("Tentar novamente").click())
-  expect(texto()).toContain("Falta cadastrar um Totem e um Painel KDS")
+  expect(texto()).toContain("Falta parear um Totem e um Painel KDS")
   expect(texto()).toContain("Conectividade não informada")
   expect(texto()).not.toMatch(/online|sincronizadas|100%/i)
   expect(
@@ -136,7 +153,9 @@ test("troca de sessão remove dados do tenant anterior antes da resposta nova", 
     json(
       url.endsWith("catalogo/admin")
         ? { categorias: [], produtos: [] }
-        : { dispositivos: [] }
+        : url.endsWith("negocio/config")
+          ? configuracao
+          : { dispositivos: [] }
     )
   )
   await render()
@@ -180,4 +199,74 @@ test("403 permite encerrar a sessão antes de trocar de conta", async () => {
   expect(trocar).toBeDefined()
   await act(async () => trocar.click())
   expect(encerrada).toBe(true)
+})
+
+for (const role of ["DONO", "GERENTE"] as const) {
+  test("consulta e atualiza os valores persistidos para " + role, async () => {
+    let tempo = 15
+    mock(async (url, options) => {
+      if (url.endsWith("negocio/config")) {
+        expect(options?.headers).toMatchObject({
+          Authorization: "Bearer teste-a",
+        })
+        return json({
+          ...configuracao,
+          tempoPadraoPreparo: tempo,
+          mensagemBoasVindas: "Olá!",
+        })
+      }
+      return url.endsWith("catalogo/admin")
+        ? json({ categorias: [], produtos: [] })
+        : json({ dispositivos: [] })
+    })
+    await render({ ...user, role })
+    await act(async () => button("Configurações operacionais").click())
+    expect(texto()).toContain("15 min")
+    expect(texto()).toContain(role === "DONO" ? "PIN" : "somente leitura")
+    tempo = 25
+    await act(async () => button("Atualizar diagnóstico").click())
+    expect(texto()).toContain("25 min")
+    await act(async () => root.unmount())
+    await render({ ...user, role })
+    await act(async () => button("Configurações operacionais").click())
+    expect(texto()).toContain("25 min")
+    expect(texto()).toContain("Olá!")
+    expect(texto()).toContain("Revisão pendente")
+  })
+}
+for (const status of [401, 403, 404, 429, 503, 200]) {
+  test("configuração indisponível ou inválida HTTP " + status, async () => {
+    mock(async (url) => {
+      if (url.endsWith("negocio/config"))
+        return json({ negocioId: "a" }, status)
+      return url.endsWith("catalogo/admin")
+        ? json({ categorias: [], produtos: [] })
+        : json({ dispositivos: [] })
+    })
+    await render()
+    if (status === 401 || status === 403) {
+      expect(texto()).not.toContain("Loja A")
+    } else {
+      await act(async () => button("Configurações operacionais").click())
+      expect(texto()).toContain("Equipamentos cadastrados")
+      expect(texto()).not.toContain("15 min")
+    }
+    expect(container.querySelector("[role='alert']")?.textContent).toContain(
+      status === 200 ? "dados inválidos" : String(status)
+    )
+  })
+}
+test("configuração de outro estabelecimento invalida acesso", async () => {
+  mock(async (url) =>
+    url.endsWith("negocio/config")
+      ? json({ ...configuracao, negocioId: "b", mensagemBoasVindas: "Loja B" })
+      : url.endsWith("catalogo/admin")
+        ? json({ categorias: [], produtos: [] })
+        : json({ dispositivos: [] })
+  )
+  await render()
+  expect(container.querySelector("[role='alert']")?.textContent).toContain(
+    "403"
+  )
+  expect(texto()).not.toContain("Loja B")
 })

@@ -4,6 +4,8 @@ import {
   type DispositivosResponse,
 } from "./api"
 
+import type { ConfiguracaoNegocio } from "./types/models"
+
 export interface FonteConfiguracao<T> {
   status: "carregando" | "sucesso" | "erro"
   dados: T | null
@@ -12,6 +14,7 @@ export interface FonteConfiguracao<T> {
 export interface SnapshotConfiguracao {
   catalogo: FonteConfiguracao<CatalogoAdministrativo>
   dispositivos: FonteConfiguracao<DispositivosResponse>
+  configuracao: FonteConfiguracao<ConfiguracaoNegocio>
   acessoNegado: boolean
 }
 const carregando = <T>(): FonteConfiguracao<T> => ({
@@ -44,6 +47,7 @@ export class ConsultaConfiguracao {
   private estado: SnapshotConfiguracao = {
     catalogo: carregando(),
     dispositivos: carregando(),
+    configuracao: carregando(),
     acessoNegado: false,
   }
   private versao = 0
@@ -51,6 +55,7 @@ export class ConsultaConfiguracao {
   private ouvintes = new Set<() => void>()
   constructor(
     private negocioId: string,
+    private configuracao: (signal: AbortSignal) => Promise<ConfiguracaoNegocio>,
     private catalogo: (signal: AbortSignal) => Promise<CatalogoAdministrativo>,
     private dispositivos: (
       signal: AbortSignal
@@ -82,13 +87,16 @@ export class ConsultaConfiguracao {
     this.publicar({
       catalogo: carregando(),
       dispositivos: carregando(),
+      configuracao: carregando(),
       acessoNegado: false,
     })
     const timer = setTimeout(
       () => controle.abort(new DOMException("timeout", "TimeoutError")),
       this.timeoutMs
     )
-    const carregar = async <K extends "catalogo" | "dispositivos">(
+    const carregar = async <
+      K extends Exclude<keyof SnapshotConfiguracao, "acessoNegado">,
+    >(
       chave: K,
       consultar: (
         signal: AbortSignal
@@ -106,8 +114,14 @@ export class ConsultaConfiguracao {
         const entidades =
           "categorias" in dados
             ? [...dados.categorias, ...dados.produtos]
-            : dados.dispositivos
-        if (entidades.some((e) => e.negocioId !== this.negocioId))
+            : "dispositivos" in dados
+              ? dados.dispositivos
+              : [dados]
+        if (
+          entidades.some(
+            (e) => !("negocioId" in e) || e.negocioId !== this.negocioId
+          )
+        )
           throw new ApiError(403, "Escopo inválido")
         this.publicar({
           ...this.estado,
@@ -125,6 +139,7 @@ export class ConsultaConfiguracao {
           this.publicar({
             catalogo: fonte,
             dispositivos: fonte,
+            configuracao: fonte,
             acessoNegado: true,
           })
           if (erro.statusCode === 401) this.sessaoExpirada?.()
@@ -137,6 +152,7 @@ export class ConsultaConfiguracao {
       await Promise.all([
         carregar("catalogo", this.catalogo),
         carregar("dispositivos", this.dispositivos),
+        carregar("configuracao", this.configuracao),
       ])
     } finally {
       clearTimeout(timer)
