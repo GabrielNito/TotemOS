@@ -1,6 +1,12 @@
 import { OperacaoPedidosService } from '../src/pedidos/operacao-pedidos.service';
 import { test, expect, describe } from 'bun:test';
 import {
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
   CriarPedidoSchema,
   CriarPedidoDto,
 } from '../src/pedidos/dto/criar-pedido.dto';
@@ -8,7 +14,7 @@ import { ListarPedidosQuerySchema } from '../src/pedidos/dto/operacao-pedido.dto
 import { PedidosService } from '../src/pedidos/pedidos.service';
 import { PedidosController } from '../src/pedidos/pedidos.controller';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { StatusPedido, Role } from '@prisma/client';
+import { Prisma, StatusPedido, Role } from '@prisma/client';
 import { UserPayload } from '../src/auth/decorators/current-user.decorator';
 
 describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', () => {
@@ -619,6 +625,113 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       expect(filtroCapturadoNegocioId).toBe(mockNegocioId);
       expect(pedidos).toHaveLength(1);
     });
+
+    test('revalida dispositivo TOTEM na transação e lança UnauthorizedException se revogado', async () => {
+      const mockPrisma = {
+        $transaction: <T>(
+          cb: (tx: { $queryRaw: () => Promise<unknown[]> }) => Promise<T>,
+        ) => cb({ $queryRaw: () => Promise.resolve([]) }),
+      } as unknown as PrismaService;
+      const service = new PedidosService(mockPrisma);
+
+      let erroCapturado: unknown;
+      try {
+        await service.criar(
+          mockNegocioId,
+          { itens: [{ produtoId: produtoUuid1, quantidade: 1 }] },
+          { dispositivoId: 'totem-revogado' },
+        );
+      } catch (erro) {
+        erroCapturado = erro;
+      }
+      expect(erroCapturado).toBeInstanceOf(UnauthorizedException);
+    });
+
+    test('replay com idempotencyKey existente e itens ou dispositivo divergentes lança ConflictException', async () => {
+      const mockPrisma = {
+        $transaction: <T>(
+          cb: (tx: {
+            pedido: { findFirst: () => Promise<unknown> };
+          }) => Promise<T>,
+        ) =>
+          cb({
+            pedido: {
+              findFirst: () =>
+                Promise.resolve({
+                  id: 'pedido-existente',
+                  negocioId: mockNegocioId,
+                  dispositivoId: 'totem-1',
+                  nomeCliente: null,
+                  codigoCliente: null,
+                  observacoes: null,
+                  itens: [
+                    {
+                      produtoId: produtoUuid1,
+                      quantidade: 1,
+                      observacao: null,
+                      variacaoNome: null,
+                    },
+                  ],
+                }),
+            },
+          }),
+      } as unknown as PrismaService;
+      const service = new PedidosService(mockPrisma);
+
+      let erroItem: unknown;
+      try {
+        await service.criar(
+          mockNegocioId,
+          {
+            idempotencyKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            itens: [{ produtoId: produtoUuid1, quantidade: 2 }],
+          },
+          { dispositivoId: 'totem-1' },
+        );
+      } catch (erro) {
+        erroItem = erro;
+      }
+      expect(erroItem).toBeInstanceOf(ConflictException);
+
+      let erroDispositivo: unknown;
+      try {
+        await service.criar(
+          mockNegocioId,
+          {
+            idempotencyKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
+          },
+          { dispositivoId: 'totem-2' },
+        );
+      } catch (erro) {
+        erroDispositivo = erro;
+      }
+      expect(erroDispositivo).toBeInstanceOf(ConflictException);
+    });
+
+    test('traduz falha de conexão Prisma em criar para ServiceUnavailableException', async () => {
+      const erroConexao = new Prisma.PrismaClientKnownRequestError(
+        'conn fail',
+        {
+          code: 'P1001',
+          clientVersion: '6.4.0',
+        },
+      );
+      const mockPrisma = {
+        $transaction: () => Promise.reject(erroConexao),
+      } as unknown as PrismaService;
+      const service = new PedidosService(mockPrisma);
+
+      let erroCapturado: unknown;
+      try {
+        await service.criar(mockNegocioId, {
+          itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
+        });
+      } catch (erro) {
+        erroCapturado = erro;
+      }
+      expect(erroCapturado).toBeInstanceOf(ServiceUnavailableException);
+    });
   });
 
   describe('PedidosController — Rotas e Isolamento de Tenant (TDD)', () => {
@@ -771,6 +884,30 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
       expect(
         controller.buscarPorId(papelInvalido, 'ped-uuid-123'),
       ).rejects.toThrow();
+    });
+
+    test('POST /pedidos rejeita divergência entre Idempotency-Key do header e do body', async () => {
+      const mockService = criarMockService();
+      const controller = new PedidosController(
+        mockService,
+        {} as OperacaoPedidosService,
+        {} as never,
+      );
+
+      let erroCapturado: unknown;
+      try {
+        await controller.criar(
+          userPayload,
+          {
+            idempotencyKey: '11111111-1111-4111-8111-111111111111',
+            itens: [{ produtoId: produtoUuid1, quantidade: 1 }],
+          },
+          '22222222-2222-4222-8222-222222222222',
+        );
+      } catch (erro) {
+        erroCapturado = erro;
+      }
+      expect(erroCapturado).toBeInstanceOf(BadRequestException);
     });
   });
 });

@@ -16,6 +16,7 @@ import {
   ParseUUIDPipe,
   Header,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -88,11 +89,37 @@ export class PedidosController {
     type: ErrorResponseDto,
     description: 'Token ausente, inválido ou dispositivo inativo.',
   })
+  @ApiResponse({
+    status: 409,
+    type: ErrorResponseDto,
+    description:
+      'Chave de idempotência já utilizada com outro conteúdo ou negócio.',
+  })
+  @ApiResponse({
+    status: 503,
+    type: ErrorResponseDto,
+    description: 'Persistência indisponível. Repita com a mesma chave.',
+  })
   async criar(
     @CurrentUser() user: UserPayload,
     @Body() dto: CriarPedidoDto,
     @Headers('idempotency-key') headerIdempotencyKey?: string,
   ) {
+    if (
+      headerIdempotencyKey !== undefined &&
+      headerIdempotencyKey.trim().length === 0
+    ) {
+      throw new BadRequestException('Idempotency-Key não pode ser vazio.');
+    }
+    if (
+      headerIdempotencyKey &&
+      dto.idempotencyKey &&
+      headerIdempotencyKey.toLowerCase() !== dto.idempotencyKey.toLowerCase()
+    ) {
+      throw new BadRequestException(
+        'Idempotency-Key do cabeçalho diverge do corpo.',
+      );
+    }
     const idempotencyKey = headerIdempotencyKey || dto.idempotencyKey;
     const dispositivoId = user.identity === 'DEVICE' ? user.sub : undefined;
 
