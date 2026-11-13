@@ -254,7 +254,11 @@ export class DispositivosService implements OnModuleInit {
             id: true,
             nome: true,
             config: {
-              select: { modoIdentificacao: true, mensagemBoasVindas: true },
+              select: {
+                modoIdentificacao: true,
+                tempoPadraoPreparo: true,
+                mensagemBoasVindas: true,
+              },
             },
           },
         },
@@ -273,9 +277,12 @@ export class DispositivosService implements OnModuleInit {
         modoIdentificacao:
           dispositivo.negocio.config?.modoIdentificacao ??
           ModoIdentificacao.OPCIONAL,
+        tempoPadraoPreparo:
+          dispositivo.negocio.config?.tempoPadraoPreparo ?? 15,
         mensagemBoasVindas:
           dispositivo.negocio.config?.mensagemBoasVindas ?? null,
         pagamentoPointConfigurado: Boolean(dispositivo.mpPointDeviceId),
+        pagamentoOfflineOperacional: false,
       },
     };
   }

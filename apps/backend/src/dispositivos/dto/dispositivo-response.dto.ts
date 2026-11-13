@@ -58,11 +58,17 @@ export class NegocioDoDispositivoDto {
   @ApiProperty({ enum: ModoIdentificacao })
   modoIdentificacao!: ModoIdentificacao;
 
+  @ApiProperty({ minimum: 1, maximum: 120 })
+  tempoPadraoPreparo!: number;
+
   @ApiProperty({ nullable: true })
   mensagemBoasVindas!: string | null;
 
   @ApiProperty()
   pagamentoPointConfigurado!: boolean;
+
+  @ApiProperty({ default: false })
+  pagamentoOfflineOperacional!: boolean;
 }
 
 export class DispositivoMeResponseDto {

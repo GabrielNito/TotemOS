@@ -20,6 +20,11 @@ Atualização #31: POST de senha e dataOperacional foram implementados conforme
 [contrato efetivo](senha-diaria-kds.md). A seção 3 abaixo descreve a API entregue;
 a ADR ampla continua aguardando revisão humana.
 
+Atualização #36: `GET`/`PATCH /negocio/config` (e alias `/configuracoes`) foram
+implementados por sessão humana, com projeção aos dispositivos em
+`GET /dispositivos/me` e marcação não operacional do pagamento offline, conforme
+[contrato efetivo de configurações](configuracoes-estabelecimento.md).
+
 ## Convenções propostas
 
 - HTTPS, JSON e `Authorization: Bearer <credencial>`. USER = JWT humano;

@@ -4,8 +4,10 @@ import type { AuthResponse, UserSession } from "./auth"
 import type { LoginFormValues, RegistrarFormValues } from "./schemas/auth"
 import type {
   Categoria,
+  ConfiguracaoNegocio,
   Dispositivo,
   FilaPedidosResponse,
+  ModoIdentificacao,
   Pagamento,
   Pedido,
   PedidoItem,
@@ -15,6 +17,7 @@ import type {
   StatusPedido,
   TipoDispositivo,
 } from "./types/models"
+import { ConfiguracaoNegocioResponseSchema } from "./schemas/configuracoes"
 
 export class ApiError extends Error {
   constructor(
@@ -437,4 +440,63 @@ export function getFilaPedidos(
     cache: "no-store",
     token,
   })
+}
+
+export interface AtualizarConfiguracaoNegocioInput {
+  pin: string
+  modoIdentificacao?: ModoIdentificacao
+  tempoPadraoPreparo?: number
+  mensagemBoasVindas?: string | null
+}
+
+function validarRespostaConfiguracao(dados: unknown): ConfiguracaoNegocio {
+  const parsed = ConfiguracaoNegocioResponseSchema.safeParse(dados)
+  if (!parsed.success) {
+    throw new ApiError(
+      502,
+      "A resposta de configurações operacionais não atende ao contrato esperado."
+    )
+  }
+  return parsed.data
+}
+
+export async function getConfiguracaoNegocio(
+  token?: string,
+  signal?: AbortSignal
+): Promise<ConfiguracaoNegocio> {
+  const dados = await fetchApi<unknown>("/negocio/config", {
+    method: "GET",
+    cache: "no-store",
+    token,
+    signal,
+  })
+  return validarRespostaConfiguracao(dados)
+}
+
+export async function updateConfiguracaoNegocio(
+  data: AtualizarConfiguracaoNegocioInput,
+  token?: string,
+  signal?: AbortSignal
+): Promise<ConfiguracaoNegocio> {
+  const payload: AtualizarConfiguracaoNegocioInput = {
+    pin: data.pin,
+    ...(data.modoIdentificacao !== undefined && {
+      modoIdentificacao: data.modoIdentificacao,
+    }),
+    ...(data.tempoPadraoPreparo !== undefined && {
+      tempoPadraoPreparo: data.tempoPadraoPreparo,
+    }),
+    ...(data.mensagemBoasVindas !== undefined && {
+      mensagemBoasVindas: data.mensagemBoasVindas,
+    }),
+  }
+
+  const dados = await fetchApi<unknown>("/negocio/config", {
+    method: "PATCH",
+    cache: "no-store",
+    body: JSON.stringify(payload),
+    token,
+    signal,
+  })
+  return validarRespostaConfiguracao(dados)
 }

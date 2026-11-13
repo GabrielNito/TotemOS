@@ -23,6 +23,7 @@
     "test:operacao:e2e": "jest --config ./test/jest-e2e.json --runInBand transicoes.e2e-spec.ts",
     "test:senha:e2e": "jest --config ./test/jest-e2e.json --runInBand senha.e2e-spec.ts",
     "test:pedidos:e2e": "jest --config ./test/jest-e2e.json --runInBand pedidos-criacao.e2e-spec.ts",
+    "test:configuracoes:e2e": "jest --config ./test/jest-e2e.json --runInBand configuracoes.e2e-spec.ts",
     "test:invariantes:e2e": "jest --config ./test/jest-e2e.json --runInBand fluxo-invariantes-p0.e2e-spec.ts"
   },
   "dependencies": {

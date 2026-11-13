@@ -119,6 +119,7 @@ jobs:
           bun run test:operacao:e2e
           bun run test:senha:e2e
           bun run test:pedidos:e2e
+          bun run test:configuracoes:e2e
           bun run test:invariantes:e2e
           bunx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
