@@ -20,6 +20,20 @@ export type MeioPagamento = "CREDITO" | "DEBITO" | "PIX"
 export type MetodoPagamento =
   "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO" | "OFFLINE_PENDENTE"
 
+export type ModoIdentificacao = "OPCIONAL" | "NOME" | "CODIGO"
+
+export type PagamentoOfflineStatus = "NAO_OPERACIONAL"
+
+export interface ConfiguracaoNegocio {
+  negocioId: string
+  modoIdentificacao: ModoIdentificacao
+  tempoPadraoPreparo: number
+  mensagemBoasVindas: string | null
+  permitirPagamentoOffline: false
+  pagamentoOfflineOperacional: false
+  pagamentoOfflineStatus: PagamentoOfflineStatus
+}
+
 export interface Usuario {
   id: string
   negocioId: string
