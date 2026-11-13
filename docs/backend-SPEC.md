@@ -546,9 +546,10 @@ Contrato aprovado e implementado no incremento do card #29:
 
 ### 5.3 Idempotência e Concorrência Otimista
 
-- Cabeçalho `X-Idempotency-Key` (UUID v4) é suportado e armazenado nas operações mutantes de pedidos (`POST /pedidos`, `POST /pedidos/:id/senha`, `PATCH /pedidos/:id/status`, `POST /pedidos/:id/liberacao-demo`).
-- Em caso de reenvio de requisição com a mesma chave, o backend detecta a repetição e retorna a resposta armazenada anteriormente sem executar novas mutações.
-- A coluna `Pedido.versao` é incrementada atomicamente a cada mutação de estado. As rotas operacionais do KDS exigem `versaoEsperada`, prevenindo atualizações simultâneas conflitantes.
+- O cabeçalho `Idempotency-Key` (UUID v4) é suportado e armazenado nas operações mutantes de pedidos (`POST /pedidos`, `POST /pedidos/:id/senha`, `PATCH /pedidos/:id/status`, `POST /pedidos/:id/liberacao-demo`). Em `POST /pedidos`, se cabeçalho e `idempotencyKey` do corpo forem enviados simultaneamente com valores divergentes, a requisição é rejeitada com 400 Bad Request.
+- Em caso de reenvio de requisição compatível com a mesma chave (inclusive após resultado incerto em falha pós-commit), o backend detecta a repetição dentro de transação serializada por `pg_advisory_xact_lock`, preserva snapshots/estado já persistidos e retorna sem executar novas mutações. Reuso da mesma chave com payload, dispositivo ou tenant divergente retorna 409 Conflict; falhas transitórias de persistência retornam 503 Service Unavailable permitindo retentativa com a mesma chave.
+- Em `POST /pedidos` originado de dispositivo `TOTEM`, o vínculo ativo e não revogado do terminal é revalidado com `FOR UPDATE` dentro da transação antes de ler ou gravar o pedido (retornando 401 Unauthorized em revogação em trânsito).
+- A coluna `Pedido.versao` é incrementada atomicamente a cada mutação de estado. As rotas operacionais do KDS exigem `versaoEsperada`, prevenindo atualizações simultâneas conflitantes. Referência de verificação: [evidências do card #39](evidence/qa-concorrencia-tenants-idempotencia/README.md).
 
 ---
 
