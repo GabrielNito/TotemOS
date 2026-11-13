@@ -7,7 +7,6 @@ import {
 import {
   diagnosticarCatalogo,
   diagnosticarEquipamentos,
-  configuracaoOperacional,
 } from "../lib/configuracao-inicial"
 import { ConsultaConfiguracao } from "../lib/configuracao-inicial-consulta"
 import type { Categoria, Produto, Dispositivo } from "../lib/types/models"
@@ -36,12 +35,21 @@ const dispositivo = (tipo: "TOTEM" | "PAINEL", extra = {}): Dispositivo => ({
   tipo,
   ativo: true,
   revogadoEm: null,
-  pareadoEm: null,
+  pareadoEm: "2026-11-06",
   createdAt: "2026-11-06",
   ...extra,
 })
 const vazio = { categorias: [], produtos: [] }
 const pronto = { categorias: [categoria], produtos: [produto] }
+const configuracao = async () => ({
+  negocioId: "a",
+  modoIdentificacao: "OPCIONAL" as const,
+  tempoPadraoPreparo: 15,
+  mensagemBoasVindas: null,
+  permitirPagamentoOffline: false as const,
+  pagamentoOfflineOperacional: false as const,
+  pagamentoOfflineStatus: "NAO_OPERACIONAL" as const,
+})
 
 for (const [nome, categorias, produtos, status, motivo] of [
   ["negócio novo e catálogo vazio", [], [], "pendente", "Crie uma categoria"],
@@ -93,6 +101,13 @@ for (const [nome, categorias, produtos, status, motivo] of [
 }
 for (const [nome, dispositivos, status, totens, paineis] of [
   ["sem equipamentos", [], "pendente", 0, 0],
+  [
+    "cadastro sem pareamento",
+    [dispositivo("TOTEM", { pareadoEm: null })],
+    "pendente",
+    0,
+    0,
+  ],
   ["somente Totem", [dispositivo("TOTEM")], "pendente", 1, 0],
   ["somente KDS", [dispositivo("PAINEL")], "pendente", 0, 1],
   [
@@ -125,13 +140,10 @@ for (const [nome, dispositivos, status, totens, paineis] of [
     })
   })
 }
-test("configuração sem API não aceita defaults nem conclusão local", () => {
-  expect(configuracaoOperacional.status).toBe("indisponivel")
-  expect(configuracaoOperacional.descricao).toContain("#36 e #37")
-})
 test("falha parcial mantém catálogo válido e erro específico de equipamentos", async () => {
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => pronto,
     async () => {
       throw new Error("segredo")
@@ -146,6 +158,7 @@ test("falha no catálogo não impede equipamentos e refetch reconhece revogaçã
   let rodada = 0
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => {
       if (!rodada) throw new Error()
       return { ...pronto, produtos: [{ ...produto, esgotado: true }] }
@@ -169,6 +182,7 @@ for (const status of [401, 403, 404, 429, 503]) {
     let expirou = false
     const c = new ConsultaConfiguracao(
       "a",
+      configuracao,
       async () => {
         throw new ApiError(status, "token-segredo")
       },
@@ -189,6 +203,7 @@ test("401 limpa inclusive fonte já concluída e aborta fonte lenta", async () =
   let falhar!: (e: unknown) => void
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     () =>
       new Promise((_, reject) => {
         falhar = reject
@@ -207,6 +222,7 @@ test("resposta obsoleta e cancelamento não publicam dados", async () => {
   let chamadas = 0
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     () =>
       ++chamadas === 1
         ? new Promise((r) => {
@@ -230,6 +246,7 @@ test("resposta obsoleta e cancelamento não publicam dados", async () => {
 test("timeout termina mesmo se transporte ignora abort; fonte rápida permanece", async () => {
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     () => new Promise(() => {}),
     async () => ({ dispositivos: [] }),
     undefined,
@@ -242,12 +259,14 @@ test("timeout termina mesmo se transporte ignora abort; fonte rápida permanece"
 test("dois tenants e retomada usam instâncias vazias; dados cruzados são rejeitados", async () => {
   const a = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => pronto,
     async () => ({ dispositivos: [] })
   )
   await a.atualizar()
   const b = new ConsultaConfiguracao(
     "b",
+    async () => ({ ...(await configuracao()), negocioId: "b" }),
     async () => pronto,
     async () => ({ dispositivos: [] })
   )
@@ -257,6 +276,7 @@ test("dois tenants e retomada usam instâncias vazias; dados cruzados são rejei
   expect(b.snapshot().catalogo.dados).toBeNull()
   const retorno = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => vazio,
     async () => ({ dispositivos: [] })
   )
@@ -298,6 +318,7 @@ test("troca de token durante HTTP descarta resposta e não expira a sessão nova
   let rejeitar!: (e: unknown) => void
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     () =>
       new Promise((_, reject) => {
         rejeitar = reject
@@ -320,6 +341,7 @@ test("troca de token durante HTTP descarta resposta e não expira a sessão nova
 test("dispositivo de outro tenant invalida fontes sem exibir cadastro alheio", async () => {
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => pronto,
     async () => ({ dispositivos: [dispositivo("TOTEM", { negocioId: "b" })] })
   )
@@ -333,6 +355,7 @@ test("falha após sucesso remove conclusão anterior e recuperação reavalia da
   let falhar = false
   const c = new ConsultaConfiguracao(
     "a",
+    configuracao,
     async () => {
       if (falhar) throw new Error("rede")
       return pronto
@@ -347,4 +370,40 @@ test("falha após sucesso remove conclusão anterior e recuperação reavalia da
   falhar = false
   await c.atualizar()
   expect(c.snapshot().catalogo.status).toBe("sucesso")
+})
+
+test("timeout das configurações mantém dados válidos das outras fontes", async () => {
+  const consulta = new ConsultaConfiguracao(
+    "a",
+    () => new Promise(() => {}),
+    async () => pronto,
+    async () => ({ dispositivos: [] }),
+    undefined,
+    5
+  )
+  await consulta.atualizar()
+  expect(consulta.snapshot().configuracao.erro).toContain("Tempo")
+  expect(consulta.snapshot().catalogo.dados).toEqual(pronto)
+  expect(consulta.snapshot().dispositivos.status).toBe("sucesso")
+})
+test("configuração antiga não substitui os valores da atualização mais recente", async () => {
+  let resolver!: (valor: Awaited<ReturnType<typeof configuracao>>) => void
+  let primeira = true
+  const consulta = new ConsultaConfiguracao(
+    "a",
+    () => {
+      if (!primeira) return configuracao()
+      primeira = false
+      return new Promise((resolve) => {
+        resolver = resolve
+      })
+    },
+    async () => pronto,
+    async () => ({ dispositivos: [] })
+  )
+  const antiga = consulta.atualizar()
+  await consulta.atualizar()
+  resolver({ ...(await configuracao()), tempoPadraoPreparo: 60 })
+  await antiga
+  expect(consulta.snapshot().configuracao.dados?.tempoPadraoPreparo).toBe(15)
 })
