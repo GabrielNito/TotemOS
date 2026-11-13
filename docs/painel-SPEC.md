@@ -94,8 +94,7 @@ com versão, transições, senha, data e replay; Jest/RNTL e export Android.
 **TESTADO COM API REAL:** não executado nesta entrega. Suítes PostgreSQL #30/#31
 continuam na CI e não são substituídas pelos mocks.
 **TESTADO EM ANDROID REAL:** não executado nesta entrega.
-**PENDENTE:** #41, banco DEMO isolado e dois Android, rede oscilante real,
-reinício/foreground e histórico com API real. Ver
+A homologação posterior do [card #40](https://trello.com/c/KTkrIl4Z) registra API real, PostgreSQL descartável e dois AVDs Android 16 para o KDS. Ambiente remoto e hardware operacional exigem aceite próprio. Ver
 [evidências e matriz de auditoria](evidence/kds-resiliencia/README.md).
 
 ## Regras que não podem ser esquecidas ao implementar
