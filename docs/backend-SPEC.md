@@ -463,7 +463,7 @@ O sistema adota duas formas distintas de identidade na API, separando usuários 
 - Exigido para autorizar operações críticas:
   - Validação pontual via `POST /auth/validar-pin`.
   - Liberação operacional DEMO em `POST /pedidos/:id/liberacao-demo`.
-  - Atualização de configurações sensíveis do negócio (planejado).
+  - Atualização de configurações sensíveis do negócio em `PATCH /negocio/config` (e alias `PATCH /configuracoes`).
   - Cancelamentos manuais e autorização de estornos (planejado).
 
 ---
@@ -603,8 +603,8 @@ O experimento técnico documentado em `docs/spikes/kds-local-network.md` avaliou
 | `/pedidos/:id/senha` | POST | **IMPLEMENTADO** | `deviceToken` (Painel)| Atribuição sequencial diária de senha pelo KDS |
 | `/pedidos/:id/status` | PATCH | **IMPLEMENTADO** | AnyAuth + Painel/User | Transição de status no KDS (`EM_PREPARO`, `PRONTO`, `ENTREGUE`) |
 | `/pedidos/:id/liberacao-demo`| POST | **IMPLEMENTADO** | Bearer JWT (Dono) | Liberação operacional auditada em ambiente DEMO |
+| `/negocio/config` | GET, PATCH | **IMPLEMENTADO** | Bearer JWT (`DONO`/`GERENTE` GET; `DONO` + PIN PATCH) | Configurações gerais do negócio (alias `/configuracoes`) |
 | `/dispositivos/:id/maquininha-point` | POST | **PLANEJADO** | Bearer JWT | Associação com terminal Point |
-| `/negocios/:id/config` | GET, PUT | **PLANEJADO** | Bearer JWT (Dono/PIN) | Configurações gerais do negócio |
 | `/pagamentos/intent` | POST | **PLANEJADO** | `deviceToken` (Totem) | Disparo de cobrança na maquininha Point física |
 | `/pagamentos/webhook/mercadopago` | POST | **PLANEJADO** | Pública (HMAC MP) | Webhook assíncrono de confirmação financeira |
 | `/pedidos/:id/cancelar` | POST | **PLANEJADO** | Bearer JWT (Dono/PIN) | Cancelamento formal e estorno financeiro |
@@ -734,7 +734,24 @@ O experimento técnico documentado em `docs/spikes/kds-local-network.md` avaliou
 
 ##### `GET /dispositivos/me`
 - **Autenticação**: `Bearer <deviceToken>`.
-- **Response (200 OK)**: Identidade do dispositivo autenticado e parâmetros operacionais do estabelecimento (modo de identificação e mensagem de boas-vindas).
+- **Response (200 OK)**: Identidade do dispositivo autenticado e parâmetros operacionais do estabelecimento (`modoIdentificacao`, `tempoPadraoPreparo`, `mensagemBoasVindas`, `pagamentoPointConfigurado` e `pagamentoOfflineOperacional: false`). Dispositivos nunca podem alterar essas configurações.
+
+---
+
+#### Módulo: Configurações do Estabelecimento
+
+Contrato detalhado em [`docs/configuracoes-estabelecimento.md`](configuracoes-estabelecimento.md).
+
+##### `GET /negocio/config` (alias `GET /configuracoes`)
+- **Autenticação**: `Bearer <jwt>`, perfis `DONO` ou `GERENTE`. Rejeita dispositivos com `403`.
+- **Headers**: `Cache-Control: no-store`.
+- **Response (200 OK)**: Configurações persistidas em `NegocioConfig` para o `negocioId` da sessão (ou defaults `OPCIONAL`, `15`, `null`), sempre marcando `permitirPagamentoOffline: false`, `pagamentoOfflineOperacional: false` e `pagamentoOfflineStatus: "NAO_OPERACIONAL"`.
+
+##### `PATCH /negocio/config` (alias `PATCH /configuracoes`)
+- **Autenticação**: `Bearer <jwt>`, restrito a `DONO` ativo no tenant. `GERENTE` e dispositivos recebem `403`. Exige `pin` de 4 dígitos do dono validado via bcrypt sob lock transacional (`401` se incorreto).
+- **Rate Limit**: 5 tentativas por minuto.
+- **Request Body**: `pin` obrigatório e ao menos um campo entre `modoIdentificacao` (`OPCIONAL`, `NOME`, `CODIGO`), `tempoPadraoPreparo` (1 a 120), `mensagemBoasVindas` (até 200 caracteres ou `null`) ou `permitirPagamentoOffline: false`. Rejeita `permitirPagamentoOffline: true` e campos extras (`400`).
+- **Response (200 OK)**: Estado atualizado persistido no PostgreSQL.
 
 ---
 

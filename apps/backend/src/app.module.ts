@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { DispositivosModule } from './dispositivos/dispositivos.module';
+import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service';
     CatalogoModule,
     PedidosModule,
     DispositivosModule,
+    ConfiguracoesModule,
   ],
   controllers: [AppController],
   providers: [
