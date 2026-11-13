@@ -47,7 +47,7 @@ export class AuthService {
           create: {
             modoIdentificacao: ModoIdentificacao.OPCIONAL,
             tempoPadraoPreparo: 15,
-            permitirPagamentoOffline: true,
+            permitirPagamentoOffline: false,
             mensagemBoasVindas: `Seja bem-vindo ao ${dto.nomeNegocio}!`,
           },
         },

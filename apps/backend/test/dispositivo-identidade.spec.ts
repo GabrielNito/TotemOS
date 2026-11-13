@@ -20,6 +20,7 @@ const device = {
     pinDonoHash: 'private-owner-pin',
     config: {
       modoIdentificacao: 'NOME',
+      tempoPadraoPreparo: 22,
       mensagemBoasVindas: 'Escolha seu café.',
     },
   },
@@ -52,8 +53,10 @@ test('retorna identidade do estabelecimento somente no tenant autenticado e sem 
       id: 'tenant-a',
       nome: 'Cafeteria da Praça',
       modoIdentificacao: 'NOME',
+      tempoPadraoPreparo: 22,
       mensagemBoasVindas: 'Escolha seu café.',
       pagamentoPointConfigurado: true,
+      pagamentoOfflineOperacional: false,
     },
   });
   expect(JSON.stringify(response)).not.toContain('private-');
@@ -91,8 +94,10 @@ test('usa identificação opcional quando o negócio ainda não tem configuraç�
   expect(await service.me('tenant-a', 'device-a')).toMatchObject({
     negocio: {
       modoIdentificacao: 'OPCIONAL',
+      tempoPadraoPreparo: 15,
       mensagemBoasVindas: null,
       pagamentoPointConfigurado: false,
+      pagamentoOfflineOperacional: false,
     },
   });
 });
