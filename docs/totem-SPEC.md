@@ -77,8 +77,10 @@ pedido. Entrar em standby remove identificação em memória. A prévia Brioche
 (`src/kiosk/kiosk-screen.tsx`) permanece isolada.
 
 [Evidências e limites do #33](evidence/totem-acompanhamento/README.md).
-Homologação com backend DEMO isolado e dispositivo físico pertence ao #41;
-Jest e exportação não comprovam homologação operacional.
+O [card #40](https://trello.com/c/KTkrIl4Z) registra o ensaio local com API real,
+PostgreSQL descartável e Galaxy A54. O [card #42](https://trello.com/c/BlKTMhV9)
+registra Screen Pinning no aparelho e Lock Task em AVD gerenciado. O aceite em
+hardware operacional depende do aparelho e do DPC da operação.
 
 ## Regras que não podem ser esquecidas ao implementar
 

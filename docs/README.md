@@ -3,15 +3,17 @@
 Plataforma de autoatendimento com backend, Totem, painel KDS e Dashboard.
 Este índice distingue especificação, entrega comprovada e proposta de arquitetura.
 
+- [Guia rápido de desenvolvimento e reprodução P0](guia-reproducao-p0.md).
+
 ## Contrato operacional P0, card #28
 
 - [ADR 0001: produção, senha, pagamento e DEMO](adr/0001-contrato-operacional-p0.md), **PROPOSTA**, aguardando revisão do Caio.
 - [Matriz de divergências e textos recomendados para aprovação](contrato-operacional-divergencias.md).
-- [Contratos HTTP propostos, sem endpoints implementados neste card](contrato-operacional-http-p0.md).
+- [Proposta original de contratos HTTP do card #28](contrato-operacional-http-p0.md).
 - [Roadmap P0/P1/P2 e pós-MVP](https://trello.com/c/iKSJ1R4J).
 
-P0 usa backend cloud e PostgreSQL. LAN permanece inconclusiva; DEMO é proposta
-de liberação operacional em ambiente isolado, não aprovação financeira.
+P0 usa backend cloud e PostgreSQL. LAN permanece inconclusiva. A liberação operacional DEMO foi implementada
+no card #29 para ambientes isolados e não confirma pagamento.
 Point física, impressão e operação offline são pós-MVP.
 
 ## Especificações por aplicação
@@ -23,6 +25,9 @@ Point física, impressão e operação offline são pós-MVP.
 - [Arquitetura histórica v1 e delimitação do roadmap](arquitetura-tecnica-v1.md).
 
 ## Entregas e experimentos documentados
+
+- Configurações persistentes do estabelecimento e interface administrativa ([PR #28](https://github.com/GabrielNito/TotemOS/pull/28) e [PR #29](https://github.com/GabrielNito/TotemOS/pull/29)).
+- Concorrência, tenants e idempotência em PostgreSQL ([PR #30](https://github.com/GabrielNito/TotemOS/pull/30)).
 
 - [Liberação operacional DEMO, implementação do card #29](liberacao-demo.md).
 - [Transições, fila elegível e acompanhamento, implementação do card #30](transicoes-pedidos.md).

@@ -510,7 +510,7 @@ Contrato aprovado e implementado no incremento do card #29:
 
 - Finalidade exclusiva: permitir testes e demonstrações de ponta a ponta em ambientes não produtivos sem necessidade de cartão de crédito real ou maquininha física.
 - Restrições invioláveis:
-  - O servidor exige variáveis de ambiente `DEMO_ENVIRONMENT_ALLOWED=true` e `DEMO_ENVIRONMENT_NAME` explicitamente configuradas.
+  - O servidor exige `NODE_ENV` de desenvolvimento ou teste, `TOTEMOS_ENV` de demonstração ou teste, `DEMO_ENABLED=true`, `DEMO_DATABASE_ISOLATED=true`, `DEMO_ENVIRONMENT_ID` e o negócio em `DEMO_TENANT_IDS`. Indicadores de produção vetam a liberação. Consulte o [contrato DEMO](liberacao-demo.md).
   - O pedido deve ter sido criado com a flag `demo: true`.
   - Exige usuário humano autenticado com perfil `DONO` e validação do PIN do dono no body.
   - **Nunca grava `Pagamento APROVADO` fictício**. A autorização é puramente operacional (`autorizacaoOperacional: { tipo: 'DEMO', financeira: false }`).
