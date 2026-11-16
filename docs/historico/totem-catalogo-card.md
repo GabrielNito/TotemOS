@@ -1,5 +1,8 @@
 # Fechamento do card de catálogo do Totem
 
+> Registro histórico. Consulte o [estado atual do projeto](../README.md) para os contratos e limites vigentes.
+
+
 Card: https://trello.com/c/sDdhByQD
 
 ## Comportamento entregue
@@ -22,7 +25,7 @@ A UI também inclui a personalização visual pedida, o carrinho local e a prév
 
 ## Galaxy A54 físico
 
-[Resultado do fluxo conectado](evidence/totem-v2/catalog-card/paired-result.json), [cenários de falha e disponibilidade](evidence/totem-v2/catalog-card/states-result.json), [manifesto do APK de auditoria](evidence/totem-v2/catalog-card/build.json) e [índice das capturas](evidence/totem-v2/catalog-card/captures.json).
+[Resultado do fluxo conectado](../evidence/totem-v2/catalog-card/paired-result.json), [cenários de falha e disponibilidade](../evidence/totem-v2/catalog-card/states-result.json), [manifesto do APK de auditoria](../evidence/totem-v2/catalog-card/build.json) e [índice das capturas](../evidence/totem-v2/catalog-card/captures.json).
 
 O fluxo conectado foi executado contra o backend local e o catálogo real, preservando o token já pareado. Configurar Duplo com um adicional e duas unidades produziu R$ 89,60. Editar para Simples preservou o adicional e produziu R$ 67,80; três unidades resultaram em R$ 101,70, mantidos após reiniciar.
 

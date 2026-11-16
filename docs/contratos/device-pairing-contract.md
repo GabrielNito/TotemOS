@@ -2,7 +2,8 @@
 
 Este documento consolida o contrato implementado para o pareamento de Totens e
 Painéis/KDS. O schema Prisma e os controllers do backend são a fonte executável
-do contrato.
+do contrato. A projeção atual de `GET /dispositivos/me` está no
+[contrato de configurações](configuracoes-estabelecimento.md).
 
 ## Identidades
 
@@ -55,12 +56,12 @@ As ativações usam `PareamentoRateLimit`, uma tabela compartilhada entre
 instâncias, além do `@Throttle` local como camada adicional. O rate limit não
 depende somente de memória de processo.
 
-## Migração e dados legados
+## Migração inicial e dados legados
 
 O repositório não possuía histórico Prisma de migrations. A migration inicial
 `20261028160000_card13_initial_schema` foi gerada a partir do schema atual e
-inclui o índice parcial. Ela foi validada em um PostgreSQL descartável, mas não
-foi aplicada a nenhum ambiente existente.
+inclui o índice parcial. O registro original do #13 cobre a validação em um
+PostgreSQL descartável.
 
 Um banco já provisionado com `db push` precisa ser baselined antes de usar
 `prisma migrate deploy`. Se houver linhas antigas com o campo bruto
@@ -80,7 +81,7 @@ copiar segredos existentes.
 - As consultas de pedidos, dispositivos, códigos e revogações filtram o
   `negocioId` derivado da identidade autenticada.
 
-## Interfaces para os cards consumidores
+## Integrações consumidoras
 
 ### Card #20, Dashboard
 

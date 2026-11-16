@@ -1,19 +1,22 @@
 # ADR 0001: produção, senha, pagamento e modo DEMO no P0
 
+> Proposta do card #28, preservada para revisão. O [estado atual](../README.md) leva aos contratos implementados pelos cards seguintes.
+
+
 Status: **PROPOSTA**, aguardando revisão do Caio. Data: 29/10/2026.
 Responsável pela redação: Gabriel. Card [#28](https://trello.com/c/T6hZ5Npz).
 
 Atualização incremental #29: implementação da liberação DEMO autorizada pelo
 usuário após o merge documental #14 e submetida a PR próprio. Ver
-[comportamento efetivo, configuração e limites](../liberacao-demo.md).
+[comportamento efetivo, configuração e limites](../contratos/liberacao-demo.md).
 A auditoria abaixo permanece a fotografia da base ef20663; a implementação
 incremental não representa aprovação do Caio das demais decisões desta ADR.
 
 Esta ADR não autoriza implementar exceções às regras globais. As alterações
-recomendadas para aprovação estão na [matriz de divergências](../contrato-operacional-divergencias.md).
-Contratos HTTP detalhados: [propostas P0](../contrato-operacional-http-p0.md).
+recomendadas para aprovação estão na [matriz de divergências](../historico/contrato-operacional-divergencias.md).
+Contratos HTTP detalhados: [propostas P0](../historico/contrato-operacional-http-p0.md).
 
-Atualização incremental #31: [senha diária cloud-online](../senha-diaria-kds.md)
+Atualização incremental #31: [senha diária cloud-online](../contratos/senha-diaria-kds.md)
 implementada por solicitação explícita do usuário, sobre o merge #16. O KDS
 inicia a atribuição; o backend calcula e persiste número/data atomicamente.
 A regra 4 recebeu ressalva explícita para revisão do Caio. As demais decisões
@@ -85,7 +88,7 @@ implementação. Esta auditoria não acessou o banco operacional nem verificou d
   produtivo de pagamentos, webhook, DEMO, transições, senha ou reconciliação no
   [AppModule](../../apps/backend/src/app.module.ts). Enums e nomes de rotas nas
   SPECs não constituem implementação desses recursos.
-- O [relatório do PR #13](../totem-pedido-real.md) e suas
+- O [relatório do PR #13](../historico/totem-pedido-real.md) e suas
   [evidências](../evidence/totem-pedido-real/README.md) relatam testes em schema
   isolado e A54. O card #26 registra aplicação operacional da migração nullable
   em 29/10/2026 às 15:29 BRT; o texto original do PR antecede essa aplicação.

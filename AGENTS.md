@@ -17,12 +17,12 @@ Este arquivo estabelece os princípios invioláveis e as regras de arquitetura q
 3. **Confirmação de Pagamento**:
    - Pedidos iniciados no Totem nascem com o status `AGUARDANDO_PAGAMENTO`.
    - Em produção, o pedido SÓ entra na fila da cozinha (`PENDENTE`) após a confirmação assíncrona do webhook do Mercado Pago ou aceitação de pagamento offline conforme contrato específico.
-   - Exceção DEMO: exclusivamente em ambiente não produtivo explicitamente configurado e banco isolado, um usuário humano `DONO` com PIN pode liberar pedido previamente marcado como demonstração pelo servidor. Exige tenant autorizado, auditoria e idempotência; nunca gravar `Pagamento APROVADO` fictício. A configuração ausente ou qualquer indicação de produção veta a liberação. Contrato e limites em [`docs/liberacao-demo.md`](docs/liberacao-demo.md).
+   - Exceção DEMO: exclusivamente em ambiente não produtivo explicitamente configurado e banco isolado, um usuário humano `DONO` com PIN pode liberar pedido previamente marcado como demonstração pelo servidor. Exige tenant autorizado, auditoria e idempotência; nunca gravar `Pagamento APROVADO` fictício. A configuração ausente ou qualquer indicação de produção veta a liberação. Contrato e limites em [`docs/contratos/liberacao-demo.md`](docs/contratos/liberacao-demo.md).
 
 4. **Autoridade de Senha no Painel (KDS)**:
    - A senha sequencial diária do pedido é atribuída pelo **Painel de Pedidos (KDS)** no momento em que o pedido é recebido.
    - O backend cloud DEVE aceitar e persistir a senha atribuída pelo Painel durante sincronizações e reconciliações offline.
-   - **Incremento explícito do card #31, sujeito à revisão humana do Caio**: no P0 cloud-online, o KDS inicia a solicitação autenticada. O backend calcula e atribui a senha atomicamente no PostgreSQL, por negócio e dia civil America/Sao_Paulo. A regra histórica de aceitar numeração local na reconciliação permanece uma direção offline futura, sem implementação ou validação no P0. Ver [contrato efetivo e divergência](docs/senha-diaria-kds.md).
+   - **Incremento explícito do card #31, sujeito à revisão humana do Caio**: no P0 cloud-online, o KDS inicia a solicitação autenticada. O backend calcula e atribui a senha atomicamente no PostgreSQL, por negócio e dia civil America/Sao_Paulo. A regra histórica de aceitar numeração local na reconciliação permanece uma direção offline futura, sem implementação ou validação no P0. Ver [contrato efetivo e divergência](docs/contratos/senha-diaria-kds.md).
 
 5. **Segurança e PIN do Dono**:
    - Operações sensíveis (alteração de configurações do negócio, cancelamentos e confirmação de estornos) exigem validação prévia do PIN do dono (verificado via hash bcrypt e isolamento de tenant).
@@ -70,7 +70,7 @@ Para a construção e modificação de código no TotemOS, os agentes e desenvol
 
 ## 5. Estrutura da Documentação do Repositório
 
-- **Contratos e Especificações**: Consulte os arquivos em `docs/` (`backend-SPEC.md`, `totem-SPEC.md`, `painel-SPEC.md`, `dashboard-SPEC.md`).
-- **Regras do Backend**: Consulte [`.agents/rules/backend.md`](file:///c:/Users/Nito/www/TotemOS/.agents/rules/backend.md).
-- **Fluxo de Trabalho**: Consulte [`CONTRIBUTING.md`](file:///c:/Users/Nito/www/TotemOS/CONTRIBUTING.md).
+- **Contratos e Especificações**: Consulte o [estado atual](docs/README.md), as specs por aplicação em `docs/` e os contratos em `docs/contratos/`.
+- **Regras do Backend**: Consulte [`.agents/rules/backend.md`](.agents/rules/backend.md).
+- **Fluxo de Trabalho**: Consulte [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **Skills Operacionais**: Consulte `.agents/skills/` para procedimentos de setup, migração e testes.

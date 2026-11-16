@@ -133,7 +133,7 @@ erDiagram
 
 - `docs/backend-SPEC.md` - Especificação de endpoints e modelo de dados Prisma para `Pedido`, `PedidoItem`, `PedidoItemAdicional` e `PedidoItemEscolha`.
 - `AGENTS.md` - Regras Não-Negociáveis 1 (Isolamento de Tenant), 2 (Snapshot de Preço), 3 (Confirmação de Pagamento), 4 (Autoridade de Senha) e 6 (Preparo Zero).
-- `docs/arquitetura-tecnica-v1.md` - Topologia geral, fluxo de venda online e fluxo de resiliência offline.
+- `docs/historico/arquitetura-tecnica-v1.md` - Topologia geral, fluxo de venda online e fluxo de resiliência offline.
 
 ## Unresolved
 

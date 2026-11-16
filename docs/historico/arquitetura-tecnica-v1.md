@@ -1,5 +1,8 @@
 # Arquitetura Técnica — TotemOS (v1)
 
+> Registro histórico. Consulte o [estado atual do projeto](../README.md) para os contratos e limites vigentes.
+
+
 Visão geral da topologia de rede, fluxos de dados, separação de ambientes e delimitação de resiliência do ecossistema TotemOS.
 
 ---
@@ -67,7 +70,7 @@ sequenceDiagram
     B->>B: Reconciliação com descarte de duplicados
 ```
 
-O experimento técnico avaliou essa arquitetura no [spike LAN #19](spikes/kds-local-network.md) e concluiu seu status como **INCONCLUSIVE**:
+O experimento técnico avaliou essa arquitetura no [spike LAN #19](../spikes/kds-local-network.md) e concluiu seu status como **INCONCLUSIVE**:
 - Adapters nativos individuais (Nitro HTTP Server e Zeroconf mDNS) responderam adequadamente em hardware de teste.
 - Contudo, a comunicação direta entre dois aparelhos Android físicos na mesma LAN não foi validada, e o fechamento voluntário de conexão WebSocket apresentou falha com código 1006.
 - Portanto, essa topologia não integra o P0 e permanece como hipótese técnica pós-MVP.

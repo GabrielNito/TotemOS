@@ -2,6 +2,8 @@
 
 Aplicativo mobile de autoatendimento do TotemOS. Esta base usa Expo Router e development builds para Android. Expo Go não é ambiente de desenvolvimento suportado.
 
+A [spec do Totem](../../docs/totem-SPEC.md) descreve o fluxo conectado e os limites do checkout.
+
 ## Uso local
 
 ```bash

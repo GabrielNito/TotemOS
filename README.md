@@ -1,49 +1,22 @@
-# TotemOS — Plataforma B2B de Autoatendimento e Gestão de Pedidos
+# TotemOS
 
-Plataforma B2B que permite a donos de pequenos negócios e eventos instalarem totens de autoatendimento integrados com painel de pedidos (KDS), maquininhas de cartão/Pix físicas e dashboard de gestão.
+Plataforma de autoatendimento para estabelecimentos com Totem Android, painel de cozinha (KDS) Android, Dashboard web e API com PostgreSQL.
 
----
+O fluxo online registra o pedido, acompanha a fila, atribui senha e registra preparo e entrega. Para exercitar o percurso completo, o P0 usa liberação DEMO auditada em ambiente isolado. A integração financeira com Mercado Pago Point e a venda offline seguem pendentes.
 
-## 🏛️ Arquitetura e Módulos do Monorepo
+## Documentação
 
-O repositório está organizado nas seguintes frentes de desenvolvimento:
+- [Estado atual e regras de negócio](docs/README.md) reúne os recursos por aplicação, os limites de homologação e as divergências que ainda precisam de decisão.
+- [Backend](docs/backend-SPEC.md), [Totem](docs/totem-SPEC.md), [Painel KDS](docs/painel-SPEC.md) e [Dashboard](docs/dashboard-SPEC.md) descrevem os fluxos e APIs em uso.
+- [Contribuição](CONTRIBUTING.md) e [regras do repositório](AGENTS.md) orientam mudanças no projeto.
 
-```
-TotemOS/
-├── AGENTS.md                  # Regras de negócio globais para desenvolvimento orientado a agentes
-├── CONTRIBUTING.md            # Guia oficial de fluxo de trabalho (TDD, Git e Pull Requests)
-├── .agents/                   # Regras e skills operacionais (db-setup, mercadopago-mock, etc.)
-├── docs/                      # Especificações técnicas detalhadas de cada frente
-│   ├── backend-SPEC.md
-│   ├── totem-SPEC.md
-│   ├── painel-SPEC.md
-│   ├── dashboard-SPEC.md
-│   └── arquitetura-tecnica-v1.md
-├── apps/
-│   ├── backend/               # Bun + NestJS + Fastify + Prisma + PostgreSQL
-│   ├── dashboard/             # Next.js (App Router) — Gestão de catálogo, relatórios e dispositivos
-│   ├── totem/                 # React Native (Expo dev client) + WatermelonDB — App do cliente no tablet
-│   └── kds/                   # React Native (Expo dev client) + Servidor local — Fila KDS da cozinha
-```
+## Executar localmente
 
----
+O [guia de reprodução do P0](docs/guias/guia-reproducao-p0.md) cobre o roteiro DEMO com as quatro aplicações e PostgreSQL descartável.
 
-## 🚀 Tecnologias Utilizadas
-
-- **Backend Cloud**: Bun, NestJS, Fastify, Prisma ORM, PostgreSQL, Zod, `bun:test`.
-- **Dashboard Web**: Next.js (App Router), React, Tailwind CSS.
-- **Aplicativo Totem**: React Native, Expo (Development Client), WatermelonDB.
-- **Painel de Pedidos (KDS)**: React Native, Expo, Servidor HTTP/WebSocket local (`react-native-nitro-http-server`).
-- **Integração de Pagamento**: Mercado Pago Point API (maquininha física de cartão e Pix).
-
----
-
-## 📖 Guias e Especificações
-
-- Guia de Contribuição e TDD: [`CONTRIBUTING.md`](file:///c:/Users/Nito/www/TotemOS/CONTRIBUTING.md)
-- Diretrizes Globais para Agentes AI: [`AGENTS.md`](file:///c:/Users/Nito/www/TotemOS/AGENTS.md)
-- Arquitetura de Redes & Diagramas: [`docs/arquitetura-tecnica-v1.md`](file:///c:/Users/Nito/www/TotemOS/docs/arquitetura-tecnica-v1.md)
-- Especificação do Backend: [`docs/backend-SPEC.md`](file:///c:/Users/Nito/www/TotemOS/docs/backend-SPEC.md)
-- Especificação do Totem: [`docs/totem-SPEC.md`](file:///c:/Users/Nito/www/TotemOS/docs/totem-SPEC.md)
-- Especificação do Painel: [`docs/painel-SPEC.md`](file:///c:/Users/Nito/www/TotemOS/docs/painel-SPEC.md)
-- Especificação da Dashboard: [`docs/dashboard-SPEC.md`](file:///c:/Users/Nito/www/TotemOS/docs/dashboard-SPEC.md)
+| Aplicação | Diretório | Guia |
+| --- | --- | --- |
+| API NestJS e PostgreSQL | `apps/backend` | [Configuração, migrações e testes](apps/backend/README.md) |
+| Dashboard Next.js | `apps/dashboard` | [Desenvolvimento web](apps/dashboard/README.md) |
+| Totem React Native e Expo | `apps/totem` | [Development build e recuperação](apps/totem/README.md) |
+| KDS React Native e Expo | `apps/kds` | [Development build e fila](apps/kds/README.md) |

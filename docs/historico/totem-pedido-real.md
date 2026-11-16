@@ -1,5 +1,8 @@
 # Carrinho para pedido real
 
+> Registro histórico. Consulte o [estado atual do projeto](../README.md) para os contratos e limites vigentes.
+
+
 Card: https://trello.com/c/tC5WqYRu
 
 O catálogo conectado envia a seleção depois da identificação para `POST /pedidos`, autenticado com o deviceToken TOTEM. Envia referências, quantidades, nome da variação e identificação; não envia preço, total nem negocioId. O contrato atual identifica variações pelo nome. Nomes ambíguos, opções ausentes e opções esgotadas são rejeitados pela API.
@@ -27,7 +30,7 @@ Migrações executadas em schema PostgreSQL temporário e isolado: pedido com du
 
 ## Validação no Galaxy A54
 
-[Capturas e resultado](evidence/totem-pedido-real/README.md). O APK de auditoria usa a mesma interface e um bundle Hermes atualizado no contêiner nativo existente, com assinatura debug do projeto. Isso não substitui um novo build Gradle/EAS de produção. As chaves de carrinho e tentativa receberam um prefixo exclusivo somente durante o empacotamento de auditoria; o código operacional e os dados existentes no aparelho foram preservados.
+[Capturas e resultado](../evidence/totem-pedido-real/README.md). O APK de auditoria usa a mesma interface e um bundle Hermes atualizado no contêiner nativo existente, com assinatura debug do projeto. Isso não substitui um novo build Gradle/EAS de produção. As chaves de carrinho e tentativa receberam um prefixo exclusivo somente durante o empacotamento de auditoria; o código operacional e os dados existentes no aparelho foram preservados.
 
 O backend de teste utilizou um schema PostgreSQL isolado com cópia do catálogo e do registro do dispositivo pareado. No A54, a seleção inicial de duas unidades Duplo com dois adicionais por unidade totalizou R$ 99,60. A API foi parada antes do envio: a tentativa permaneceu salva e a revisão do carrinho ficou bloqueada. Após reiniciar o backend e o app, a tentativa foi recuperada.
 
