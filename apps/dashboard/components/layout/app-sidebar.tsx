@@ -136,46 +136,50 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       {/* Content: Menus de Navegação */}
       <SidebarContent className="px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
-            Navegação
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = item.exact
-                  ? pathname === item.url
-                  : pathname.startsWith(item.url)
+        <nav aria-label="Navegação administrativa">
+          <SidebarGroup>
+            <SidebarGroupLabel className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
+              Navegação
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = item.exact
+                    ? pathname === item.url
+                    : pathname.startsWith(item.url)
 
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      tooltip={item.title}
-                      className={cn(
-                        "h-10 rounded-xl px-3 transition-colors",
-                        isActive
-                          ? "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary dark:bg-primary/15"
-                          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                      )}
-                    >
-                      <Link
-                        href={item.url}
-                        className="flex w-full items-center gap-3"
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        tooltip={item.title}
+                        render={
+                          <Link
+                            href={item.url}
+                            aria-current={isActive ? "page" : undefined}
+                            aria-label={item.title}
+                          />
+                        }
+                        className={cn(
+                          "h-10 gap-3 rounded-xl px-3 transition-colors",
+                          isActive
+                            ? "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary dark:bg-primary/15"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        )}
                       >
-                        <Icon className="size-4 shrink-0" />
+                        <Icon aria-hidden="true" className="size-4 shrink-0" />
                         <span className="text-xs group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
       </SidebarContent>
 
       {/* Footer: Menu do Usuário */}
@@ -183,14 +187,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-full focus:outline-none">
+              <DropdownMenuTrigger className="w-full focus-visible:ring-2 focus-visible:ring-sidebar-ring">
                 <div className="flex w-full items-center gap-2.5 rounded-2xl border border-border/40 bg-card p-2 text-left text-xs shadow-xs transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none hover:bg-muted/40">
-                  <Avatar className="size-8 shrink-0 rounded-xl">
+                  <Avatar
+                    aria-hidden="true"
+                    className="size-8 shrink-0 rounded-xl"
+                  >
                     <AvatarFallback className="rounded-xl bg-primary/10 text-xs font-bold text-primary">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
+                  <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:sr-only">
                     <span className="truncate font-semibold text-foreground">
                       {userName}
                     </span>
