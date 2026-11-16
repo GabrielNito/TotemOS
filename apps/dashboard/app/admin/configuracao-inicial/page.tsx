@@ -17,13 +17,16 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAuthToken, type UserSession } from "@/lib/auth"
-import { getCatalogoAdministrativo, getDispositivos } from "@/lib/api"
+import {
+  getCatalogoAdministrativo,
+  getConfiguracaoNegocio,
+  getDispositivos,
+} from "@/lib/api"
 import {
   ConsultaConfiguracao,
   type FonteConfiguracao,
 } from "@/lib/configuracao-inicial-consulta"
 import {
-  configuracaoOperacional,
   diagnosticarCatalogo,
   diagnosticarEquipamentos,
   type DiagnosticoEtapa,
@@ -41,7 +44,7 @@ const etapas = [
 const rotulos: Record<StatusEtapa, string> = {
   concluido: "Concluído",
   pendente: "Pendente",
-  indisponivel: "Indisponível",
+  revisao_pendente: "Revisão pendente",
   carregando: "Carregando",
   erro: "Erro",
 }
@@ -145,6 +148,7 @@ function AssistenteSessao({
     () =>
       new ConsultaConfiguracao(
         user.negocioId!,
+        (signal) => getConfiguracaoNegocio(token, signal),
         (signal) => getCatalogoAdministrativo(token, signal),
         (signal) => getDispositivos(token, signal),
         onSessaoExpirada,
@@ -163,6 +167,7 @@ function AssistenteSessao({
     return () => consulta.cancelar()
   }, [consulta])
 
+  const configuracao = snapshot.configuracao.dados
   const diagnosticos: DiagnosticoEtapa[] = [
     {
       status: "concluido",
@@ -170,7 +175,13 @@ function AssistenteSessao({
         "Estabelecimento e conta administrativa reconhecidos pela sessão autenticada.",
     },
     diagnosticoFonte(snapshot.catalogo, diagnosticarCatalogo),
-    configuracaoOperacional,
+    diagnosticoFonte(snapshot.configuracao, () => ({
+      status: "revisao_pendente",
+      descricao:
+        user.role === "DONO"
+          ? "Configurações disponíveis. Revise os valores e use o PIN do dono caso precise alterá-los."
+          : "Configurações disponíveis para consulta. Seu perfil tem acesso somente leitura.",
+    })),
     diagnosticoFonte(snapshot.dispositivos, (dados) =>
       diagnosticarEquipamentos(dados.dispositivos)
     ),
@@ -179,19 +190,23 @@ function AssistenteSessao({
     diagnosticos.filter((d) => d.status === status).length
   const atual = diagnosticos[selecionada]
   const proxima = diagnosticos.findIndex(
-    (d) => d.status === "pendente" || d.status === "erro"
+    (d) =>
+      d.status === "pendente" ||
+      d.status === "revisao_pendente" ||
+      d.status === "erro"
   )
   const equipamentos = snapshot.dispositivos.dados
     ? diagnosticarEquipamentos(snapshot.dispositivos.dados.dispositivos)
     : null
   const carregando = diagnosticos.some((d) => d.status === "carregando")
   const Icone = etapas[selecionada].icone
-  const href =
-    selecionada === 1
-      ? "/admin/catalogo"
-      : selecionada === 3
-        ? "/admin/dispositivos"
-        : null
+  const links = [
+    null,
+    { href: "/admin/catalogo", rotulo: "Abrir catálogo" },
+    { href: "/admin/configuracoes", rotulo: "Revisar configurações" },
+    { href: "/admin/dispositivos", rotulo: "Gerenciar dispositivos" },
+  ]
+  const link = links[selecionada]
 
   if (snapshot.acessoNegado)
     return (
@@ -254,7 +269,7 @@ function AssistenteSessao({
         {contagem("concluido") === 1 ? "etapa pronta" : "etapas prontas"} ·{" "}
         {contagem("pendente")}{" "}
         {contagem("pendente") === 1 ? "pendente" : "pendentes"} ·{" "}
-        {contagem("indisponivel")} aguardando integração
+        {contagem("revisao_pendente")} para revisar
         {contagem("carregando") > 0 &&
           ` · ${contagem("carregando")} carregando`}
         {contagem("erro") > 0 && ` · ${contagem("erro")} com erro`}
@@ -349,11 +364,32 @@ function AssistenteSessao({
                 ))}
               </dl>
             )}
-            {selecionada === 0 && (
-              <p className="text-xs text-muted-foreground">
-                O cadastro já existe. A configuração operacional permanece
-                aguardando integração.
-              </p>
+            {selecionada === 2 && configuracao && (
+              <dl className="grid gap-4 rounded-2xl bg-muted/30 p-4 text-sm sm:grid-cols-2">
+                {[
+                  [
+                    "Modo de identificação",
+                    {
+                      OPCIONAL: "Opcional",
+                      NOME: "Nome",
+                      CODIGO: "Código",
+                    }[configuracao.modoIdentificacao],
+                  ],
+                  [
+                    "Tempo padrão de preparo",
+                    `${configuracao.tempoPadraoPreparo} min`,
+                  ],
+                  [
+                    "Mensagem de boas-vindas",
+                    configuracao.mensagemBoasVindas ?? "Sem mensagem",
+                  ],
+                ].map(([nome, valor]) => (
+                  <div key={nome}>
+                    <dt className="text-xs text-muted-foreground">{nome}</dt>
+                    <dd className="mt-1 font-medium wrap-anywhere">{valor}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
             {selecionada === 1 && snapshot.catalogo.dados && (
               <p className="text-xs text-muted-foreground">
@@ -384,17 +420,15 @@ function AssistenteSessao({
                   Tentar novamente
                 </Button>
               )}
-              {href && (
+              {link && (
                 <Link
-                  href={href}
+                  href={link.href}
                   className={cn(
                     buttonVariants({ variant: "outline" }),
                     "min-h-11 rounded-xl"
                   )}
                 >
-                  {selecionada === 1
-                    ? "Abrir catálogo"
-                    : "Gerenciar dispositivos"}
+                  {link.rotulo}
                   <ArrowRight aria-hidden="true" className="size-4" />
                 </Link>
               )}
@@ -419,7 +453,7 @@ function AssistenteSessao({
                 ? diagnosticos[proxima].descricao
                 : carregando
                   ? "Aguarde a consulta dos dados atuais."
-                  : "Os recursos disponíveis foram verificados. As configurações operacionais ainda aguardam integração."}
+                  : "Os recursos disponíveis foram verificados."}
             </p>
             {proxima >= 0 && (
               <Button
@@ -460,8 +494,8 @@ function AssistenteSessao({
           </section>
           <p className="px-2 text-xs leading-relaxed text-muted-foreground">
             Você pode sair e continuar depois. Ao voltar, o diagnóstico será
-            consultado novamente. Após alterar o catálogo ou os equipamentos,
-            use Atualizar diagnóstico.
+            consultado novamente. Após alterar os dados, use Atualizar
+            diagnóstico.
           </p>
         </aside>
       </div>

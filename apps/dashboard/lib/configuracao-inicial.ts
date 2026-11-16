@@ -3,17 +3,10 @@ import { calcularDiagnosticoPublicacao } from "./catalogo/regras-publicacao"
 import type { Dispositivo } from "./types/models"
 
 export type StatusEtapa =
-  "concluido" | "pendente" | "indisponivel" | "carregando" | "erro"
+  "concluido" | "pendente" | "revisao_pendente" | "carregando" | "erro"
 export interface DiagnosticoEtapa {
   status: StatusEtapa
   descricao: string
-}
-
-// Ponto de integração dos cards #36/#37. Não usa defaults de formulário.
-export const configuracaoOperacional: DiagnosticoEtapa = {
-  status: "indisponivel",
-  descricao:
-    "Configurações operacionais aguardando integração. Modo de identificação, tempo padrão de preparo e mensagem de boas-vindas dependem dos cards #36 e #37.",
 }
 
 export function diagnosticarCatalogo(
@@ -51,7 +44,9 @@ export function diagnosticarCatalogo(
 }
 
 export function diagnosticarEquipamentos(dispositivos: Dispositivo[]) {
-  const validos = dispositivos.filter((d) => d.ativo && d.revogadoEm === null)
+  const validos = dispositivos.filter(
+    (d) => d.ativo && d.revogadoEm === null && d.pareadoEm !== null
+  )
   const totens = validos.filter((d) => d.tipo === "TOTEM").length
   const paineis = validos.filter((d) => d.tipo === "PAINEL").length
   const faltam = [!totens && "um Totem", !paineis && "um Painel KDS"]
@@ -60,8 +55,8 @@ export function diagnosticarEquipamentos(dispositivos: Dispositivo[]) {
   return {
     status: totens && paineis ? ("concluido" as const) : ("pendente" as const),
     descricao: faltam
-      ? `Falta cadastrar ${faltam}. Gere um código de pareamento na página de dispositivos e informe-o no equipamento.`
-      : "Totem e Painel KDS ativos no cadastro. A conectividade não é informada por esta consulta.",
+      ? `Falta parear ${faltam}. Gere um código de pareamento na página de dispositivos e informe-o no equipamento.`
+      : "Totem e Painel KDS pareados e ativos no cadastro. A conectividade não é informada por esta consulta.",
     totens,
     paineis,
   }

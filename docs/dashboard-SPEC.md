@@ -77,29 +77,27 @@ Contrato backend, RED/GREEN e limites em
 
 `/admin/configuracao-inicial` tem acesso pela sidebar, sem redirecionamento
 global obrigatório. Etapas: estabelecimento (sessão humana autenticada), catálogo
-(`GET /catalogo/admin`), configurações operacionais (indisponíveis até #36/#37),
+(`GET /catalogo/admin`), configurações operacionais (`GET /negocio/config`),
 equipamentos (`GET /dispositivos`). Não duplica cadastros nem realiza mutações.
 
 Catálogo pronto reutiliza `calcularDiagnosticoPublicacao`: pelo menos um produto
 ativo e não esgotado em categoria ativa. Categoria vazia não conclui a etapa.
-Equipamentos exigem TOTEM e PAINEL ativos com `revogadoEm === null`, sem inferir
+Equipamentos exigem TOTEM e PAINEL ativos, pareados e sem revogação. A consulta não fornece
 heartbeat. Pareamento usa a página de dispositivos existente.
 
-Progresso deriva das respostas atuais, com estados concluído, pendente,
-indisponível, carregando e erro. A contagem inclui quatro etapas, sem percentual;
-indisponibilidade de integração fica separada da pendência do operador.
-Retomada e atualização manual reconsultam as fontes. Não persiste progresso,
-códigos de pareamento ou navegação no navegador.
+As três consultas usam a sessão atual e atualizam o diagnóstico ao voltar para
+a página, recarregar ou selecionar **Atualizar diagnóstico**. Timeout de 20 s,
+cancelamento, controle por versão e chave de sessão descartam respostas antigas.
+401/403 invalidam todos os dados da consulta. As demais falhas afetam apenas a
+fonte correspondente. Respostas de outro tenant são rejeitadas.
 
-Consultas independentes com AbortController, timeout de 20 s, descarte por versão
-e nova instância por identidade/token. 401 encerra a sessão; 401/403 invalidam
-ambos os snapshots. Payload de outro tenant é rejeitado. Falha de uma fonte
-mantém a outra válida e oferece nova tentativa, sem preservar confirmação antiga.
-Sessão em validação bloqueia o assistente.
-
-O adaptador em `lib/configuracao-inicial.ts` mantém configuração indisponível.
-A integração futura deverá consumir e validar NegocioConfig persistido, sem
-defaults ou estado da tela legada. Aceite integral depende de #36/#37 e #41.
+A etapa operacional apresenta modo de identificação, tempo padrão de preparo e
+mensagem de boas-vindas persistidos. O DONO pode revisar e editar com PIN em
+/admin/configuracoes. O GERENTE pode consultar. Como o contrato não registra
+a revisão dos valores, a etapa mostra **Revisão pendente** inclusive após salvar.
+Se o aceite exigir confirmação persistida, uma extensão do contrato pode
+registrar, mediante confirmação explícita do DONO, a revisão da configuração,
+a identidade do responsável e a data. Alterar os valores invalidaria essa confirmação.
 
 ### Componentes compartilhados
 
