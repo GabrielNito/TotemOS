@@ -36,6 +36,45 @@ function createApi(): PairingApi {
 }
 
 describe("device session state", () => {
+  it("retoma a verificação depois de consumir o código, sem ativar de novo", async () => {
+    const api = createApi();
+    let token: string | null = null;
+    const storage = createStorage(null);
+    jest.spyOn(storage, "get").mockImplementation(async () => token);
+    jest.spyOn(storage, "set").mockImplementation(async (value) => {
+      token = value;
+    });
+    jest.spyOn(api, "me").mockRejectedValueOnce({ statusCode: 503 });
+
+    const dependencies = {
+      api,
+      expectedDeviceType: "PAINEL" as const,
+      storage,
+    };
+    await expect(pairDevice("012345", dependencies)).resolves.toMatchObject({
+      kind: "error",
+    });
+    await expect(pairDevice("012345", dependencies)).resolves.toMatchObject({
+      kind: "authenticated",
+      dispositivo: device,
+    });
+    expect(api.activate).toHaveBeenCalledTimes(1);
+    expect(api.me).toHaveBeenCalledTimes(2);
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+
+  it("não consome código enquanto a sessão persistida está indisponível", async () => {
+    const api = createApi();
+    const storage = createStorage("token-preservado");
+    jest.spyOn(api, "me").mockRejectedValue({ statusCode: 503 });
+
+    await expect(
+      pairDevice("012345", { api, expectedDeviceType: "PAINEL", storage }),
+    ).resolves.toMatchObject({ kind: "error" });
+    expect(api.activate).not.toHaveBeenCalled();
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+
   it("fica aguardando pareamento quando não existe token", async () => {
     const api = createApi();
     const storage = createStorage(null);

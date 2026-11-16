@@ -209,7 +209,10 @@ export function RegistrarMultiStep() {
     } catch (err) {
       setIsLoading(false)
       if (err instanceof ApiError) {
-        if (err.statusCode === 409) {
+        if (
+          err.statusCode === 409 &&
+          err.message === "E-mail já cadastrado na plataforma"
+        ) {
           toast.error("E-mail já cadastrado", {
             description:
               "Já existe uma conta associada a este e-mail. Faça login ou use outro.",

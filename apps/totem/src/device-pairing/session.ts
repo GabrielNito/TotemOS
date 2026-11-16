@@ -167,6 +167,13 @@ export async function pairDevice(
     return { kind: "error", message: INVALID_INPUT_MESSAGE };
   }
 
+  const existingSession = await restoreDeviceSession({
+    api,
+    expectedDeviceType,
+    storage,
+  });
+  if (existingSession.kind !== "pairing") return existingSession;
+
   let activation: DeviceActivationResponse;
   try {
     activation = await api.activate(codigo);
