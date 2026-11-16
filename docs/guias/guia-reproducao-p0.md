@@ -61,6 +61,8 @@ O #40 registrou o fluxo integrado com Totem no Galaxy A54, duas sessões web de 
 
 O ambiente local foi revalidado no #41. O aceite remoto e o smoke do KDS em aparelho ARM64 seguem pendentes. O #42 registrou Screen Pinning no Galaxy A54 e Lock Task em AVD com Test DPC. [Card #41](https://trello.com/c/6JbgEgg4) · [Card #42](https://trello.com/c/BlKTMhV9)
 
+O [registro de primeiro uso](../evidence/primeiro-uso-p0/README.md) reúne o ensaio de 15/11, o relato de pareamento por HTTPS sem USB e a matriz de versões observadas.
+
 ## Limites da demonstração
 
 O modo conectado usa API, banco, pedidos e dispositivos reais com dados sintéticos. A prévia visual do Totem, `EXPO_PUBLIC_KIOSK_PREVIEW=1`, usa dados simulados. A autorização DEMO permite preparo e entrega em ambiente isolado sem cobrança. O Lock Task dedicado requer Android gerenciado e DPC autorizado. A fixação de tela é um modo distinto do Android. Pagamento real, Point, mesas, impressão e operação LAN/offline completa estão fora da P0.
