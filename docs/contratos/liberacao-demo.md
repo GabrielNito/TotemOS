@@ -161,16 +161,15 @@ do banco com schema Prisma sem diferenças. OpenAPI gerado com a rota, DTO,
 Bearer e respostas esperadas. Dois fixtures preexistentes tiveram apenas seus
 tipos corrigidos para permitir a checagem TypeScript completa também na CI.
 
-## Limites da entrega
+## Limites atuais
 
-Esta rota apenas torna o pedido operacionalmente elegível. O GET geral atual
-ainda não impõe fila segura, e não existe endpoint de numeração/preparo/entrega
-ou acompanhamento restrito ao Totem. Isso permanece #30/#31/#23/#32/#33.
-Cancelamento/estorno, métricas comerciais, provider financeiro, impressão,
-mesas e LAN/offline não foram implementados. Consumidores futuros devem sempre
-identificar DEMO e excluir tais pedidos de faturamento, sem usar ausência de
-pagamento como se fosse aprovação. As lacunas da criação idempotente auditadas
-no #28 continuam para o trabalho específico do #39.
+A liberação autoriza a entrada do pedido DEMO na cozinha. O [contrato de fila,
+transições e acompanhamento](transicoes-pedidos.md) descreve a leitura da fila
+e os comandos de preparo e entrega, além da leitura restrita ao Totem criador.
+O PAINEL solicita a [senha diária](senha-diaria-kds.md) em uma operação própria.
 
-A exceção não produtiva foi acrescentada explicitamente à regra 3 de AGENTS.md
-neste PR para revisão; a regra 4 de senha permanece intacta.
+A autorização é operacional. O pedido DEMO segue identificado na fila e no
+acompanhamento e fica fora do faturamento comercial. Pagamento financeiro,
+cancelamento, estorno e venda offline exigem contratos próprios. A validação
+de concorrência, tenant e replay está nas
+[evidências do #39](../evidence/qa-concorrencia-tenants-idempotencia/README.md).

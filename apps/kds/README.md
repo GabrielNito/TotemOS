@@ -24,7 +24,8 @@ configuração administrativa na tela compartilhada da cozinha.
 ## Interface e contratos reais
 
 - Header: nome autenticado do dispositivo, sincronização, último sucesso e atualizar.
-  A identidade atual não fornece nome do estabelecimento, portanto ele não é inferido.
+  `GET /dispositivos/me` já retorna `negocio.nome`. O tipo de sessão do KDS
+  ainda não consome esse campo. O cabeçalho usa o nome do terminal.
 - Colunas Pendentes / Em preparo / Prontos com contagem, listas virtualizadas,
   senha/data operacional, horário, duração decorrida, itens, variações, adicionais,
   escolhas e observações completas. DEMO aparece explicitamente.

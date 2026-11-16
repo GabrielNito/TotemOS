@@ -4,7 +4,7 @@ Aplicativo Android em landscape para a cozinha e a retirada, feito com React Nat
 
 ## Fila e atendimento
 
-1. O painel valida a credencial `PAINEL` em `GET /dispositivos/me`. O token fica no SecureStore. Uma resposta 401 remove a sessão e leva ao pareamento. [Pareamento mobile](guias/mobile-pairing.md)
+1. O painel valida a credencial `PAINEL` em `GET /dispositivos/me`. O token fica no SecureStore. A API também retorna `negocio.nome`. O cliente atual usa o nome do terminal no cabeçalho. Uma resposta 401 remove a sessão e leva ao pareamento. [Pareamento mobile](guias/mobile-pairing.md)
 2. O app consulta `GET /pedidos/fila`, pagina e deduplica por ID. A elegibilidade vem do backend. No P0, entram pedidos com liberação DEMO válida em `PENDENTE`, `EM_PREPARO` ou `PRONTO`. Os cards exibem itens, tempo decorrido, marca DEMO e senha/data quando atribuídas. Pedidos que chegam após a primeira carga recebem destaque. As faixas de espera são visuais e independentes do tempo padrão configurado no Dashboard. [Fila e transições](contratos/transicoes-pedidos.md)
 3. Ao encontrar pedido sem senha, o KDS registra a chave da operação e solicita `POST /pedidos/:id/senha`. O PostgreSQL atribui um número atômico por negócio e dia civil em `America/Sao_Paulo`. Duas solicitações válidas para o mesmo pedido convergem para a mesma senha. [Contrato da senha](contratos/senha-diaria-kds.md)
 4. Com a senha atribuída e a versão atual, o operador inicia preparo, marca pronto e confirma entrega via `PATCH /pedidos/:id/status`. Pedidos de Preparo Zero entram em `PRONTO` após liberação DEMO e seguem para entrega depois da numeração.

@@ -33,6 +33,7 @@ Também há uma divergência de configuração técnica. O código e o exemplo d
 
 ## Validação registrada
 
+- O ensaio de primeiro uso de 15/11 registrou pedido, liberação DEMO, senha, transições e acompanhamento. O pareamento HTTPS sem USB foi relatado em rodada separada. [Evidências e matriz de versões](evidence/primeiro-uso-p0/README.md)
 - A CI inclui testes e lint das quatro aplicações, export Android e testes E2E do backend em PostgreSQL isolado. As suítes cobrem criação, liberação DEMO, transições, senha, configurações, concorrência, tenant e idempotência. [CI](../.github/workflows/ci.yml) · [Resultados do #39](evidence/qa-concorrencia-tenants-idempotencia/README.md)
 - O laboratório testou o Totem no Galaxy A54 em modo comum e Screen Pinning e exercitou Lock Task e reinício em AVD com Test DPC. Resta validar o DPC da operação em hardware dedicado. [Relato de 10/11 no card #42](https://trello.com/c/BlKTMhV9) · [Runbook do Totem](evidence/totem-kiosk-recovery/README.md)
 - O #40 registrou o fluxo integrado com Totem no Galaxy A54, duas sessões web de KDS da rodada de laboratório, Dashboard e API real com PostgreSQL descartável. Dois KDS nativos passaram em ensaio separado com AVDs Android 16. O smoke ARM64 do KDS e o aceite do ambiente remoto isolado seguem pendentes. [Card #40](https://trello.com/c/KTkrIl4Z) · [Card #41](https://trello.com/c/6JbgEgg4)
