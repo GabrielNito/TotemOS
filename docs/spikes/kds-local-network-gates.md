@@ -1,5 +1,8 @@
 # Gates: KDS LAN spike
 
+> Registro da execução do [spike LAN](kds-local-network.md).
+
+
 OWNS: apps/kds/**, apps/totem/**, docs/spikes/kds-local-network.md, GATES.md
 
 Scope: validar a estrutura diagnóstica HTTP/WebSocket/mDNS entre KDS e Totem sem integrar pedidos reais.

@@ -1,114 +1,40 @@
-# Totem — SPEC
+# Totem
 
-App React Native cliente-facing. Roda em tablet exposto ao público. Catálogo, carrinho, pagamento, identificação do pedido.
+Aplicativo de autoatendimento em React Native e Expo, com development build para Android. O fluxo conectado usa a API e guarda a sessão, o carrinho e a tentativa de pedido em SecureStore. [Executar no Android](../apps/totem/README.md) · [Parear](guias/mobile-pairing.md)
 
-Atualização #33 em 02/11/2026, base `8dc522d`: catálogo, carrinho, identificação,
-criação real e acompanhamento estão conectados. Senha e status vêm do backend,
-sem cobrança implementada no Totem. Ver [entrega do pedido real](totem-pedido-real.md) e
-[ADR operacional P0, PROPOSTA](adr/0001-contrato-operacional-p0.md).
-Os documentos históricos `stack-detalhada-v1.md` e `regras-de-negocio-totem.md`
-não existem nesta base e não comprovam implementação.
+## Do catálogo ao pedido
 
-## Stack
+1. O Totem valida o token e o tipo `TOTEM` em `GET /dispositivos/me`. A identidade fornece o negócio, a mensagem de boas-vindas e o modo de identificação.
+2. A vitrine consulta `GET /catalogo/publico/:negocioId` e permite escolher variação, adicionais e quantidades dos produtos disponíveis. O carrinho mantém as escolhas após reabrir.
+3. No checkout, `NOME` exige nome, `CODIGO` usa código gerado para a tentativa e `OPCIONAL` aceita nome ou código gerado. O backend trata os campos como opcionais. O checkout conectado envia itens, variações e adicionais, com os preços calculados no servidor. Combos configuráveis e observações livres ainda não integram esse envio.
+4. Antes do `POST /pedidos`, o app persiste payload e chave idempotente. Um resultado incerto bloqueia outro pedido e permite retentar com o mesmo payload e a mesma chave. Depois do registro, o app valida o negócio e dispositivo criador antes de iniciar a leitura.
 
-- React Native, **Expo com development client — não Expo Go** (WatermelonDB e kiosk mode exigem módulo nativo)
-- Carrinho e tentativa de pedido reais usam SecureStore. WatermelonDB/sincronização offline são planejamento futuro; last-write-wins não é contrato para pagamento/status/senha.
-- Testes: Jest (não `bun:test` — Bun não roda dentro do RN)
+[Validação do catálogo ligado à API](historico/totem-catalogo-card.md) · [Criação de pedido](backend-SPEC.md#pedidos)
 
-## Fluxos principais
+## Acompanhar e encerrar
 
-1. Catálogo por categoria, respeitando `esgotado`
-2. Produto com variação (seletor) e adicionais (checkbox com preço)
-3. Combo: grupos/deltas são planejamento; não há fluxo conectado completo de combos entregue no PR #13.
-4. Observação em texto livre por item (sem lógica de preço)
-5. Carrinho → identificação → `POST /pedidos` com deviceToken TOTEM, referências/quantidades e chave idempotente persistida. Backend calcula snapshots e total.
-6. Acompanhamento conectado: status, total e senha/data operacional confirmados pelo backend. Somente ENTREGUE confirmado permite novo atendimento. Point física é pós-MVP; DEMO permanece sem pagamento fictício.
+O app usa `GET /pedidos/:id/acompanhamento`, restrito ao TOTEM criador. A API devolve status, total, versão, senha e data operacional quando atribuídas, além da marca DEMO e sua autorização operacional. A autorização da cozinha e a atribuição de senha ficam com o backend e o KDS.
 
-## Acompanhamento e encerramento P0 (#33)
+| Estado | O que a tela informa ou permite |
+| --- | --- |
+| `AGUARDANDO_PAGAMENTO` | Pedido registrado e aguardando autorização para preparo. |
+| `PENDENTE` | Liberado para cozinha. |
+| `EM_PREPARO` | Pedido em preparação. |
+| `PRONTO` | Retirada no balcão. Senha exibida quando atribuída. Preparo Zero pode chegar aqui logo após a liberação. |
+| `ENTREGUE` | Entrega confirmada. Permite **Novo atendimento** após persistir a confirmação. |
+| `CANCELADO_AGUARDANDO_ESTORNO`, `CANCELADO` | Exibe o estado e pede assistência. O Totem mantém a tentativa. |
 
-O fluxo real (`src/catalogo/business-kiosk.tsx`) recupera replays do POST com
-estado corrente e valida negócio e dispositivo criador. Depois consulta somente
-`GET /pedidos/:id/acompanhamento` com deviceToken TOTEM revalidado por
-`restoreDeviceSession({ expectedDeviceType: "TOTEM" })`. Não envia negocioId como
-autorização. O backend filtra pedido, negócio e dispositivo.
+- O acompanhamento consulta a cada 5 s em primeiro plano, com timeout de 20 s. Pausa em segundo plano, descarta versões antigas e preserva o último snapshot diante de falhas. Rede e 503 usam backoff. 429 respeita `Retry-After`. 401 volta ao pareamento com a tentativa preservada. 400, 403 e 404 interrompem a consulta automática e pedem revisão ou assistência.
+- O último snapshot confirmado e a tentativa são restaurados ao reabrir, inclusive com catálogo indisponível. Uma falha de leitura ou persistência bloqueia o avanço até a recuperação.
+- Ao iniciar novo atendimento, o app grava a marca durável de encerramento, limpa o carrinho e depois remove a tentativa. Uma falha parcial mantém o bloqueio e o reinício retoma a limpeza. O pareamento é preservado. Durante o acompanhamento, o standby manual volta ao mesmo pedido.
 
-Projeção: id, status, senha nullable, dataOperacional nullable, versao, demo,
-demoAmbiente nullable, valorTotal decimal string e autorizacaoOperacional
-DEMO/financeira:false ou null. Não fornece itens, nome, previsão, cobrança Point
-ou confirmação financeira. A tela não usa o carrinho como resposta do acompanhamento.
+[Contrato de acompanhamento](contratos/transicoes-pedidos.md) · [Evidências de recuperação e encerramento](evidence/totem-acompanhamento/README.md)
 
-| Estado recebido              | Apresentação e política                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------- |
-| AGUARDANDO_PAGAMENTO         | Registrado, aguardando autorização para preparo, sem afirmar cobrança ou entrada na cozinha |
-| PENDENTE                     | Autorizado para cozinha, aguardando início do preparo                                       |
-| EM_PREPARO                   | Em preparação, senha/data quando atribuídas                                                 |
-| PRONTO                       | Retirada no balcão, senha em destaque, sem inventar número se null                          |
-| ENTREGUE                     | Entrega confirmada, permite Novo atendimento                                                |
-| CANCELADO_AGUARDANDO_ESTORNO | Estorno não confirmado, assistência obrigatória                                             |
-| CANCELADO                    | Cancelamento confirmado, sem inferir devolução, assistência obrigatória                     |
+## Android dedicado e prévia
 
-Preparo Zero pode saltar diretamente para PRONTO, sem estados intermediários
-fabricados. DEMO permanece explícita; liberação operacional não representa
-quitação financeira. O Totem não libera DEMO, não atribui senha nem altera status.
+- O desenvolvimento usa o app instalado com development build. Em Android, o app gerencia a navegação interna e detecta fixação de tela ou Lock Task. A fixação depende do operador. Lock Task e abertura gerenciada no boot dependem de um DPC autorizado e da política do aparelho. O #42 registrou Screen Pinning no Galaxy A54 e Lock Task em AVD com Test DPC. Resta validar o DPC operacional em aparelho dedicado. [Card #42](https://trello.com/c/BlKTMhV9) · [Runbook](evidence/totem-kiosk-recovery/README.md)
+- `EXPO_PUBLIC_KIOSK_PREVIEW=1` abre a prévia Brioche com checkout simulado e armazenamento próprio. O fluxo de loja usa o catálogo do terminal pareado. [Auditoria visual](historico/totem-v2-visual-audit.md)
 
-Polling em foreground a cada 5 s após sucesso, sem sobreposição. Pausa e aborta
-no background, retoma ao voltar, ignora gerações antigas e versões inferiores.
-Timeout do transporte GET: 20 s. Rede/503 usam backoff 10/20/40/60 s;
-429 respeita Retry-After em segundos ou data HTTP, inclusive na atualização manual.
-400/403/404 interrompem repetição automática e permitem consulta manual/assistência.
-401 encaminha ao pareamento preservando a tentativa. Falhas preservam o último
-snapshot e o sinalizam como desatualizado. ENTREGUE persistido encerra o polling.
+## Pendências
 
-SecureStore conserva UUID/payload antes do POST, referência e último snapshot
-validado. Falha de persistência bloqueia publicação de novo snapshot/encerramento.
-POST incerto permite repetição manual com a mesma chave e payload. Leitura
-inválida/indisponível de tentativa ou carrinho bloqueia nova venda.
-
-Encerramento exclusivo de ENTREGUE confirmado via GET e persistido. Marca
-`closing:true` durável antecede limpeza serializada do carrinho; só após sucesso
-remove-se a tentativa. Reinício com marca retoma a mesma rotina antes de carregar
-o carrinho. Duplo toque é bloqueado. Falha parcial não libera o catálogo. Novo
-atendimento limpa carrinho, nome/CPF em memória, edição e avisos, mantendo token.
-Cancelamentos não possuem descarte autônomo neste P0; não há ação administrativa
-ou endpoint de reset no Totem.
-
-Durante acompanhamento não há standby automático; o manual retorna ao mesmo
-pedido. Entrar em standby remove identificação em memória. A prévia Brioche
-(`src/kiosk/kiosk-screen.tsx`) permanece isolada.
-
-[Evidências e limites do #33](evidence/totem-acompanhamento/README.md).
-Homologação com backend DEMO isolado e dispositivo físico pertence ao #41;
-Jest e exportação não comprovam homologação operacional.
-
-## Regras que não podem ser esquecidas ao implementar
-
-- Pagamento recusado: **carrinho persiste**, só a etapa de pagamento reseta.
-- Sem opção de dinheiro físico — só cartão/débito/crédito/Pix via maquininha.
-- Se o backend cloud não responder, preservar tentativa e carrinho; repetir a mesma chave/payload e bloquear nova venda enquanto o resultado for incerto. O P0 é cloud-online. Envio LAN, venda offline e reconciliação são hipóteses pós-MVP não validadas.
-- No Android real, o #42 protege a navegação interna e confirma o modo do sistema. Lock Task exige autorização por DPC. Screen Pinning é escolhido pelo operador no Android e admite saída pelo sistema. A prévia não solicita modo nativo. A recuperação de tentativa pode começar antes da resposta do catálogo. [Operação e suporte](evidence/totem-kiosk-recovery/README.md).
-
-## Pareamento (substitui login)
-
-Setup implementado: dono gera código na dashboard; o app ativa o código e
-persiste deviceToken em armazenamento seguro. A identidade validada no backend
-fornece tenant e tipo do dispositivo. Ver [pareamento mobile](mobile-pairing.md).
-Descoberta/autenticação produtiva LAN continuam futuras.
-
-## Comunicação local com o painel, hipótese pós-MVP
-
-Não usada no P0. O [spike #19](spikes/kds-local-network.md) é INCONCLUSIVO e
-diagnóstico; não transporta pedidos nem implementa autenticação produtiva.
-
-Na hipótese histórica, Totem seria cliente do servidor local do painel
-([SPEC do KDS](painel-SPEC.md)), descoberto por mDNS. Transporte de pedidos por
-HTTP/WebSocket e autenticação de tenant precisam de validação e contrato próprios;
-comparar `negocio_id` enviado pelo cliente não basta.
-
-## Ainda em validação (spike necessário)
-
-Descoberta mDNS, HTTP/WS e recuperação entre dois Androids, conforme relatório
-do spike citado acima. Não presumir aprovação pela existência das bibliotecas.
-
-## Fora de escopo (v1)
-
-Planos, faixas de faturamento, fiscal/NFC-e, watchdog de reinício automático (fica pra v2+).
+Cobrança Point, confirmação financeira, comprovante fiscal, impressão e venda offline seguem pendentes. O armazenamento local recupera uma tentativa do mesmo pedido para consultar ou reenviar via API. Operação LAN e sincronização de vendas são hipóteses futuras. [Estado do P0](README.md) · [Spike LAN](spikes/kds-local-network.md)

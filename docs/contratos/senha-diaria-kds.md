@@ -177,7 +177,7 @@ bunx prisma migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel pris
 O exemplo sem senha presume autenticação trust restrita ao localhost no cluster
 descartável. Nunca usar essa configuração em banco comercial. A CI fornece seu
 próprio PostgreSQL e executa a suíte após aplicar migrações. Resultado local e
-comandos de qualidade constam em [evidências](evidence/senha-diaria-kds/results.json).
+comandos de qualidade constam em [evidências](../evidence/senha-diaria-kds/results.json).
 
 ## Divergências e pendências
 

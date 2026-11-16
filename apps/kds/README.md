@@ -146,14 +146,14 @@ npx expo export --platform android --output-dir dist/ci --clear --max-workers 2
 A CI executa os mesmos comandos no job dedicado KDS, sem credenciais produtivas.
 Testes Jest cobrem sessão, contratos, paginação, idempotência, recuperação,
 transições, erros, foco/background do controlador e controles acessíveis do card.
-Resultados do #23 em ../../docs/evidence/kds-fila-operacional/README.md.
+Resultados do #23 nas [evidências da fila operacional](../../docs/evidence/kds-fila-operacional/README.md).
 Auditoria, cenários e resultados do #32 em
 [../../docs/evidence/kds-resiliencia/README.md](../../docs/evidence/kds-resiliencia/README.md).
 
 ## Roteiro para Android físico e API real
 
 1. Provisionar e revisar o banco DEMO isolado conforme card #41. Aplicar nesse
-   destino as migrações #29/#30/#31 e configurar o backend segundo docs/liberacao-demo.md.
+   destino as migrações #29/#30/#31 e configurar o backend segundo o [contrato DEMO](../../docs/contratos/liberacao-demo.md).
 2. Conectar dois Android, confirmar em adb devices, instalar development
    builds e parear dois PAINÉIS do mesmo negócio de ensaio.
 3. Criar pedidos pelo Totem e liberar como DONO/PIN na API isolada. Incluir um

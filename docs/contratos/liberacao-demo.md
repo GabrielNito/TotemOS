@@ -1,13 +1,10 @@
 # Liberação operacional DEMO, card #29
 
-Card: [#29](https://trello.com/c/XrQjjKto). Base: merge documental
-[#14](https://github.com/GabrielNito/TotemOS/pull/14), commit `d6c7167`.
-Implementação submetida a PR próprio; não habilita nenhum ambiente por padrão.
-Autorização de execução dada pelo usuário no chat após o merge do #14.
-A revisão do Caio das decisões amplas da [ADR 0001](adr/0001-contrato-operacional-p0.md)
-continua pendente; esta entrega não a representa nem implementa #30/#31.
+Implementado no [card #29](https://trello.com/c/XrQjjKto). A fila e a senha foram
+integradas nos cards seguintes. A [ADR 0001](../adr/0001-contrato-operacional-p0.md)
+continua sujeita à revisão do Caio.
 
-## Comportamento implementado nesta branch
+## Comportamento em uso
 
 - `POST /pedidos` mantém estado `AGUARDANDO_PAGAMENTO` e senha NULL. Somente a
   configuração confiável do servidor marca `demo: true` e `demoAmbiente` na
@@ -20,7 +17,7 @@ continua pendente; esta entrega não a representa nem implementa #30/#31.
   Pagamento, e não chama serviço financeiro.
 - A resposta e as leituras atuais do pedido incluem identificação DEMO; DEMO
   significa autorização operacional de ensaio, nunca aprovação financeira.
-  As interfaces de KDS/Totem ainda precisam dos cards consumidores para exibi-la.
+  KDS e Totem exibem a identificação DEMO nos fluxos conectados.
 - Não converte pedido real, antigo ou marcado em outro ambiente. Tentativa
   financeira vinculada, senha preexistente, versão/estado divergentes ou segunda
   liberação com outra chave retornam 409.

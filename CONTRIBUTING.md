@@ -79,5 +79,5 @@ Antes de abrir o PR ou solicitar review:
 - [ ] O linter está 100% limpo sem erros ou warnings (`bun run lint`).
 - [ ] Todos os testes unitários e de integração estão passando (`bun test`).
 - [ ] O build compila sem erros (`bun run build`).
-- [ ] As regras de negócio descritas no [`AGENTS.md`](file:///c:/Users/Nito/www/TotemOS/AGENTS.md) e regras do backend em `.agents/rules/backend.md` foram respeitadas.
+- [ ] As regras de negócio descritas no [`AGENTS.md`](AGENTS.md) e regras do backend em `.agents/rules/backend.md` foram respeitadas.
 - [ ] Nenhum arquivo `.env` ou credencial privada foi commitado.

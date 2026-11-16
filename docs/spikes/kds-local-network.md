@@ -1,5 +1,8 @@
 # Objetivo
 
+Consulte também o [registro de verificações do spike](kds-local-network-gates.md).
+
+
 Validar, em um spike isolado, se um KDS Android pode hospedar um servidor HTTP/WebSocket local e anunciar sua presença por mDNS para que um Totem Android descubra e estabeleça uma sessão diagnóstica.
 
 O experimento não implementa transporte de pedidos, carrinho, pagamentos, fila, sincronização offline, pareamento definitivo ou autenticação produtiva.

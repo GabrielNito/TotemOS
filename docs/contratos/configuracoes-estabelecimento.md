@@ -22,21 +22,26 @@ Card: [#36](https://trello.com/c/HS95JVaq). Roadmap: [trello.com/c/iKSJ1R4J](htt
 ## Flag legada de pagamento offline
 
 - O pagamento offline não possui serviço operacional no P0.
-- Todas as leituras (`GET /negocio/config`, `GET /configuracoes`), atualizações (`PATCH /negocio/config`, `PATCH /configuracoes`) e projeções em `GET /dispositivos/me` retornam:
+- As rotas de leitura e escrita de configuração retornam:
   - `permitirPagamentoOffline: false`
   - `pagamentoOfflineOperacional: false`
-  - `pagamentoOfflineStatus: "NAO_OPERACIONAL"` (nas rotas de configuração)
+  - `pagamentoOfflineStatus: "NAO_OPERACIONAL"`
 - Enviar `permitirPagamentoOffline: true` no `PATCH` é rejeitado com `400 Bad Request`.
 - Novos estabelecimentos criados em `POST /auth/registrar` nascem com `permitirPagamentoOffline: false`.
 
 ## Projeção aos dispositivos (`GET /dispositivos/me`)
 
-- O retorno `negocio` de `GET /dispositivos/me` projeta em modo somente leitura para `TOTEM` e `PAINEL`:
+- O retorno `negocio` de `GET /dispositivos/me` projeta os seguintes campos para `TOTEM` e `PAINEL`:
   - `modoIdentificacao`: `"OPCIONAL" | "NOME" | "CODIGO"`
   - `tempoPadraoPreparo`: inteiro de `1` a `120` (default `15`)
   - `mensagemBoasVindas`: texto até 200 caracteres ou `null`
   - `pagamentoPointConfigurado`: booleano
   - `pagamentoOfflineOperacional`: `false`
+
+O Totem usa o modo de identificação e a mensagem. A projeção de tempo padrão
+não determina as faixas de espera do KDS. `pagamentoPointConfigurado` indica
+a presença de um ID Point no cadastro do dispositivo. A API ainda não cobra
+vendas por Point.
 
 ## Contrato HTTP
 

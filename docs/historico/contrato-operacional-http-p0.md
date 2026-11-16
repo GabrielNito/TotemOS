@@ -1,29 +1,32 @@
 # Contratos HTTP operacionais P0, PROPOSTOS
 
-Parte da [ADR 0001](adr/0001-contrato-operacional-p0.md), card
+> Registro histórico. Consulte o [estado atual do projeto](../README.md) para os contratos e limites vigentes.
+
+
+Parte da [ADR 0001](../adr/0001-contrato-operacional-p0.md), card
 [#28](https://trello.com/c/T6hZ5Npz). Aguardam revisão do Caio.
 Na entrega documental #28, nenhuma rota desta proposta foi criada. Os endpoints então existentes de pedidos
 são `POST /pedidos`, `GET /pedidos`, `GET /pedidos/:id`, conforme o
-[controller auditado](../apps/backend/src/pedidos/pedidos.controller.ts).
+[controller auditado](../../apps/backend/src/pedidos/pedidos.controller.ts).
 
 Atualização #29: `POST /pedidos/:id/liberacao-demo` foi implementado nesta branch,
-conforme [contrato efetivo e configuração](liberacao-demo.md). As demais rotas
+conforme [contrato efetivo e configuração](../contratos/liberacao-demo.md). As demais rotas
 abaixo continuam propostas; acompanhar a evolução por card sem tratar exemplos
 históricos como API entregue.
 
 Atualização #30: PATCH de status, GET de fila e acompanhamento foram
-implementados. O [contrato efetivo](transicoes-pedidos.md) prevalece sobre os
+implementados. O [contrato efetivo](../contratos/transicoes-pedidos.md) prevalece sobre os
 exemplos propostos abaixo: nova chave para estado já atingido retorna 409;
 autorização P0 é DEMO auditada.
 
 Atualização #31: POST de senha e dataOperacional foram implementados conforme
-[contrato efetivo](senha-diaria-kds.md). A seção 3 abaixo descreve a API entregue;
+[contrato efetivo](../contratos/senha-diaria-kds.md). A seção 3 abaixo descreve a API entregue;
 a ADR ampla continua aguardando revisão humana.
 
 Atualização #36: `GET`/`PATCH /negocio/config` (e alias `/configuracoes`) foram
 implementados por sessão humana, com projeção aos dispositivos em
 `GET /dispositivos/me` e marcação não operacional do pagamento offline, conforme
-[contrato efetivo de configurações](configuracoes-estabelecimento.md).
+[contrato efetivo de configurações](../contratos/configuracoes-estabelecimento.md).
 
 ## Convenções propostas
 
@@ -201,7 +204,7 @@ HTTP: 200 primeira emissão/replay/mesmo pedido numerado por outro KDS;
 403 TOTEM/USER; 404 outro tenant/inexistente; 409 inelegível sem senha ou chave
 com outro pedido/conteúdo; 429 limite global; 503 retry transacional esgotado.
 
-Contrato efetivo e testes em [senha-diaria-kds.md](senha-diaria-kds.md).
+Contrato efetivo e testes em [senha-diaria-kds.md](../contratos/senha-diaria-kds.md).
 Body estrito obrigatório; UUIDs de chave são normalizados para minúsculas.
 Replay retorna número/data originais e estado/versão atuais do pedido.
 Novas chaves para pedido numerado também retornam repetida:true, sem alterar
@@ -314,7 +317,7 @@ escopo de dispositivo e colisão global, sem se apoiar apenas nos mocks atuais.
 O cliente atual aceita apenas `AGUARDANDO_PAGAMENTO`; #33 precisa ajustar essa
 validação para recuperar criação já avançada após resposta perdida.
 
-O [bootstrap atual](../apps/backend/src/main.ts) não inclui Idempotency-Key na
+O [bootstrap atual](../../apps/backend/src/main.ts) não inclui Idempotency-Key na
 allowlist CORS. Se DONO operar pelo Dashboard web, #29/#30 devem permitir esse
 header nas origens autorizadas; apps nativos não fazem preflight de navegador.
 Isso é gap de implementação, sem alteração neste card.
