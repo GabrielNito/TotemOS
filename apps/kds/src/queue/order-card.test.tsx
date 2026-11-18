@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { OrderCard, elapsed } from "./order-card";
+import { sortOrdersByArrival, waitColor } from "./ui-config";
 import type { Order } from "./types";
 const order: Order = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -103,4 +104,35 @@ it("shows a restarted operation as recovery even after its scheduled time", asyn
     />,
   );
   expect(screen.getByText(/Recuperando operação/)).toBeTruthy();
+});
+it("maps visual wait bands to high-contrast light theme colors", () => {
+  expect(waitColor(5)).toBe("#047857");
+  expect(waitColor(10)).toBe("#B45309");
+  expect(waitColor(20)).toBe("#DC2626");
+});
+it("sorts orders by arrival ascending (primeiro > ultimo) and descending (ultimo > primeiro)", () => {
+  const older: Order = {
+    ...order,
+    id: "a",
+    senha: 1,
+    createdAt: "2026-11-01T10:00:00.000Z",
+  };
+  const middle: Order = {
+    ...order,
+    id: "b",
+    senha: 2,
+    createdAt: "2026-11-01T10:05:00.000Z",
+  };
+  const newer: Order = {
+    ...order,
+    id: "c",
+    senha: 3,
+    createdAt: "2026-11-01T10:10:00.000Z",
+  };
+  expect(
+    sortOrdersByArrival([newer, older, middle], "asc").map((o) => o.id),
+  ).toEqual(["a", "b", "c"]);
+  expect(
+    sortOrdersByArrival([older, middle, newer], "desc").map((o) => o.id),
+  ).toEqual(["c", "b", "a"]);
 });

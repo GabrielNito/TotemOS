@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -53,14 +54,18 @@ export function PairingScreen({
   title,
 }: PairingScreenProps) {
   const router = useRouter();
+  const isPreview = process.env.EXPO_PUBLIC_KDS_PREVIEW === "1";
   const [codigo, setCodigo] = useState("");
-  const [state, setState] = useState<PairingUiState>({ status: "checking" });
+  const [state, setState] = useState<PairingUiState>({
+    status: isPreview ? "waiting" : "checking",
+  });
 
   const redirectToDestination = useCallback(() => {
     router.replace(destination);
   }, [destination, router]);
 
   useEffect(() => {
+    if (isPreview) return;
     let cancelled = false;
 
     void restoreDeviceSession({ expectedDeviceType }).then((result) => {
@@ -75,7 +80,7 @@ export function PairingScreen({
     return () => {
       cancelled = true;
     };
-  }, [expectedDeviceType, redirectToDestination]);
+  }, [expectedDeviceType, isPreview, redirectToDestination]);
 
   const handlePair = async () => {
     if (state.status === "loading") return;
@@ -92,71 +97,92 @@ export function PairingScreen({
   if (state.status === "checking") {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <ActivityIndicator color="#208AEF" />
-        <Text className="mt-4 text-base text-muted">Verificando sessão...</Text>
+        <View className="items-center rounded-3xl border border-border bg-card px-8 py-7">
+          <ActivityIndicator color="#18181B" />
+          <Text className="mt-3 text-sm text-muted">Verificando sessão...</Text>
+        </View>
       </View>
     );
   }
 
   const isLoading = state.status === "loading";
-  const hasMessage = state.status === "error" || state.status === "expired-or-used";
+  const hasMessage =
+    state.status === "error" || state.status === "expired-or-used";
 
   return (
-    <View className="flex-1 justify-center bg-background px-6">
-      <Text className="text-3xl font-semibold text-foreground">{title}</Text>
-      <Text className="mt-2 text-base leading-6 text-muted">
-        Digite o código de 6 dígitos gerado pelo Dashboard para ativar este
-        dispositivo.
-      </Text>
+    <ScrollView
+      className="flex-1 bg-background"
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 24,
+      }}
+    >
+      <View className="w-full max-w-md rounded-3xl border border-border bg-card p-7">
+        <Text className="text-center text-xs font-semibold tracking-wider text-muted">
+          TOTEMOS · KDS
+        </Text>
+        <Text className="mt-1.5 text-center text-2xl font-bold tracking-tight text-foreground">
+          {title}
+        </Text>
+        <Text className="mt-1.5 text-center text-xs leading-5 text-muted">
+          Digite o código de 6 dígitos gerado pelo Dashboard para ativar este
+          dispositivo.
+        </Text>
 
-      {hasMessage && (
-        <View className="mt-6 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-          <Text className="text-sm leading-5 text-destructive">
-            {state.message}
-          </Text>
-        </View>
-      )}
+        {hasMessage ? (
+          <View className="mt-4 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-3.5">
+            <Text className="text-center text-xs leading-5 text-destructive">
+              {state.message}
+            </Text>
+          </View>
+        ) : null}
 
-      <Text className="mt-8 text-sm font-medium text-foreground">
-        Código de pareamento
-      </Text>
-      <TextInput
-        accessibilityLabel="Código de pareamento"
-        autoCapitalize="none"
-        autoCorrect={false}
-        className="mt-2 rounded-xl border border-border bg-card px-4 py-4 text-center text-2xl tracking-[8px] text-foreground"
-        editable={!isLoading}
-        keyboardType="number-pad"
-        maxLength={6}
-        onChangeText={(value) => {
-          setCodigo(value.replace(/\D/g, "").slice(0, 6));
-          if (state.status !== "waiting") setState({ status: "waiting" });
-        }}
-        onSubmitEditing={() => void handlePair()}
-        placeholder="000000"
-        placeholderTextColor="#7A8699"
-        returnKeyType="done"
-        value={codigo}
-      />
+        <Text className="mt-5 text-xs font-semibold text-foreground">
+          Código de pareamento
+        </Text>
+        <TextInput
+          accessibilityLabel="Código de pareamento"
+          autoCapitalize="none"
+          autoCorrect={false}
+          className="mt-2 rounded-2xl border border-border bg-surface px-4 py-3.5 text-center text-2xl font-bold tracking-[8px] text-foreground"
+          editable={!isLoading}
+          keyboardType="number-pad"
+          maxLength={6}
+          onChangeText={(value) => {
+            setCodigo(value.replace(/\D/g, "").slice(0, 6));
+            if (state.status !== "waiting") setState({ status: "waiting" });
+          }}
+          onSubmitEditing={() => void handlePair()}
+          placeholder="000000"
+          placeholderTextColor="#A1A1AA"
+          returnKeyType="done"
+          value={codigo}
+        />
 
-      <Pressable
-        accessibilityRole="button"
-        className="mt-6 items-center rounded-xl bg-primary px-5 py-4"
-        disabled={isLoading}
-        onPress={() => void handlePair()}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text className="text-base font-semibold text-white">
-            Ativar dispositivo
-          </Text>
-        )}
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          className="mt-5 min-h-12 items-center justify-center rounded-2xl bg-primary px-5 py-3.5"
+          disabled={isLoading}
+          onPress={() => void handlePair()}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="text-xs font-semibold text-white">
+              Ativar dispositivo
+            </Text>
+          )}
+        </Pressable>
 
-      <Text className="mt-4 text-center text-sm text-muted">
-        O token será armazenado somente no armazenamento seguro deste aparelho.
-      </Text>
-    </View>
+        <Text className="mt-4 text-center text-xs text-muted">
+          O token será armazenado somente no armazenamento seguro deste
+          aparelho.
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
