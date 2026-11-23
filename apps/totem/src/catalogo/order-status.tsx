@@ -52,7 +52,57 @@ export function OrderStatus(props: Props) {
     </View>
   );
 }
-function Tracking({
+function Tracking({ ...props }: Props & { result: PendingOrder }) {
+  return props.result.offline ? (
+    <OfflineTracking {...props} />
+  ) : (
+    <CloudTracking {...props} />
+  );
+}
+
+function OfflineTracking({
+  result,
+  busy,
+  error,
+  onRetry,
+}: Props & {
+  result: PendingOrder;
+}) {
+  return (
+    <>
+      <KioskText menu accessibilityRole="header" style={styles.title}>
+        Pedido recebido pelo KDS
+      </KioskText>
+      <KioskText accessibilityLiveRegion="polite" style={styles.copy}>
+        A internet está indisponível. O pedido foi preservado no painel da
+        cozinha, mas continua fora da fila de preparo até a sincronização e a
+        confirmação do pagamento.
+      </KioskText>
+      <View style={styles.ticket}>
+        <KioskText style={styles.copy}>Aguardando sincronização</KioskText>
+      </View>
+      <KioskText style={styles.total}>
+        {formatCurrency(Number(result.valorTotal))}
+      </KioskText>
+      <KioskText style={styles.copy}>
+        Total estimado pelo cardápio local
+      </KioskText>
+      <KioskText selectable style={styles.copy}>
+        Referência local: {result.id.slice(0, 8).toUpperCase()}
+      </KioskText>
+      {!!error && (
+        <KioskText accessibilityRole="alert" style={styles.copy}>
+          {error}
+        </KioskText>
+      )}
+      <Action disabled={busy} onPress={onRetry}>
+        {busy ? "Sincronizando..." : "Tentar sincronizar agora"}
+      </Action>
+    </>
+  );
+}
+
+function CloudTracking({
   negocioId,
   submission,
   result,

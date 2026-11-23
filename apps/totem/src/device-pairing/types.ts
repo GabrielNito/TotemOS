@@ -27,4 +27,5 @@ export interface NegocioIdentity {
   modoIdentificacao: "NOME" | "CODIGO" | "OPCIONAL";
   mensagemBoasVindas: string | null;
   pagamentoPointConfigurado: boolean;
+  lanCredential?: string;
 }

@@ -301,7 +301,7 @@ function BusinessKiosk({
         await submission.prepare(
           buildOrderRequest(cart, identity.name, identificationMode),
         );
-      setOrderResult(await submission.submit());
+      setOrderResult(await submission.submit(total));
       setIdentity({ name: "", cpf: "", wantsCpf: false });
     } catch (error) {
       if (error instanceof TrackingError && error.status === 401)

@@ -1,9 +1,14 @@
 import * as SecureStore from "expo-secure-store";
 import { restoreDeviceSession } from "../device-pairing/session";
 import { getApiBaseUrl } from "./api";
-import { OrderSubmission, OrderRejectedError } from "./order-submission";
+import {
+  CloudUnavailableError,
+  OrderSubmission,
+  OrderRejectedError,
+} from "./order-submission";
 import { clearBusinessCart } from "./cart-storage";
 import { getOrderTracking, TrackingError } from "./order-tracking-api";
+import { sendOrderToOfflineKds } from "../offline-lan/native";
 
 // This is an idempotency identifier, never an authentication credential.
 function requestId() {
@@ -61,8 +66,10 @@ export function createOrderSubmission(
             throw new OrderRejectedError(
               "O catálogo mudou ou algum item está indisponível. Revise o pedido e tente novamente.",
             );
-          throw new Error(
-            "Não foi possível confirmar o envio. Consulte novamente para evitar duplicar o pedido.",
+          if (response.status >= 500 || response.status === 429)
+            throw new CloudUnavailableError();
+          throw new OrderRejectedError(
+            "O pedido foi recusado pelo servidor. Solicite assistência.",
           );
         }
         const result = await response.json();
@@ -71,6 +78,14 @@ export function createOrderSubmission(
             "Não foi possível validar o vínculo do pedido. Solicite assistência.",
           );
         return result;
+      } catch (error) {
+        if (
+          error instanceof TrackingError ||
+          error instanceof OrderRejectedError ||
+          error instanceof CloudUnavailableError
+        )
+          throw error;
+        throw new CloudUnavailableError();
       } finally {
         clearTimeout(timeout);
       }
@@ -79,5 +94,30 @@ export function createOrderSubmission(
     () => clearBusinessCart(negocioId),
     dispositivoId,
     (id) => getOrderTracking(negocioId, id, undefined, dispositivoId),
+    async (request, idempotencyKey, valorEstimado) => {
+      const session = await restoreDeviceSession({
+        expectedDeviceType: "TOTEM",
+      });
+      const credential =
+        session.kind === "authenticated"
+          ? session.negocio?.lanCredential
+          : undefined;
+      if (
+        session.kind !== "authenticated" ||
+        !credential ||
+        !dispositivoId ||
+        session.dispositivo.id !== dispositivoId ||
+        session.dispositivo.negocioId !== negocioId
+      )
+        throw new Error("Conexão offline indisponível neste dispositivo.");
+      await sendOrderToOfflineKds({
+        negocioId,
+        dispositivoId,
+        credential,
+        idempotencyKey,
+        pedido: request,
+        valorEstimado,
+      });
+    },
   );
 }

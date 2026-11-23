@@ -1,12 +1,11 @@
-import {
-  activateDevice,
-  getCurrentDevice,
-  PairingApiError,
-} from "./api";
+import { activateDevice, getCurrentDevice, PairingApiError } from "./api";
 import {
   deleteDeviceToken,
+  deleteDeviceSession,
   getDeviceToken,
+  getDeviceSession,
   setDeviceToken,
+  setDeviceSession,
 } from "../storage/device-token";
 import type {
   DeviceActivationResponse,
@@ -26,8 +25,15 @@ export interface DeviceTokenStorage {
   set(token: string): Promise<void>;
 }
 
+export interface DeviceSessionCache {
+  delete(): Promise<void>;
+  get(): Promise<string | null>;
+  set(value: string): Promise<void>;
+}
+
 export interface SessionDependencies {
   api?: PairingApi;
+  cache?: DeviceSessionCache;
   expectedDeviceType?: DeviceType;
   storage?: DeviceTokenStorage;
 }
@@ -36,6 +42,8 @@ export type AuthenticatedSessionResult = {
   deviceToken: string;
   dispositivo: DeviceIdentity;
   kind: "authenticated";
+  cached?: true;
+  negocio?: DeviceMeResponse["negocio"];
 };
 
 export type RestoreDeviceSessionResult =
@@ -69,6 +77,12 @@ const defaultStorage: DeviceTokenStorage = {
   set: setDeviceToken,
 };
 
+const defaultCache: DeviceSessionCache = {
+  delete: deleteDeviceSession,
+  get: getDeviceSession,
+  set: setDeviceSession,
+};
+
 function getStatusCode(error: unknown): number | undefined {
   if (error instanceof PairingApiError) return error.statusCode;
   if (typeof error === "object" && error !== null && "statusCode" in error) {
@@ -85,23 +99,78 @@ function getSafeErrorMessage(error: unknown): string {
   return UNKNOWN_ERROR_MESSAGE;
 }
 
-async function deleteTokenQuietly(storage: DeviceTokenStorage): Promise<void> {
-  try {
-    await storage.delete();
-  } catch {
-    // O token inválido não deve continuar sendo usado mesmo se a limpeza falhar.
-  }
+async function deleteSessionQuietly(
+  storage: DeviceTokenStorage,
+  cache: DeviceSessionCache,
+): Promise<void> {
+  await Promise.allSettled([storage.delete(), cache.delete()]);
 }
 
 function hasExpectedDeviceType(
   dispositivo: DeviceIdentity,
   expectedDeviceType: DeviceType | undefined,
 ): boolean {
-  return expectedDeviceType === undefined || dispositivo.tipo === expectedDeviceType;
+  return (
+    expectedDeviceType === undefined || dispositivo.tipo === expectedDeviceType
+  );
+}
+
+function validCachedDevice(response: DeviceMeResponse): boolean {
+  const device = response?.dispositivo;
+  return (
+    !!device &&
+    typeof device.id === "string" &&
+    !!device.id &&
+    typeof device.negocioId === "string" &&
+    !!device.negocioId &&
+    typeof device.nome === "string" &&
+    !!device.nome.trim() &&
+    ["TOTEM", "PAINEL"].includes(device.tipo) &&
+    device.ativo === true &&
+    device.revogadoEm === null
+  );
+}
+
+async function saveSessionQuietly(
+  cache: DeviceSessionCache,
+  response: DeviceMeResponse,
+) {
+  try {
+    await cache.set(JSON.stringify(response));
+  } catch {
+    // A sessão online continua válida; apenas a recuperação offline fica indisponível.
+  }
+}
+
+async function cachedSession(
+  cache: DeviceSessionCache,
+  deviceToken: string,
+  expectedDeviceType?: DeviceType,
+): Promise<AuthenticatedSessionResult | undefined> {
+  try {
+    const raw = await cache.get();
+    if (!raw) return undefined;
+    const response = JSON.parse(raw) as DeviceMeResponse;
+    if (
+      !validCachedDevice(response) ||
+      !hasExpectedDeviceType(response.dispositivo, expectedDeviceType)
+    )
+      return undefined;
+    return {
+      cached: true,
+      deviceToken,
+      dispositivo: response.dispositivo,
+      kind: "authenticated",
+      ...(response.negocio && { negocio: response.negocio }),
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 export async function restoreDeviceSession({
   api = defaultApi,
+  cache = defaultCache,
   expectedDeviceType,
   storage = defaultStorage,
 }: SessionDependencies = {}): Promise<RestoreDeviceSessionResult> {
@@ -112,26 +181,37 @@ export async function restoreDeviceSession({
     return { kind: "error", message: SESSION_ERROR_MESSAGE };
   }
 
-  if (!deviceToken) return { kind: "pairing", reason: "missing-token" };
+  if (!deviceToken) {
+    await cache.delete().catch(() => undefined);
+    return { kind: "pairing", reason: "missing-token" };
+  }
 
   try {
     const response = await api.me(deviceToken);
     if (!hasExpectedDeviceType(response.dispositivo, expectedDeviceType)) {
-      await deleteTokenQuietly(storage);
+      await deleteSessionQuietly(storage, cache);
       return { kind: "error", message: INVALID_DEVICE_TYPE_MESSAGE };
     }
 
-    return {
+    const result: AuthenticatedSessionResult = {
       deviceToken,
       dispositivo: response.dispositivo,
       kind: "authenticated",
+      ...(response.negocio && { negocio: response.negocio }),
     };
+    await saveSessionQuietly(cache, response);
+    return result;
   } catch (error) {
     if (getStatusCode(error) === 401) {
-      await deleteTokenQuietly(storage);
+      await deleteSessionQuietly(storage, cache);
       return { kind: "pairing", reason: "invalid-token" };
     }
-    return { kind: "error", message: SESSION_ERROR_MESSAGE };
+    return (
+      (await cachedSession(cache, deviceToken, expectedDeviceType)) ?? {
+        kind: "error",
+        message: SESSION_ERROR_MESSAGE,
+      }
+    );
   }
 }
 
@@ -139,6 +219,7 @@ export async function pairDevice(
   codigo: string,
   {
     api = defaultApi,
+    cache = defaultCache,
     expectedDeviceType,
     storage = defaultStorage,
   }: SessionDependencies = {},
@@ -176,18 +257,21 @@ export async function pairDevice(
   try {
     const response = await api.me(activation.deviceToken);
     if (!hasExpectedDeviceType(response.dispositivo, expectedDeviceType)) {
-      await deleteTokenQuietly(storage);
+      await deleteSessionQuietly(storage, cache);
       return { kind: "error", message: INVALID_DEVICE_TYPE_MESSAGE };
     }
 
-    return {
+    const result: AuthenticatedSessionResult = {
       deviceToken: activation.deviceToken,
       dispositivo: response.dispositivo,
       kind: "authenticated",
+      ...(response.negocio && { negocio: response.negocio }),
     };
+    await saveSessionQuietly(cache, response);
+    return result;
   } catch (error) {
     if (getStatusCode(error) === 401) {
-      await deleteTokenQuietly(storage);
+      await deleteSessionQuietly(storage, cache);
       return { kind: "error", message: SESSION_ERROR_MESSAGE };
     }
     return { kind: "error", message: SESSION_ERROR_MESSAGE };
