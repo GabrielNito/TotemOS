@@ -69,6 +69,14 @@ export class NegocioDoDispositivoDto {
 
   @ApiProperty({ default: false })
   pagamentoOfflineOperacional!: boolean;
+
+  @ApiProperty({
+    description:
+      'Credencial compartilhada do tenant para autenticação desafio-resposta exclusivamente na LAN.',
+    minLength: 43,
+    maxLength: 43,
+  })
+  lanCredential!: string;
 }
 
 export class DispositivoMeResponseDto {

@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { beforeEach, expect, test } from 'bun:test';
 import { UnauthorizedException } from '@nestjs/common';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { DispositivosService } from '../src/dispositivos/dispositivos.service';
@@ -25,6 +25,10 @@ const device = {
     },
   },
 };
+
+beforeEach(() => {
+  process.env.DEVICE_TOKEN_PEPPER = 'pepper-de-teste-com-32-bytes-minimo';
+});
 
 test('retorna identidade do estabelecimento somente no tenant autenticado e sem segredos', async () => {
   const queries: unknown[] = [];
@@ -59,7 +63,29 @@ test('retorna identidade do estabelecimento somente no tenant autenticado e sem 
       pagamentoOfflineOperacional: false,
     },
   });
+  expect(response.negocio.lanCredential).toMatch(/^[A-Za-z0-9_-]{43}$/);
   expect(JSON.stringify(response)).not.toContain('private-');
+});
+
+test('deriva a mesma credencial LAN no tenant e outra credencial em tenant distinto', async () => {
+  const prisma = {
+    dispositivo: {
+      findFirst: ({ where }: { where: { negocioId: string } }) =>
+        Promise.resolve({
+          ...device,
+          negocioId: where.negocioId,
+          negocio: { ...device.negocio, id: where.negocioId },
+        }),
+    },
+  };
+  const service = new DispositivosService(prisma as unknown as PrismaService);
+
+  const primeiro = await service.me('tenant-a', 'totem-a');
+  const segundo = await service.me('tenant-a', 'painel-a');
+  const outro = await service.me('tenant-b', 'totem-b');
+
+  expect(primeiro.negocio.lanCredential).toBe(segundo.negocio.lanCredential);
+  expect(outro.negocio.lanCredential).not.toBe(primeiro.negocio.lanCredential);
 });
 
 test('recusa dispositivo ausente e identidade de outro estabelecimento', async () => {

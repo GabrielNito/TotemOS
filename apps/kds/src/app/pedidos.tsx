@@ -2,9 +2,15 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { KitchenBoard } from "../queue/kitchen-board";
 import { useKitchenQueue } from "../queue/use-kitchen-queue";
 export default function PedidosScreen() {
-  const { session, checking, error, retry } = useKitchenQueue();
+  const { session, checking, error, retry, offlinePending } = useKitchenQueue();
   if (session)
-    return <KitchenBoard name={session.name} controller={session.controller} />;
+    return (
+      <KitchenBoard
+        name={session.name}
+        controller={session.controller}
+        offlinePending={offlinePending}
+      />
+    );
   return (
     <View className="flex-1 items-center justify-center bg-background p-6">
       {checking ? (

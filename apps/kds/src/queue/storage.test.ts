@@ -1,5 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { operationStorage } from "./storage";
+const snapshotOrder = {
+  id: "11111111-1111-4111-8111-111111111111",
+  status: "PENDENTE" as const,
+  senha: 12,
+  dataOperacional: "2026-11-01",
+  versao: 3,
+  demo: true,
+  demoAmbiente: "ensaio",
+  createdAt: "2026-11-01T12:00:00.000Z",
+  preparoZero: false,
+  elegivelCozinha: true as const,
+  autorizacaoOperacional: { tipo: "DEMO" as const, financeira: false as const },
+  itens: [],
+};
 jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -19,6 +33,22 @@ it("persists only operation metadata scoped to tenant and panel", async () => {
     "totemos.kds.operations.v1.tenant.panel",
     expect.not.stringContaining("token"),
   );
+});
+
+it("persists and restores a validated queue snapshot in the same tenant scope", async () => {
+  const storage = operationStorage("panel", "tenant");
+  await storage.saveSnapshot?.([snapshotOrder], 1234);
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+    "totemos.kds.queue.v1.tenant.panel",
+    JSON.stringify({ orders: [snapshotOrder], lastSync: 1234 }),
+  );
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(
+    JSON.stringify({ orders: [snapshotOrder], lastSync: 1234 }),
+  );
+  await expect(storage.loadSnapshot?.()).resolves.toEqual({
+    orders: [snapshotOrder],
+    lastSync: 1234,
+  });
 });
 it("blocks corrupt journals instead of silently losing original UUIDs", async () => {
   (AsyncStorage.getItem as jest.Mock).mockResolvedValue("[{}]");

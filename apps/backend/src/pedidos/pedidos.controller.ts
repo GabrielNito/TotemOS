@@ -17,6 +17,7 @@ import {
   Header,
   ForbiddenException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -46,6 +47,8 @@ import {
   TransicaoPedidoDto,
   TransicaoResponseDto,
 } from './dto/operacao-pedido.dto';
+import { ReconciliarPedidosDto } from './dto/reconciliar-pedidos.dto';
+import { ReconciliacaoOfflineService } from './reconciliacao-offline.service';
 
 @ApiTags('Pedidos')
 @Controller('pedidos')
@@ -54,7 +57,34 @@ export class PedidosController {
     private pedidosService: PedidosService,
     private operacao: OperacaoPedidosService,
     private senhas: SenhaPedidoService,
+    @Optional()
+    private reconciliacaoOffline?: ReconciliacaoOfflineService,
   ) {}
+
+  @Post('reconciliar')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AnyAuthGuard, DeviceTypeGuard)
+  @DeviceTypes(TipoDispositivo.PAINEL)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reconcilia pedidos recebidos pelo KDS durante queda da nuvem',
+    description:
+      'Somente PAINEL. Revalida o TOTEM de origem no mesmo tenant, recalcula snapshots pelo catálogo atual e mantém os pedidos em AGUARDANDO_PAGAMENTO.',
+  })
+  @ApiBody({ type: ReconciliarPedidosDto })
+  @ApiResponse({ status: 200, description: 'Lote reconciliado.' })
+  @ApiResponse({ status: 400, description: 'Lote inválido.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Dispositivo inválido ou revogado.',
+  })
+  @ApiResponse({ status: 403, description: 'Somente DEVICE PAINEL.' })
+  reconciliar(
+    @CurrentUser() user: UserPayload,
+    @Body() dto: ReconciliarPedidosDto,
+  ) {
+    return this.reconciliacaoOffline!.reconciliar(user.negocioId, dto);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

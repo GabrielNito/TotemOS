@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PedidosDemoController } from './pedidos-demo.controller';
 import { LiberacaoDemoService } from './liberacao-demo.service';
 import { OperacaoPedidosService } from './operacao-pedidos.service';
+import { ReconciliacaoOfflineService } from './reconciliacao-offline.service';
 
 @Module({
   imports: [AuthModule],
@@ -15,6 +16,7 @@ import { OperacaoPedidosService } from './operacao-pedidos.service';
     PedidosService,
     LiberacaoDemoService,
     OperacaoPedidosService,
+    ReconciliacaoOfflineService,
   ],
   exports: [PedidosService],
 })

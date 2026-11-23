@@ -2,6 +2,13 @@
 
 Consulte também o [registro de verificações do spike](kds-local-network-gates.md).
 
+## Implementação segura posterior ao spike
+
+Em 21/11/2026, a integração direta foi validada com dois Samsung Galaxy A54 na mesma rede Wi-Fi, sem usar ADB reverse para o tráfego entre os aparelhos. O ADB reverse foi usado somente para ligar e desligar o backend de teste sem derrubar o Wi-Fi.
+
+O KDS respondeu `GET /v1/health` em `192.168.15.3:43211` com `{"protocol":"totemos-offline","version":2}`. Com a nuvem desligada, o Totem enviou um pedido de R$ 128,00 pela LAN. O Totem exibiu a referência local `D8037EEB`; o KDS persistiu uma entrada local e manteve `0` pedidos em todas as colunas operacionais, sem senha. Após religar a nuvem, `POST /pedidos/reconciliar` respondeu 200, a faixa local desapareceu e o Totem convergiu pela mesma tentativa para o pedido cloud `56D9B279`, ainda aguardando pagamento e sem senha.
+
+Essa implementação não promove o protocolo diagnóstico v1. Ela usa protocolo v2, desafio e HMAC-SHA256, credencial LAN derivada por tenant, caixa persistente no KDS e reconciliação autoritativa no backend. O resultado encerra a lacuna histórica de dois Androids para o caminho seguro de recepção e reconciliação. Não valida pagamento offline, senha local nem autorização de preparo sem nuvem.
 
 Validar, em um spike isolado, se um KDS Android pode hospedar um servidor HTTP/WebSocket local e anunciar sua presença por mDNS para que um Totem Android descubra e estabeleça uma sessão diagnóstica.
 

@@ -283,6 +283,12 @@ export class DispositivosService implements OnModuleInit {
           dispositivo.negocio.config?.mensagemBoasVindas ?? null,
         pagamentoPointConfigurado: Boolean(dispositivo.mpPointDeviceId),
         pagamentoOfflineOperacional: false,
+        lanCredential: createHmac(
+          'sha256',
+          this.getRequiredSecret('DEVICE_TOKEN_PEPPER'),
+        )
+          .update(`totemos:lan:v1:${negocioId}`)
+          .digest('base64url'),
       },
     };
   }

@@ -2,6 +2,7 @@ import {
   pairDevice,
   restoreDeviceSession,
   type DeviceTokenStorage,
+  type DeviceSessionCache,
   type PairingApi,
 } from "./session";
 import type { DeviceIdentity } from "./types";
@@ -21,6 +22,14 @@ function createStorage(token: string | null): DeviceTokenStorage {
   return {
     delete: jest.fn(async () => undefined),
     get: jest.fn(async () => token),
+    set: jest.fn(async () => undefined),
+  };
+}
+
+function createCache(value: string | null = null): DeviceSessionCache {
+  return {
+    delete: jest.fn(async () => undefined),
+    get: jest.fn(async () => value),
     set: jest.fn(async () => undefined),
   };
 }
@@ -128,6 +137,43 @@ describe("device session state", () => {
       message: "Não foi possível verificar a sessão. Tente novamente.",
     });
     expect(storage.delete).not.toHaveBeenCalled();
+  });
+
+  it("restaura a identidade salva quando a validação online falha por rede", async () => {
+    const api = createApi();
+    const storage = createStorage("token-preservado");
+    const cache = createCache(JSON.stringify({ dispositivo: device }));
+    (api.me as jest.Mock).mockRejectedValue(new Error("network"));
+
+    await expect(
+      restoreDeviceSession({
+        api,
+        cache,
+        expectedDeviceType: "PAINEL",
+        storage,
+      }),
+    ).resolves.toMatchObject({
+      cached: true,
+      deviceToken: "token-preservado",
+      dispositivo: device,
+      kind: "authenticated",
+    });
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+
+  it("apaga identidade salva quando o backend revoga o token", async () => {
+    const api = createApi();
+    const storage = createStorage("token-revogado");
+    const cache = createCache(JSON.stringify({ dispositivo: device }));
+    (api.me as jest.Mock).mockRejectedValue({ statusCode: 401 });
+
+    await restoreDeviceSession({
+      api,
+      cache,
+      expectedDeviceType: "PAINEL",
+      storage,
+    });
+    expect(cache.delete).toHaveBeenCalledTimes(1);
   });
 
   it("rejeita código que não tenha seis dígitos sem chamar a API", async () => {

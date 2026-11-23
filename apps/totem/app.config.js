@@ -8,7 +8,11 @@ module.exports = ({ config }) => ({
   },
   plugins: [
     ...(config.plugins ?? []),
-    ...(isLanSpikeBuild
+    ...(!config.plugins?.some?.((plugin) =>
+      Array.isArray(plugin)
+        ? plugin[0] === "expo-build-properties"
+        : plugin === "expo-build-properties",
+    )
       ? [
           [
             "expo-build-properties",

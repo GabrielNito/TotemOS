@@ -24,6 +24,18 @@ jest.mock("./api", () => ({
   createQueueApi: jest.fn(),
   safeQueueError: () => "Falha de comunicação",
 }));
+jest.mock("../offline-inbox/storage", () => ({
+  offlineInboxStorage: jest.fn(() => ({
+    load: async () => [],
+    save: async () => undefined,
+  })),
+}));
+jest.mock("../offline-inbox/api", () => ({
+  createOfflineReconciliationApi: jest.fn(),
+}));
+jest.mock("../offline-lan/server", () => ({
+  createOfflineLanServer: jest.fn(),
+}));
 const authenticated = {
   kind: "authenticated",
   deviceToken: "secret",

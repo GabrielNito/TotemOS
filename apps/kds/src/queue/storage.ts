@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueueJournalError } from "./types";
 import type { OperationStorage, PendingOperation } from "./types";
+import { parsePage } from "./api";
 const uuid = (value: unknown) =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -43,6 +44,7 @@ export function operationStorage(
   negocioId: string,
 ): OperationStorage {
   const key = `totemos.kds.operations.v1.${negocioId}.${deviceId}`;
+  const snapshotKey = `totemos.kds.queue.v1.${negocioId}.${deviceId}`;
   return {
     async load() {
       const raw = await AsyncStorage.getItem(key);
@@ -63,6 +65,41 @@ export function operationStorage(
     },
     async save(ops) {
       await AsyncStorage.setItem(key, JSON.stringify(ops));
+    },
+    async loadSnapshot() {
+      const raw = await AsyncStorage.getItem(snapshotKey);
+      if (raw === null) return null;
+      try {
+        const value = JSON.parse(raw) as {
+          orders?: unknown;
+          lastSync?: unknown;
+        };
+        if (
+          !value ||
+          Array.isArray(value) ||
+          !Object.keys(value).every((field) =>
+            ["orders", "lastSync"].includes(field),
+          ) ||
+          !Array.isArray(value.orders) ||
+          typeof value.lastSync !== "number" ||
+          !Number.isFinite(value.lastSync) ||
+          value.lastSync < 0
+        )
+          throw new Error("Snapshot inválido.");
+        const orders = parsePage({
+          pedidos: value.orders,
+          proximoCursor: null,
+        }).pedidos;
+        return { orders, lastSync: value.lastSync };
+      } catch {
+        return null;
+      }
+    },
+    async saveSnapshot(orders, lastSync) {
+      await AsyncStorage.setItem(
+        snapshotKey,
+        JSON.stringify({ orders, lastSync }),
+      );
     },
   };
 }

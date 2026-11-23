@@ -1,5 +1,6 @@
 import {
   buildOrderRequest,
+  CloudUnavailableError,
   OrderSubmission,
   OrderRejectedError,
 } from "./order-submission";
@@ -84,6 +85,52 @@ test("persiste antes de enviar e recupera a mesma tentativa após falha/reiníci
     send.mock.invocationCallOrder[0],
   );
   expect(() => recovered.prepare({ itens: [] })).toThrow();
+});
+
+test("aceita no KDS offline sem inventar pedido cloud e converge pela mesma chave", async () => {
+  let saved: string | null = null;
+  const storage = {
+    get: jest.fn(async () => saved),
+    set: jest.fn(async (value: string) => {
+      saved = value;
+    }),
+  };
+  const send = jest
+    .fn()
+    .mockRejectedValueOnce(new CloudUnavailableError())
+    .mockResolvedValueOnce(response);
+  const sendOffline = jest.fn(async () => undefined);
+  const make = () =>
+    new OrderSubmission(
+      "tenant",
+      storage,
+      send,
+      () => "11111111-1111-4111-8111-111111111111",
+      undefined,
+      "device-a",
+      undefined,
+      sendOffline,
+    );
+  const first = make();
+  await first.prepare(buildOrderRequest(cart, "Ana", "NOME"));
+
+  await expect(first.submit(218)).resolves.toMatchObject({
+    id: "11111111-1111-4111-8111-111111111111",
+    offline: true,
+    status: "AGUARDANDO_PAGAMENTO",
+    valorTotal: 218,
+  });
+  expect(sendOffline).toHaveBeenCalledWith(
+    first.attempt?.request,
+    first.attempt?.key,
+    218,
+  );
+
+  const restored = make();
+  await restored.restore();
+  await expect(restored.submit(218)).resolves.toEqual(response);
+  expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);
+  expect(restored.attempt?.result?.offline).toBeUndefined();
 });
 
 test("bloqueia dois envios simultâneos e não envia se falhar a persistência", async () => {

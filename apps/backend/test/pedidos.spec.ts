@@ -367,6 +367,7 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
         expect(dados.valorTotal).toBe(33.0);
         expect(dados.status).toBe(StatusPedido.AGUARDANDO_PAGAMENTO);
         expect(dados.preparoZero).toBe(false);
+        expect(dados.origemOffline).toBe(false);
 
         const itemGravado = dados.itens.create[0];
         expect(itemGravado.precoNoMomento).toBe(25.0);
@@ -376,6 +377,47 @@ describe('Pedidos — Validação de Schemas Zod e Bloqueio de Fraude (TDD)', ()
           'Bacon Crocante',
         );
       }
+    });
+
+    test('marca origemOffline somente quando a reconciliação autoritativa solicita', async () => {
+      let pedidoCriadoDados: PedidoGravado | null = null;
+      const mockPrisma = criarMockPrisma({
+        produtos: [
+          {
+            id: produtoUuid1,
+            negocioId: mockNegocioId,
+            nome: 'Produto offline',
+            precoBase: 10,
+            tempoEstimadoPreparo: 5,
+            esgotado: false,
+            ativo: true,
+          },
+        ],
+        onCriarPedido: (dados) => {
+          pedidoCriadoDados = dados;
+        },
+      });
+      const service = new PedidosService(mockPrisma);
+
+      await service.criar(
+        mockNegocioId,
+        {
+          itens: [
+            {
+              produtoId: produtoUuid1,
+              quantidade: 1,
+              adicionais: [],
+            },
+          ],
+        },
+        { origemOffline: true },
+      );
+
+      expect(pedidoCriadoDados).not.toBeNull();
+      const dados = pedidoCriadoDados as unknown as PedidoGravado;
+      expect(dados.origemOffline).toBe(true);
+      expect(dados.status).toBe(StatusPedido.AGUARDANDO_PAGAMENTO);
+      expect(dados.senha).toBeNull();
     });
 
     test('marca preparoZero = true quando todos os produtos têm tempoEstimadoPreparo = 0', async () => {

@@ -18,4 +18,9 @@ export interface DeviceActivationResponse {
 
 export interface DeviceMeResponse {
   dispositivo: DeviceIdentity;
+  negocio?: {
+    id: string;
+    nome: string;
+    lanCredential?: string;
+  };
 }

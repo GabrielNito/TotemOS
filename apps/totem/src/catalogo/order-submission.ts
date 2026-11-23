@@ -22,6 +22,7 @@ export type PendingOrder = {
   negocioId: string;
   status: OrderStatusValue;
   valorTotal: string | number;
+  offline?: true;
 };
 export type OrderAttempt = {
   negocioId: string;
@@ -39,6 +40,12 @@ type Storage = {
 };
 type Send = (request: OrderRequest, key: string) => Promise<unknown>;
 export class OrderRejectedError extends Error {}
+export class CloudUnavailableError extends Error {}
+type SendOffline = (
+  request: OrderRequest,
+  key: string,
+  valorEstimado: number,
+) => Promise<void>;
 
 function onlyKeys(value: object, keys: string[]) {
   return (
@@ -119,7 +126,8 @@ function validateResult(value: unknown, negocioId: string): PendingOrder {
     (typeof result.valorTotal === "string" &&
       !/^\d+(\.\d{1,2})?$/.test(result.valorTotal)) ||
     !Number.isFinite(Number(result.valorTotal)) ||
-    Number(result.valorTotal) < 0
+    Number(result.valorTotal) < 0 ||
+    (result.offline !== undefined && result.offline !== true)
   )
     throw new Error(
       "Não foi possível confirmar o resultado. Tente consultar novamente.",
@@ -129,6 +137,7 @@ function validateResult(value: unknown, negocioId: string): PendingOrder {
     negocioId,
     status: result.status,
     valorTotal: result.valorTotal,
+    ...(result.offline === true && { offline: true as const }),
   };
 }
 
@@ -144,6 +153,7 @@ export class OrderSubmission {
     private clearCart?: () => Promise<void>,
     private dispositivoId?: string,
     private verifyLegacyOrder?: (id: string) => Promise<TrackingSnapshot>,
+    private sendOffline?: SendOffline,
   ) {}
   async restore() {
     const saved = await this.storage.get();
@@ -264,10 +274,11 @@ export class OrderSubmission {
         this.busy = false;
       });
   }
-  async submit(): Promise<PendingOrder> {
+  async submit(valorEstimado?: number): Promise<PendingOrder> {
     if (this.busy || !this.attempt)
       throw new Error("Envio em andamento ou pedido ausente.");
-    if (this.attempt.result) return this.attempt.result;
+    if (this.attempt.result && !this.attempt.result.offline)
+      return this.attempt.result;
     // A record from before this flag may already have reached the server.
     const firstPost = this.attempt.postStarted === false;
     const sending = { ...this.attempt, postStarted: true };
@@ -284,6 +295,30 @@ export class OrderSubmission {
       this.attempt.result = result;
       return result;
     } catch (error) {
+      const localValue =
+        valorEstimado ?? Number(this.attempt.result?.valorTotal ?? NaN);
+      if (
+        error instanceof CloudUnavailableError &&
+        this.sendOffline &&
+        Number.isFinite(localValue) &&
+        localValue >= 0
+      ) {
+        await this.sendOffline(
+          this.attempt.request,
+          this.attempt.key,
+          localValue,
+        );
+        const result: PendingOrder = {
+          id: this.attempt.key,
+          negocioId: this.negocioId,
+          status: "AGUARDANDO_PAGAMENTO",
+          valorTotal: localValue,
+          offline: true,
+        };
+        await this.storage.set(JSON.stringify({ ...this.attempt, result }));
+        this.attempt.result = result;
+        return result;
+      }
       if (error instanceof OrderRejectedError) {
         if (!firstPost) {
           throw new Error("O envio anterior ainda não foi confirmado.");
