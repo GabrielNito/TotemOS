@@ -15,6 +15,7 @@ import { inicioDiaSaoPaulo } from './periodo-criacao';
 export interface CriarPedidoOptions {
   dispositivoId?: string;
   idempotencyKey?: string;
+  origemOffline?: boolean;
 }
 
 export interface ListarPedidosFiltro {
@@ -300,7 +301,7 @@ export class PedidosService {
               codigoCliente: dto.codigoCliente,
               valorTotal: valorTotalPedido,
               observacoes: dto.observacoes,
-              origemOffline: false,
+              origemOffline: options?.origemOffline === true,
               preparoZero: todosComPreparoZero,
               demo: demoAmbiente !== null,
               demoAmbiente,
