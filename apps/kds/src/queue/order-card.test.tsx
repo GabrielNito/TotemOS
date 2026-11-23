@@ -36,6 +36,7 @@ it("shows operational date, DEMO and complete observations with accessible touch
     />,
   );
   expect(screen.getByText("Dia 01/11/2026")).toBeTruthy();
+  expect(screen.getByText("Pronto")).toBeTruthy();
   expect(screen.getByText(/DEMO/)).toBeTruthy();
   expect(
     screen.getByText(/Entregar sem abrir/).props.numberOfLines,
@@ -44,6 +45,12 @@ it("shows operational date, DEMO and complete observations with accessible touch
     screen.getByRole("button", { name: "Confirmar entrega do pedido 12" }),
   );
   expect(action).toHaveBeenCalledWith(order);
+  const button = screen.getByRole("button", {
+    name: "Confirmar entrega do pedido 12",
+  });
+  expect(button.props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ minHeight: 56 })]),
+  );
 });
 it("blocks stale and uncertain operations", async () => {
   const action = jest.fn();

@@ -48,6 +48,32 @@ function setup(initial: PendingOperation[] = []) {
   controllers.push(controller);
   return { controller, api, storage, expired };
 }
+
+it("restores the last confirmed queue as read-only when startup is offline", async () => {
+  const { controller, api, storage } = setup();
+  Object.assign(storage, {
+    loadSnapshot: jest.fn(async () => ({
+      orders: [order()],
+      lastSync: 1234,
+    })),
+  });
+  api.list.mockRejectedValue(new Error("offline"));
+
+  await controller.start();
+
+  expect(controller.state.orders).toEqual([order()]);
+  expect(controller.state.loaded).toBe(true);
+  expect(controller.state.stale).toBe(true);
+  expect(controller.state.lastSync).toBe(1234);
+});
+
+it("persists a validated queue after a complete online refresh", async () => {
+  const { controller, storage } = setup();
+  const saveSnapshot = jest.fn(async () => undefined);
+  Object.assign(storage, { saveSnapshot });
+  await controller.start();
+  expect(saveSnapshot).toHaveBeenCalledWith([order()], expect.any(Number));
+});
 afterEach(() => {
   controllers.splice(0).forEach((c) => c.stop());
   jest.useRealTimers();

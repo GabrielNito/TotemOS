@@ -45,6 +45,7 @@ export class QueueController {
   private active = false;
   private running = false;
   private loadedJournal = false;
+  private loadedSnapshot = false;
   private timer?: ReturnType<typeof setTimeout>;
   private abort?: AbortController;
   private seen = new Set<string>();
@@ -283,6 +284,28 @@ export class QueueController {
       message: this.state.pending.length ? this.state.message : this.notice,
     });
   }
+  private async restoreSnapshot() {
+    if (this.loadedSnapshot) return;
+    this.loadedSnapshot = true;
+    const snapshot = await this.storage.loadSnapshot?.();
+    if (!snapshot) return;
+    snapshot.orders.forEach((order) => this.seen.add(order.id));
+    this.initialized = true;
+    this.update({
+      orders: snapshot.orders,
+      loaded: true,
+      stale: true,
+      lastSync: snapshot.lastSync,
+    });
+  }
+  private async persistSnapshot() {
+    if (!this.storage.saveSnapshot || this.state.lastSync === null) return;
+    try {
+      await this.storage.saveSnapshot(this.state.orders, this.state.lastSync);
+    } catch {
+      // A fila online continua autoritativa; a falha afeta apenas o próximo boot offline.
+    }
+  }
   refresh = async () => {
     if (!this.active || this.running) return;
     if (Date.now() < this.retryAt) {
@@ -302,6 +325,10 @@ export class QueueController {
         pending.forEach((op) => this.recovering.add(op.key));
         this.loadedJournal = true;
       }
+      if (this.storage.loadSnapshot) {
+        await this.restoreSnapshot();
+        if (!current()) return;
+      } else this.loadedSnapshot = true;
       // Recover original operations even when the order is no longer in the open queue.
       for (const op of this.state.pending) {
         if (!current()) return;
@@ -314,6 +341,7 @@ export class QueueController {
       const orders = await this.readOrders(current);
       if (!current()) return;
       this.acceptOrders(orders);
+      await this.persistSnapshot();
       this.failures = 0;
       this.retryAt = 0;
       let attemptedNumbering = false;
@@ -344,7 +372,10 @@ export class QueueController {
       }
       if (attemptedNumbering && current() && this.state.pending.length === 0) {
         const reconciled = await this.readOrders(current);
-        if (current()) this.acceptOrders(reconciled);
+        if (current()) {
+          this.acceptOrders(reconciled);
+          await this.persistSnapshot();
+        }
       }
     } catch (error) {
       if (current()) {

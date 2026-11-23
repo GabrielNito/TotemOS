@@ -37,7 +37,9 @@ export interface PendingOperation {
 }
 export interface OperationStorage {
   load(): Promise<PendingOperation[]>;
+  loadSnapshot?(): Promise<{ orders: Order[]; lastSync: number } | null>;
   save(ops: PendingOperation[]): Promise<void>;
+  saveSnapshot?(orders: Order[], lastSync: number): Promise<void>;
 }
 export interface QueueApi {
   list(signal?: AbortSignal): Promise<Order[]>;
